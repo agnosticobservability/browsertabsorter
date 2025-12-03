@@ -13,8 +13,20 @@ function Ensure-GitInstalled {
     }
 }
 
+function Ensure-GitRepository {
+    param (
+        [string]$RepoRoot
+    )
+
+    if (-not (Test-Path (Join-Path $RepoRoot '.git'))) {
+        throw "No .git folder found in '$RepoRoot'. Clone the repository (not a ZIP download) before running this script."
+    }
+}
+
 function Ensure-CleanWorkingTree {
-    $status = git status --porcelain
+    # Ignore untracked files so that local build artifacts or custom files do not block updates.
+    # Only warn when tracked files have pending changes.
+    $status = git status --porcelain --untracked-files=no
     if ($status) {
         throw 'Working tree has uncommitted changes. Please commit, stash, or discard them before updating.'
     }
@@ -32,6 +44,9 @@ function Get-DefaultBranch {
 function Update-Repository {
     $scriptRoot = Split-Path -Parent $PSCommandPath
     $repoRoot = Split-Path -Parent $scriptRoot
+
+    Write-Section 'Validating repository root'
+    Ensure-GitRepository -RepoRoot $repoRoot
 
     Push-Location $repoRoot
     try {

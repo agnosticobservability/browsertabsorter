@@ -29,13 +29,13 @@ The build emits compiled files in `dist/` which are referenced by the manifest a
 4. Pin the extension and open the popup to view grouped tabs.
 
 ## Updating from Windows
-Run the PowerShell helper to pull the latest changes from the GitHub repository:
+Run the PowerShell helper from a Git clone (not a ZIP download) to pull the latest changes from the GitHub repository:
 
 ```pwsh
 powershell -ExecutionPolicy Bypass -File scripts/update-from-github.ps1
 ```
 
-The script verifies Git is installed, checks for a clean working tree, switches to the default branch tracked by `origin`, and performs a fast-forward pull.
+The script ensures the repository has a `.git` folder, verifies Git is installed, confirms no tracked files have pending changes (untracked files are allowed), switches to the default branch tracked by `origin`, and performs a fast-forward pull.
 
 ## Extending strategies
 - Add new grouping heuristics in `src/background/groupingStrategies.ts` and register them in the UI drop-downs.
