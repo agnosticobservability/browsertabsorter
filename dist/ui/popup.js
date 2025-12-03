@@ -2,6 +2,9 @@ const groupsContainer = document.getElementById("groups");
 const refreshButton = document.getElementById("refresh");
 const saveButton = document.getElementById("saveSession");
 const sessionNameInput = document.getElementById("sessionName");
+const filterInput = document.getElementById("filterInput");
+const applyFilterButton = document.getElementById("applyFilter");
+let latestGroups = [];
 const fetchState = async () => {
     const response = await chrome.runtime.sendMessage({ type: "getState" });
     return response;
@@ -34,12 +37,31 @@ const renderGroups = (groups) => {
                 await chrome.tabs.remove(tab.id);
                 const state = await fetchState();
                 if (state.ok && state.data)
-                    renderGroups(state.data.groups);
+                    updateGroups(state.data.groups);
             });
             list.appendChild(tabNode);
         });
         groupsContainer.appendChild(node);
     });
+};
+const updateGroups = (groups) => {
+    latestGroups = groups;
+    renderGroups(groups);
+};
+const applyFilter = () => {
+    const query = filterInput.value.trim().toLowerCase();
+    if (!query) {
+        renderGroups(latestGroups);
+        return;
+    }
+    const filteredGroups = latestGroups
+        .map((group) => (Object.assign(Object.assign({}, group), { tabs: group.tabs.filter((tab) => {
+        const title = tab.title.toLowerCase();
+        const url = tab.url.toLowerCase();
+        return title.includes(query) || url.includes(query);
+    }) })))
+        .filter((group) => group.tabs.length > 0);
+    renderGroups(filteredGroups);
 };
 const onSaveSession = async () => {
     const name = sessionNameInput.value.trim() || `Session ${new Date().toLocaleString()}`;
@@ -52,13 +74,14 @@ const onSaveSession = async () => {
 const initialize = async () => {
     const state = await fetchState();
     if (state.ok && state.data)
-        renderGroups(state.data.groups);
+        updateGroups(state.data.groups);
 };
 refreshButton.addEventListener("click", async () => {
     const state = await applyGrouping();
     if (state.ok && state.data)
-        renderGroups(state.data.groups);
+        updateGroups(state.data.groups);
 });
 saveButton.addEventListener("click", onSaveSession);
+applyFilterButton.addEventListener("click", applyFilter);
 initialize();
 export {};
