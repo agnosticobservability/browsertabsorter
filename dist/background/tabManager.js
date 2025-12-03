@@ -30,8 +30,19 @@ export const fetchTabGroups = async (preferences) => {
 };
 export const applyTabGroups = async (groups) => {
     for (const group of groups) {
-        const groupId = await chrome.tabs.group({ tabIds: group.tabs.map((t) => t.id) });
-        await chrome.tabGroups.update(groupId, { title: group.label, color: group.color });
+        const tabsByWindow = group.tabs.reduce((acc, tab) => {
+            const existing = acc.get(tab.windowId) ?? [];
+            existing.push(tab);
+            acc.set(tab.windowId, existing);
+            return acc;
+        }, new Map());
+        for (const tabs of tabsByWindow.values()) {
+            const groupId = await chrome.tabs.group({ tabIds: tabs.map((t) => t.id) });
+            await chrome.tabGroups.update(groupId, {
+                title: group.label,
+                color: group.color
+            });
+        }
     }
 };
 export const saveSession = async (name, groups) => {

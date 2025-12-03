@@ -34,8 +34,20 @@ export const fetchTabGroups = async (preferences: Preferences): Promise<TabGroup
 
 export const applyTabGroups = async (groups: TabGroup[]) => {
   for (const group of groups) {
-    const groupId = await chrome.tabs.group({ tabIds: group.tabs.map((t) => t.id) });
-    await chrome.tabGroups.update(groupId, { title: group.label, color: group.color as chrome.tabGroups.ColorEnum });
+    const tabsByWindow = group.tabs.reduce<Map<number, TabMetadata[]>>((acc, tab) => {
+      const existing = acc.get(tab.windowId) ?? [];
+      existing.push(tab);
+      acc.set(tab.windowId, existing);
+      return acc;
+    }, new Map());
+
+    for (const tabs of tabsByWindow.values()) {
+      const groupId = await chrome.tabs.group({ tabIds: tabs.map((t) => t.id) });
+      await chrome.tabGroups.update(groupId, {
+        title: group.label,
+        color: group.color as chrome.tabGroups.ColorEnum
+      });
+    }
   }
 };
 
