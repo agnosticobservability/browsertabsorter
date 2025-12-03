@@ -2,7 +2,6 @@ import { Preferences } from "../shared/types.js";
 
 const primarySelect = document.getElementById("primaryGrouping") as HTMLSelectElement;
 const secondarySelect = document.getElementById("secondaryGrouping") as HTMLSelectElement;
-const autoGroupCheckbox = document.getElementById("autoGroup") as HTMLInputElement;
 const sortPinned = document.getElementById("sortPinned") as HTMLInputElement;
 const sortRecency = document.getElementById("sortRecency") as HTMLInputElement;
 const sortHierarchy = document.getElementById("sortHierarchy") as HTMLInputElement;
@@ -30,7 +29,6 @@ const loadPreferences = async () => {
   const prefs = response.data;
   primarySelect.value = prefs.primaryGrouping;
   secondarySelect.value = prefs.secondaryGrouping;
-  autoGroupCheckbox.checked = prefs.autoGroupNewTabs;
   sortPinned.checked = prefs.sorting.includes("pinned");
   sortRecency.checked = prefs.sorting.includes("recency");
   sortHierarchy.checked = prefs.sorting.includes("hierarchy");
@@ -48,7 +46,6 @@ const savePreferences = async () => {
     primaryGrouping: primarySelect.value as Preferences["primaryGrouping"],
     secondaryGrouping: secondarySelect.value as Preferences["secondaryGrouping"],
     sorting: sorting.length ? sorting : ["pinned", "recency"],
-    autoGroupNewTabs: autoGroupCheckbox.checked,
     debug: debugMode.checked
   };
 

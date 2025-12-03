@@ -24,7 +24,6 @@ export interface Preferences {
   primaryGrouping: GroupingStrategy;
   secondaryGrouping: GroupingStrategy;
   sorting: SortingStrategy[];
-  autoGroupNewTabs: boolean;
   debug: boolean;
 }
 
