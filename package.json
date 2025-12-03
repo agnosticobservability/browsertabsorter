@@ -1,0 +1,15 @@
+{
+  "name": "browsertabsorter",
+  "version": "1.0.0",
+  "description": "Chromium MV3 extension for grouping and sorting tabs",
+  "license": "MIT",
+  "scripts": {
+    "prebuild": "node scripts/generate-icons.mjs",
+    "build": "tsc --pretty",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.246",
+    "typescript": "^5.6.3"
+  }
+}
