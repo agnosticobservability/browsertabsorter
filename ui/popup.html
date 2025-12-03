@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="popup.css" />
+    <title>Tab Sorter</title>
+  </head>
+  <body>
+    <header>
+      <h1>Tab Sorter</h1>
+      <button id="refresh" title="Refresh grouping">↻</button>
+    </header>
+    <section id="groups"></section>
+    <section id="actions">
+      <input id="sessionName" placeholder="Session name" aria-label="Session name" />
+      <button id="saveSession">Save Session</button>
+      <a href="options.html" target="_blank" rel="noreferrer">Preferences</a>
+    </section>
+    <template id="group-template">
+      <article class="group">
+        <div class="group-header">
+          <div class="group-title"></div>
+          <span class="group-reason"></span>
+        </div>
+        <ul class="tab-list"></ul>
+      </article>
+    </template>
+    <template id="tab-template">
+      <li class="tab-item">
+        <span class="tab-title"></span>
+        <button class="close-tab" aria-label="Close tab">✕</button>
+      </li>
+    </template>
+    <script type="module" src="../dist/ui/popup.js"></script>
+  </body>
+</html>

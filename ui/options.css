@@ -1,0 +1,62 @@
+:root {
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  color: #0f172a;
+  background: #f8fafc;
+}
+
+body {
+  margin: 0;
+  padding: 20px;
+  background: #f8fafc;
+}
+
+main {
+  max-width: 640px;
+  margin: 0 auto;
+  background: #fff;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e2e8f0;
+}
+
+h1 {
+  margin-top: 0;
+}
+
+section {
+  margin-bottom: 16px;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 10px;
+  font-weight: 600;
+}
+
+select,
+input[type="checkbox"] {
+  margin-top: 4px;
+}
+
+button {
+  border: 1px solid #0ea5e9;
+  background: #0ea5e9;
+  color: white;
+  padding: 8px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+button:hover {
+  background: #0284c7;
+}
+
+#toast {
+  margin-top: 12px;
+  color: #16a34a;
+  min-height: 20px;
+}

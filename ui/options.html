@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="options.css" />
+    <title>Tab Sorter Preferences</title>
+  </head>
+  <body>
+    <main>
+      <h1>Preferences</h1>
+      <section>
+        <h2>Grouping</h2>
+        <label>
+          Primary strategy
+          <select id="primaryGrouping"></select>
+        </label>
+        <label>
+          Secondary strategy
+          <select id="secondaryGrouping"></select>
+        </label>
+        <label>
+          <input type="checkbox" id="autoGroup" /> Auto-group new tabs
+        </label>
+      </section>
+      <section>
+        <h2>Sorting</h2>
+        <label>
+          <input type="checkbox" id="sortPinned" /> Pinned before others
+        </label>
+        <label>
+          <input type="checkbox" id="sortRecency" /> Most recent first
+        </label>
+        <label>
+          <input type="checkbox" id="sortHierarchy" /> Parents before children
+        </label>
+      </section>
+      <section>
+        <h2>Debug</h2>
+        <label>
+          <input type="checkbox" id="debugMode" /> Enable debug logging
+        </label>
+      </section>
+      <button id="save">Save Preferences</button>
+      <div id="toast" role="status" aria-live="polite"></div>
+    </main>
+    <script type="module" src="../dist/ui/options.js"></script>
+  </body>
+</html>
