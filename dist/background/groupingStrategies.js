@@ -44,7 +44,7 @@ export const groupTabs = (tabs, primary, secondary) => {
     tabs.forEach((tab) => {
         const primaryKey = groupingKey(tab, primary);
         const secondaryKey = groupingKey(tab, secondary);
-        const bucketKey = `${primaryKey}::${secondaryKey}`;
+        const bucketKey = `window-${tab.windowId}::${primaryKey}::${secondaryKey}`;
         const existing = buckets.get(bucketKey);
         if (existing) {
             existing.tabs.push(tab);
@@ -53,6 +53,7 @@ export const groupTabs = (tabs, primary, secondary) => {
             const label = primaryKey === secondaryKey ? primaryKey : `${primaryKey} · ${secondaryKey}`;
             buckets.set(bucketKey, {
                 id: bucketKey,
+                windowId: tab.windowId,
                 label,
                 color: colorForKey(bucketKey, buckets.size),
                 tabs: [tab],

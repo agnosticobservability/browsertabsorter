@@ -10,6 +10,7 @@ export interface TabMetadata {
 
 export interface TabGroup {
   id: string;
+  windowId: number;
   label: string;
   color: string;
   tabs: TabMetadata[];
