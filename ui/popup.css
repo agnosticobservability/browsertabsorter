@@ -42,6 +42,20 @@ button:hover {
   gap: 10px;
 }
 
+#filterBar {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+#filterInput {
+  flex: 1;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+}
+
 .group {
   background: #fff;
   border: 1px solid #e2e8f0;
