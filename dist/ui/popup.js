@@ -55,11 +55,14 @@ const applyFilter = () => {
         return;
     }
     const filteredGroups = latestGroups
-        .map((group) => (Object.assign(Object.assign({}, group), { tabs: group.tabs.filter((tab) => {
-        const title = tab.title.toLowerCase();
-        const url = tab.url.toLowerCase();
-        return title.includes(query) || url.includes(query);
-    }) })))
+        .map((group) => ({
+        ...group,
+        tabs: group.tabs.filter((tab) => {
+            const title = tab.title.toLowerCase();
+            const url = tab.url.toLowerCase();
+            return title.includes(query) || url.includes(query);
+        })
+    }))
         .filter((group) => group.tabs.length > 0);
     renderGroups(filteredGroups);
 };

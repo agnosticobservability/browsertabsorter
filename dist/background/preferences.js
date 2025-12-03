@@ -5,7 +5,6 @@ export const defaultPreferences = {
     primaryGrouping: "domain",
     secondaryGrouping: "semantic",
     sorting: ["pinned", "recency"],
-    autoGroupNewTabs: true,
     debug: false
 };
 export const loadPreferences = async () => {
