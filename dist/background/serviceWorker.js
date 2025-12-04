@@ -48,11 +48,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     });
     return true;
 });
-chrome.tabs.onCreated.addListener(async () => {
+chrome.tabs.onCreated.addListener(async (tab) => {
     const prefs = await loadPreferences();
     if (!prefs.autoGroupNewTabs)
         return;
-    const groups = await fetchTabGroups(prefs);
+    if (!tab.windowId)
+        return;
+    const groups = await fetchTabGroups(prefs, tab.windowId);
     await applyTabGroups(groups);
 });
 chrome.tabGroups.onRemoved.addListener(async (group) => {
