@@ -16,8 +16,8 @@ const mapChromeTab = (tab) => {
         openerTabId: tab.openerTabId ?? undefined
     };
 };
-export const fetchTabGroups = async (preferences) => {
-    const chromeTabs = await chrome.tabs.query({});
+export const fetchTabGroups = async (preferences, windowId) => {
+    const chromeTabs = await chrome.tabs.query(windowId ? { windowId } : {});
     const mapped = chromeTabs
         .map(mapChromeTab)
         .filter((tab) => Boolean(tab));

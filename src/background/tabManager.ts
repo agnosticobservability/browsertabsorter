@@ -19,8 +19,11 @@ const mapChromeTab = (tab: chrome.tabs.Tab): TabMetadata | null => {
   };
 };
 
-export const fetchTabGroups = async (preferences: Preferences): Promise<TabGroup[]> => {
-  const chromeTabs = await chrome.tabs.query({});
+export const fetchTabGroups = async (
+  preferences: Preferences,
+  windowId?: number
+): Promise<TabGroup[]> => {
+  const chromeTabs = await chrome.tabs.query(windowId ? { windowId } : {});
   const mapped = chromeTabs
     .map(mapChromeTab)
     .filter((tab): tab is TabMetadata => Boolean(tab));

@@ -62,6 +62,14 @@ chrome.runtime.onMessage.addListener(
   }
 );
 
+chrome.tabs.onCreated.addListener(async (tab) => {
+  const prefs = await loadPreferences();
+  if (!prefs.autoGroupNewTabs) return;
+  if (!tab.windowId) return;
+  const groups = await fetchTabGroups(prefs, tab.windowId);
+  await applyTabGroups(groups);
+});
+
 chrome.tabGroups.onRemoved.addListener(async (group) => {
   logInfo("Tab group removed", { group });
 });
