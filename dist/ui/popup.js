@@ -97,7 +97,7 @@ const renderGroups = (groups) => {
 };
 const updateGroups = (groups) => {
     latestGroups = groups;
-    renderGroups(applySortingToGroups(groups));
+    renderGroups(groups);
 };
 const applyFilter = () => {
     const query = filterInput.value.trim().toLowerCase();
@@ -142,6 +142,5 @@ refreshButton.addEventListener("click", async () => {
 });
 saveButton.addEventListener("click", onSaveSession);
 applyFilterButton.addEventListener("click", applyFilter);
-sortSelect.addEventListener("change", () => renderGroups(applySortingToGroups(latestGroups)));
 initialize();
 export {};

@@ -107,7 +107,7 @@ const renderGroups = (groups: TabGroup[]) => {
 
 const updateGroups = (groups: TabGroup[]) => {
   latestGroups = groups;
-  renderGroups(applySortingToGroups(groups));
+  renderGroups(groups);
 };
 
 const applyFilter = () => {
@@ -157,6 +157,5 @@ refreshButton.addEventListener("click", async () => {
 
 saveButton.addEventListener("click", onSaveSession);
 applyFilterButton.addEventListener("click", applyFilter);
-sortSelect.addEventListener("change", () => renderGroups(applySortingToGroups(latestGroups)));
 
 initialize();
