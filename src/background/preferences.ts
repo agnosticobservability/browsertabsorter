@@ -8,7 +8,6 @@ export const defaultPreferences: Preferences = {
   primaryGrouping: "domain",
   secondaryGrouping: "semantic",
   sorting: ["pinned", "recency"],
-  autoGroupNewTabs: true,
   debug: false
 };
 
