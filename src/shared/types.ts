@@ -25,6 +25,7 @@ export interface Preferences {
   secondaryGrouping: GroupingStrategy;
   sorting: SortingStrategy[];
   debug: boolean;
+  autoGroupNewTabs: boolean;
 }
 
 export interface SavedSession {
