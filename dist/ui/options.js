@@ -6,6 +6,7 @@ const sortHierarchy = document.getElementById("sortHierarchy");
 const debugMode = document.getElementById("debugMode");
 const saveButton = document.getElementById("save");
 const toast = document.getElementById("toast");
+let autoGroupNewTabs = false;
 const populateOptions = () => {
     [primarySelect, secondarySelect].forEach((select) => {
         ["domain", "semantic", "navigation"].forEach((value) => {
@@ -27,6 +28,7 @@ const loadPreferences = async () => {
     sortRecency.checked = prefs.sorting.includes("recency");
     sortHierarchy.checked = prefs.sorting.includes("hierarchy");
     debugMode.checked = prefs.debug;
+    autoGroupNewTabs = prefs.autoGroupNewTabs;
 };
 const savePreferences = async () => {
     const sorting = [
@@ -38,7 +40,8 @@ const savePreferences = async () => {
         primaryGrouping: primarySelect.value,
         secondaryGrouping: secondarySelect.value,
         sorting: sorting.length ? sorting : ["pinned", "recency"],
-        debug: debugMode.checked
+        debug: debugMode.checked,
+        autoGroupNewTabs
     };
     const response = await chrome.runtime.sendMessage({ type: "savePreferences", payload: prefs });
     if (response.ok) {
