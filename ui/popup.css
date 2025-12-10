@@ -10,6 +10,9 @@
 
 body {
   margin: 0;
+  padding: 8px;
+  width: 100%;
+  max-width: 360px;
   padding: 10px;
   width: 380px;
   background: #f8fafc;
@@ -20,6 +23,7 @@ body {
   align-items: flex-start;
   justify-content: space-between;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .brand h1 {
@@ -52,12 +56,13 @@ body {
 button {
   border: 1px solid #cbd5e1;
   background: #fff;
-  padding: 6px 10px;
+  padding: 5px 8px;
   border-radius: 6px;
   cursor: pointer;
   font-weight: 600;
   transition: background 0.15s ease, transform 0.1s ease;
   color: #0f172a;
+  min-width: 0;
 }
 
 button:hover {
@@ -154,7 +159,8 @@ a:hover {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .window-meta {
@@ -189,6 +195,8 @@ a:hover {
 .window-actions {
   display: flex;
   gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .tab-list {
@@ -212,6 +220,7 @@ a:hover {
   border: 1px solid #e2e8f0;
   border-radius: 8px;
   background: #f8fafc;
+  align-items: center;
 }
 
 .tab-main {
@@ -259,6 +268,8 @@ a:hover {
   display: flex;
   gap: 4px;
   align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .select-checkbox {
