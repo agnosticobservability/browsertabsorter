@@ -1,5 +1,10 @@
 import { groupTabs } from "./groupingStrategies.js";
 import { sortTabs } from "./sortingStrategies.js";
+import { logDebug, logError, logInfo } from "./logger.js";
+import { GroupingSelection, Preferences, SavedSession, TabGroup, TabMetadata } from "../shared/types.js";
+import { getStoredValue, setStoredValue } from "./storage.js";
+
+const SESSIONS_KEY = "sessions";
 import { logDebug, logInfo } from "./logger.js";
 import { Preferences, TabGroup, TabMetadata } from "../shared/types.js";
 
@@ -18,10 +23,17 @@ const mapChromeTab = (tab: chrome.tabs.Tab): TabMetadata | null => {
 
 export const fetchTabGroups = async (
   preferences: Preferences,
-  windowId?: number
+  filter?: GroupingSelection
 ): Promise<TabGroup[]> => {
-  const chromeTabs = await chrome.tabs.query(windowId ? { windowId } : {});
-  const mapped = chromeTabs
+  const chromeTabs = await chrome.tabs.query({});
+  const windowIdSet = new Set(filter?.windowIds ?? []);
+  const tabIdSet = new Set(filter?.tabIds ?? []);
+  const hasFilters = windowIdSet.size > 0 || tabIdSet.size > 0;
+  const filteredTabs = chromeTabs.filter((tab) => {
+    if (!hasFilters) return true;
+    return (tab.windowId && windowIdSet.has(tab.windowId)) || (tab.id && tabIdSet.has(tab.id));
+  });
+  const mapped = filteredTabs
     .map(mapChromeTab)
     .filter((tab): tab is TabMetadata => Boolean(tab));
   const grouped = groupTabs(mapped, preferences.primaryGrouping, preferences.secondaryGrouping);

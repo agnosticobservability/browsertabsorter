@@ -144,6 +144,12 @@ a:hover {
   gap: 8px;
 }
 
+.window-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .window-title {
   margin: 0;
   font-size: 1rem;
@@ -177,7 +183,8 @@ a:hover {
 
 .tab-row {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
   gap: 8px;
   padding: 8px;
   border: 1px solid #e2e8f0;
@@ -230,6 +237,13 @@ a:hover {
   display: flex;
   gap: 6px;
   align-items: center;
+}
+
+.select-checkbox {
+  width: 16px;
+  height: 16px;
+  accent-color: #0ea5e9;
+  margin: 0;
 }
 
 .empty-state {

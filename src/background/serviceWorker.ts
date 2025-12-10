@@ -1,6 +1,7 @@
 import { applyTabGroups, fetchTabGroups } from "./tabManager.js";
 import { loadPreferences, savePreferences } from "./preferences.js";
 import { logDebug, logInfo } from "./logger.js";
+import { GroupingSelection, RuntimeMessage, RuntimeResponse, TabGroup } from "../shared/types.js";
 import { RuntimeMessage, RuntimeResponse } from "../shared/types.js";
 
 chrome.runtime.onInstalled.addListener(async () => {
@@ -21,7 +22,8 @@ const handleMessage = async <TData>(
     }
     case "applyGrouping": {
       const prefs = await loadPreferences();
-      const groups = await fetchTabGroups(prefs);
+      const selection = (message.payload as GroupingSelection | undefined) ?? {};
+      const groups = await fetchTabGroups(prefs, selection);
       await applyTabGroups(groups);
       return { ok: true, data: { groups } as TData };
     }
@@ -57,7 +59,7 @@ chrome.tabs.onCreated.addListener(async (tab) => {
   const prefs = await loadPreferences();
   if (!prefs.autoGroupNewTabs) return;
   if (!tab.windowId) return;
-  const groups = await fetchTabGroups(prefs, tab.windowId);
+  const groups = await fetchTabGroups(prefs, { windowIds: [tab.windowId] });
   await applyTabGroups(groups);
 });
 
