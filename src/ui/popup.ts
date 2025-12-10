@@ -1,4 +1,4 @@
-import { RuntimeResponse, TabGroup, TabMetadata } from "../shared/types.js";
+import { GroupingSelection, RuntimeResponse, TabGroup, TabMetadata } from "../shared/types.js";
 
 type TabWithGroup = TabMetadata & {
   groupLabel: string;
@@ -15,23 +15,26 @@ interface WindowView {
 }
 
 const refreshButton = document.getElementById("refresh") as HTMLButtonElement;
-const regroupButton = document.getElementById("regroup") as HTMLButtonElement;
+const groupButton = document.getElementById("group") as HTMLButtonElement;
 const saveButton = document.getElementById("saveSession") as HTMLButtonElement;
 const sessionNameInput = document.getElementById("sessionName") as HTMLInputElement;
+const regroupButton = document.getElementById("regroup") as HTMLButtonElement;
 const searchInput = document.getElementById("tabSearch") as HTMLInputElement;
 const windowsContainer = document.getElementById("windows") as HTMLDivElement;
 
 let windowState: WindowView[] = [];
 let focusedWindowId: number | null = null;
 const expandedWindows = new Set<number>();
+const selectedWindows = new Set<number>();
+const selectedTabs = new Set<number>();
 
 const fetchState = async () => {
   const response = await chrome.runtime.sendMessage({ type: "getState" });
   return response as RuntimeResponse<{ groups: TabGroup[] }>;
 };
 
-const applyGrouping = async () => {
-  const response = await chrome.runtime.sendMessage({ type: "applyGrouping" });
+const applyGrouping = async (selection: GroupingSelection) => {
+  const response = await chrome.runtime.sendMessage({ type: "applyGrouping", payload: selection });
   return response as RuntimeResponse<unknown>;
 };
 
@@ -70,6 +73,52 @@ const formatDomain = (url: string) => {
   }
 };
 
+const pruneSelections = () => {
+  const availableWindows = new Set(windowState.map((window) => window.id));
+  const availableTabs = new Set<number>();
+  windowState.forEach((window) => {
+    window.tabs.forEach((tab) => availableTabs.add(tab.id));
+  });
+
+  Array.from(selectedWindows).forEach((id) => {
+    if (!availableWindows.has(id)) selectedWindows.delete(id);
+  });
+
+  Array.from(selectedTabs).forEach((id) => {
+    if (!availableTabs.has(id)) selectedTabs.delete(id);
+  });
+};
+
+const toggleWindowSelection = (window: WindowView, checked: boolean) => {
+  if (checked) {
+    selectedWindows.add(window.id);
+    window.tabs.forEach((tab) => selectedTabs.add(tab.id));
+  } else {
+    selectedWindows.delete(window.id);
+    window.tabs.forEach((tab) => selectedTabs.delete(tab.id));
+  }
+};
+
+const updateWindowSelectionFromTabs = (window: WindowView) => {
+  const allSelected = window.tabs.every((tab) => selectedTabs.has(tab.id));
+  if (allSelected) {
+    selectedWindows.add(window.id);
+  } else {
+    selectedWindows.delete(window.id);
+  }
+};
+
+const buildSelectionPayload = (): GroupingSelection => {
+  return {
+    windowIds: Array.from(selectedWindows),
+    tabIds: Array.from(selectedTabs)
+  };
+};
+
+const syncGroupButtonState = () => {
+  groupButton.disabled = selectedWindows.size === 0 && selectedTabs.size === 0;
+};
+
 const badge = (text: string, className = "") => {
   const pill = document.createElement("span");
   pill.className = `badge ${className}`.trim();
@@ -77,13 +126,28 @@ const badge = (text: string, className = "") => {
   return pill;
 };
 
-const renderTabs = (tabs: TabWithGroup[]) => {
+const renderTabs = (tabs: TabWithGroup[], window: WindowView) => {
   const list = document.createElement("div");
   list.className = "tab-list";
 
   tabs.forEach((tab) => {
     const row = document.createElement("div");
     row.className = "tab-row";
+
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.className = "select-checkbox";
+    checkbox.checked = selectedTabs.has(tab.id);
+    checkbox.addEventListener("change", (event) => {
+      const checked = (event.target as HTMLInputElement).checked;
+      if (checked) {
+        selectedTabs.add(tab.id);
+      } else {
+        selectedTabs.delete(tab.id);
+      }
+      updateWindowSelectionFromTabs(window);
+      syncGroupButtonState();
+    });
 
     const main = document.createElement("div");
     main.className = "tab-main";
@@ -139,7 +203,7 @@ const renderTabs = (tabs: TabWithGroup[]) => {
     });
 
     actions.append(goButton, pinButton, closeButton);
-    row.append(main, actions);
+    row.append(checkbox, main, actions);
     list.appendChild(row);
   });
 
@@ -180,6 +244,17 @@ const renderWindows = () => {
     const meta = document.createElement("div");
     meta.className = "window-meta";
 
+    const windowCheckbox = document.createElement("input");
+    windowCheckbox.type = "checkbox";
+    windowCheckbox.className = "select-checkbox";
+    windowCheckbox.checked = selectedWindows.has(window.id);
+    windowCheckbox.addEventListener("change", (event) => {
+      const checked = (event.target as HTMLInputElement).checked;
+      toggleWindowSelection(window, checked);
+      syncGroupButtonState();
+      renderWindows();
+    });
+
     const title = document.createElement("h2");
     title.className = "window-title";
     title.textContent = `Window ${window.id}`;
@@ -187,8 +262,12 @@ const renderWindows = () => {
       title.appendChild(badge("Active", "pill-blue"));
     }
 
+    const windowTitle = document.createElement("div");
+    windowTitle.className = "window-info";
+    windowTitle.append(windowCheckbox, title);
+
     meta.append(
-      title,
+      windowTitle,
       badge(`${window.tabCount} tabs`),
       badge(`${window.groupCount} groups`),
       badge(`${window.pinnedCount} pinned`, "pill-green")
@@ -199,13 +278,18 @@ const renderWindows = () => {
 
     const toggle = document.createElement("button");
     toggle.textContent = expanded ? "Hide tabs" : "Show tabs";
-    toggle.addEventListener("click", () => {
-      if (expanded) {
+    const toggleWindow = () => {
+      if (expandedWindows.has(window.id)) {
         expandedWindows.delete(window.id);
       } else {
         expandedWindows.add(window.id);
       }
       renderWindows();
+    };
+
+    toggle.addEventListener("click", (event) => {
+      event.stopPropagation();
+      toggleWindow();
     });
 
     const focus = document.createElement("button");
@@ -223,23 +307,19 @@ const renderWindows = () => {
 
     actions.append(toggle, focus, close);
     header.append(meta, actions);
+    header.addEventListener("click", (event) => {
+      const target = event.target as HTMLElement | null;
+      if (target?.closest(".window-actions")) return;
+      toggleWindow();
+    });
     card.appendChild(header);
 
     if (expanded) {
-      card.appendChild(renderTabs(visibleTabs));
+      card.appendChild(renderTabs(visibleTabs, window));
     }
 
     windowsContainer.appendChild(card);
   });
-};
-
-const onSaveSession = async () => {
-  const name = sessionNameInput.value.trim() || `Session ${new Date().toLocaleString()}`;
-  const state = await fetchState();
-  if (!state.ok || !state.data) return;
-
-  await chrome.runtime.sendMessage({ type: "saveSession", payload: { name, groups: state.data.groups } });
-  sessionNameInput.value = "";
 };
 
 const loadState = async () => {
@@ -247,6 +327,12 @@ const loadState = async () => {
   if (!state.ok || !state.data) return;
   focusedWindowId = currentWindow?.id ?? null;
   windowState = mapWindows(state.data.groups);
+  if (windowState.length && expandedWindows.size === 0) {
+    const initial = windowState.find((win) => win.id === focusedWindowId) ?? windowState[0];
+    expandedWindows.add(initial.id);
+  }
+  pruneSelections();
+  syncGroupButtonState();
   renderWindows();
 };
 
@@ -255,11 +341,11 @@ const initialize = async () => {
 };
 
 refreshButton.addEventListener("click", loadState);
-regroupButton.addEventListener("click", async () => {
-  await applyGrouping();
+groupButton.addEventListener("click", async () => {
+  const selection = buildSelectionPayload();
+  await applyGrouping(selection);
   await loadState();
 });
-saveButton.addEventListener("click", onSaveSession);
 searchInput.addEventListener("input", renderWindows);
 
 initialize();

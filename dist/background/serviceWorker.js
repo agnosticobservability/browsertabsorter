@@ -1,4 +1,4 @@
-import { applyTabGroups, fetchTabGroups, listSessions, saveSession } from "./tabManager.js";
+import { applyTabGroups, fetchTabGroups } from "./tabManager.js";
 import { loadPreferences, savePreferences } from "./preferences.js";
 import { logDebug, logInfo } from "./logger.js";
 chrome.runtime.onInstalled.addListener(async () => {
@@ -15,18 +15,10 @@ const handleMessage = async (message, sender) => {
         }
         case "applyGrouping": {
             const prefs = await loadPreferences();
-            const groups = await fetchTabGroups(prefs);
+            const selection = message.payload ?? {};
+            const groups = await fetchTabGroups(prefs, selection);
             await applyTabGroups(groups);
             return { ok: true, data: { groups } };
-        }
-        case "saveSession": {
-            const payload = message.payload;
-            const session = await saveSession(payload.name, payload.groups);
-            return { ok: true, data: session };
-        }
-        case "listSessions": {
-            const sessions = await listSessions();
-            return { ok: true, data: sessions };
         }
         case "loadPreferences": {
             const prefs = await loadPreferences();
@@ -54,7 +46,7 @@ chrome.tabs.onCreated.addListener(async (tab) => {
         return;
     if (!tab.windowId)
         return;
-    const groups = await fetchTabGroups(prefs, tab.windowId);
+    const groups = await fetchTabGroups(prefs, { windowIds: [tab.windowId] });
     await applyTabGroups(groups);
 });
 chrome.tabGroups.onRemoved.addListener(async (group) => {
