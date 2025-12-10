@@ -29,6 +29,26 @@
           aria-label="Search tabs"
         />
       </label>
+      <div class="sorting-panel" role="group" aria-labelledby="sorting-label">
+        <div class="panel-header">
+          <p id="sorting-label" class="panel-title">Sort tabs by</p>
+          <p class="muted small">Applies to selected windows or tabs</p>
+        </div>
+        <div class="sorting-options">
+          <label class="checkbox-option" for="sortPinnedFlyout">
+            <input type="checkbox" id="sortPinnedFlyout" />
+            <span>Pin state</span>
+          </label>
+          <label class="checkbox-option" for="sortRecencyFlyout">
+            <input type="checkbox" id="sortRecencyFlyout" />
+            <span>Recent activity</span>
+          </label>
+          <label class="checkbox-option" for="sortHierarchyFlyout">
+            <input type="checkbox" id="sortHierarchyFlyout" />
+            <span>Link hierarchy</span>
+          </label>
+        </div>
+      </div>
       <div class="toolbar-actions">
         <a class="preferences-link" href="options.html" target="_blank" rel="noreferrer">Preferences</a>
       </div>

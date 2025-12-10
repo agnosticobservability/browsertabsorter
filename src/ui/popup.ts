@@ -1,4 +1,12 @@
-import { GroupingSelection, RuntimeResponse, TabGroup, TabMetadata } from "../shared/types.js";
+import {
+  ApplyGroupingPayload,
+  GroupingSelection,
+  Preferences,
+  RuntimeResponse,
+  SortingStrategy,
+  TabGroup,
+  TabMetadata
+} from "../shared/types.js";
 
 type TabWithGroup = TabMetadata & {
   groupLabel: string;
@@ -21,20 +29,25 @@ const sessionNameInput = document.getElementById("sessionName") as HTMLInputElem
 const regroupButton = document.getElementById("regroup") as HTMLButtonElement;
 const searchInput = document.getElementById("tabSearch") as HTMLInputElement;
 const windowsContainer = document.getElementById("windows") as HTMLDivElement;
+const sortPinned = document.getElementById("sortPinnedFlyout") as HTMLInputElement;
+const sortRecency = document.getElementById("sortRecencyFlyout") as HTMLInputElement;
+const sortHierarchy = document.getElementById("sortHierarchyFlyout") as HTMLInputElement;
 
 let windowState: WindowView[] = [];
 let focusedWindowId: number | null = null;
 const expandedWindows = new Set<number>();
 const selectedWindows = new Set<number>();
 const selectedTabs = new Set<number>();
+let preferences: Preferences | null = null;
+let sortingInitialized = false;
 
 const fetchState = async () => {
   const response = await chrome.runtime.sendMessage({ type: "getState" });
-  return response as RuntimeResponse<{ groups: TabGroup[] }>;
+  return response as RuntimeResponse<{ groups: TabGroup[]; preferences: Preferences }>;
 };
 
-const applyGrouping = async (selection: GroupingSelection) => {
-  const response = await chrome.runtime.sendMessage({ type: "applyGrouping", payload: selection });
+const applyGrouping = async (payload: ApplyGroupingPayload) => {
+  const response = await chrome.runtime.sendMessage({ type: "applyGrouping", payload });
   return response as RuntimeResponse<unknown>;
 };
 
@@ -117,6 +130,23 @@ const buildSelectionPayload = (): GroupingSelection => {
 
 const syncGroupButtonState = () => {
   groupButton.disabled = selectedWindows.size === 0 && selectedTabs.size === 0;
+};
+
+const applySortingSelection = (sorting: SortingStrategy[]) => {
+  sortPinned.checked = sorting.includes("pinned");
+  sortRecency.checked = sorting.includes("recency");
+  sortHierarchy.checked = sorting.includes("hierarchy");
+};
+
+const getSelectedSorting = (): SortingStrategy[] => {
+  const selected: SortingStrategy[] = [];
+  if (sortPinned.checked) selected.push("pinned");
+  if (sortRecency.checked) selected.push("recency");
+  if (sortHierarchy.checked) selected.push("hierarchy");
+  if (selected.length === 0) {
+    return preferences?.sorting ?? ["pinned", "recency"];
+  }
+  return selected;
 };
 
 const badge = (text: string, className = "") => {
@@ -325,6 +355,13 @@ const renderWindows = () => {
 const loadState = async () => {
   const [state, currentWindow] = await Promise.all([fetchState(), chrome.windows.getCurrent()]);
   if (!state.ok || !state.data) return;
+
+  preferences = state.data.preferences;
+  if (!sortingInitialized) {
+    applySortingSelection(preferences.sorting);
+    sortingInitialized = true;
+  }
+
   focusedWindowId = currentWindow?.id ?? null;
   windowState = mapWindows(state.data.groups);
   if (windowState.length && expandedWindows.size === 0) {
@@ -343,7 +380,8 @@ const initialize = async () => {
 refreshButton.addEventListener("click", loadState);
 groupButton.addEventListener("click", async () => {
   const selection = buildSelectionPayload();
-  await applyGrouping(selection);
+  const sorting = getSelectedSorting();
+  await applyGrouping({ selection, sorting });
   await loadState();
 });
 searchInput.addEventListener("input", renderWindows);
