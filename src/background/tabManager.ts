@@ -56,8 +56,7 @@ export const applyTabGroups = async (groups: TabGroup[]) => {
     for (const tabs of tabsByWindow.values()) {
       const groupId = await chrome.tabs.group({ tabIds: tabs.map((t) => t.id) });
       await chrome.tabGroups.update(groupId, {
-        title: group.label,
-        color: group.color as chrome.tabGroups.ColorEnum
+        title: group.label
       });
     }
   }
