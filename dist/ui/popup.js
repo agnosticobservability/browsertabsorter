@@ -18,7 +18,7 @@ const applyGrouping = async (selection) => {
     const response = await chrome.runtime.sendMessage({ type: "applyGrouping", payload: selection });
     return response;
 };
-const mapWindows = (groups) => {
+const mapWindows = (groups, windowTitles) => {
     const windows = new Map();
     groups.forEach((group) => {
         group.tabs.forEach((tab) => {
@@ -37,7 +37,14 @@ const mapWindows = (groups) => {
         .map(([id, tabs]) => {
         const groupCount = new Set(tabs.map((tab) => tab.groupLabel)).size;
         const pinnedCount = tabs.filter((tab) => tab.pinned).length;
-        return { id, tabs, tabCount: tabs.length, groupCount, pinnedCount };
+        return {
+            id,
+            title: windowTitles.get(id) ?? `Window ${id}`,
+            tabs,
+            tabCount: tabs.length,
+            groupCount,
+            pinnedCount
+        };
     })
         .sort((a, b) => a.id - b.id);
 };
@@ -206,7 +213,7 @@ const renderWindows = () => {
         });
         const title = document.createElement("h2");
         title.className = "window-title";
-        title.textContent = `Window ${window.id}`;
+        title.textContent = window.title;
         if (focusedWindowId && focusedWindowId === window.id) {
             title.appendChild(badge("Active", "pill-blue"));
         }
@@ -258,11 +265,24 @@ const renderWindows = () => {
     });
 };
 const loadState = async () => {
-    const [state, currentWindow] = await Promise.all([fetchState(), chrome.windows.getCurrent()]);
+    const [state, currentWindow, chromeWindows] = await Promise.all([
+        fetchState(),
+        chrome.windows.getCurrent(),
+        chrome.windows.getAll({ windowTypes: ["normal"], populate: true })
+    ]);
     if (!state.ok || !state.data)
         return;
     focusedWindowId = currentWindow?.id ?? null;
-    windowState = mapWindows(state.data.groups);
+    const windowTitles = new Map();
+    chromeWindows.forEach((win) => {
+        if (!win.id)
+            return;
+        const activeTabTitle = win.tabs?.find((tab) => tab.active)?.title;
+        const firstTabTitle = win.tabs?.[0]?.title;
+        const title = activeTabTitle ?? firstTabTitle ?? `Window ${win.id}`;
+        windowTitles.set(win.id, title);
+    });
+    windowState = mapWindows(state.data.groups, windowTitles);
     if (windowState.length && expandedWindows.size === 0) {
         const initial = windowState.find((win) => win.id === focusedWindowId) ?? windowState[0];
         expandedWindows.add(initial.id);
