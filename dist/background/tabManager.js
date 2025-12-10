@@ -16,9 +16,17 @@ const mapChromeTab = (tab) => {
         openerTabId: tab.openerTabId ?? undefined
     };
 };
-export const fetchTabGroups = async (preferences, windowId) => {
-    const chromeTabs = await chrome.tabs.query(windowId ? { windowId } : {});
-    const mapped = chromeTabs
+export const fetchTabGroups = async (preferences, filter) => {
+    const chromeTabs = await chrome.tabs.query({});
+    const windowIdSet = new Set(filter?.windowIds ?? []);
+    const tabIdSet = new Set(filter?.tabIds ?? []);
+    const hasFilters = windowIdSet.size > 0 || tabIdSet.size > 0;
+    const filteredTabs = chromeTabs.filter((tab) => {
+        if (!hasFilters)
+            return true;
+        return (tab.windowId && windowIdSet.has(tab.windowId)) || (tab.id && tabIdSet.has(tab.id));
+    });
+    const mapped = filteredTabs
         .map(mapChromeTab)
         .filter((tab) => Boolean(tab));
     const grouped = groupTabs(mapped, preferences.primaryGrouping, preferences.secondaryGrouping);

@@ -1,5 +1,5 @@
 const refreshButton = document.getElementById("refresh");
-const regroupButton = document.getElementById("regroup");
+const groupButton = document.getElementById("group");
 const saveButton = document.getElementById("saveSession");
 const sessionNameInput = document.getElementById("sessionName");
 const searchInput = document.getElementById("tabSearch");
@@ -7,12 +7,14 @@ const windowsContainer = document.getElementById("windows");
 let windowState = [];
 let focusedWindowId = null;
 const expandedWindows = new Set();
+const selectedWindows = new Set();
+const selectedTabs = new Set();
 const fetchState = async () => {
     const response = await chrome.runtime.sendMessage({ type: "getState" });
     return response;
 };
-const applyGrouping = async () => {
-    const response = await chrome.runtime.sendMessage({ type: "applyGrouping" });
+const applyGrouping = async (selection) => {
+    const response = await chrome.runtime.sendMessage({ type: "applyGrouping", payload: selection });
     return response;
 };
 const mapWindows = (groups) => {
@@ -47,18 +49,76 @@ const formatDomain = (url) => {
         return url;
     }
 };
+const pruneSelections = () => {
+    const availableWindows = new Set(windowState.map((window) => window.id));
+    const availableTabs = new Set();
+    windowState.forEach((window) => {
+        window.tabs.forEach((tab) => availableTabs.add(tab.id));
+    });
+    Array.from(selectedWindows).forEach((id) => {
+        if (!availableWindows.has(id))
+            selectedWindows.delete(id);
+    });
+    Array.from(selectedTabs).forEach((id) => {
+        if (!availableTabs.has(id))
+            selectedTabs.delete(id);
+    });
+};
+const toggleWindowSelection = (window, checked) => {
+    if (checked) {
+        selectedWindows.add(window.id);
+        window.tabs.forEach((tab) => selectedTabs.add(tab.id));
+    }
+    else {
+        selectedWindows.delete(window.id);
+        window.tabs.forEach((tab) => selectedTabs.delete(tab.id));
+    }
+};
+const updateWindowSelectionFromTabs = (window) => {
+    const allSelected = window.tabs.every((tab) => selectedTabs.has(tab.id));
+    if (allSelected) {
+        selectedWindows.add(window.id);
+    }
+    else {
+        selectedWindows.delete(window.id);
+    }
+};
+const buildSelectionPayload = () => {
+    return {
+        windowIds: Array.from(selectedWindows),
+        tabIds: Array.from(selectedTabs)
+    };
+};
+const syncGroupButtonState = () => {
+    groupButton.disabled = selectedWindows.size === 0 && selectedTabs.size === 0;
+};
 const badge = (text, className = "") => {
     const pill = document.createElement("span");
     pill.className = `badge ${className}`.trim();
     pill.textContent = text;
     return pill;
 };
-const renderTabs = (tabs) => {
+const renderTabs = (tabs, window) => {
     const list = document.createElement("div");
     list.className = "tab-list";
     tabs.forEach((tab) => {
         const row = document.createElement("div");
         row.className = "tab-row";
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.className = "select-checkbox";
+        checkbox.checked = selectedTabs.has(tab.id);
+        checkbox.addEventListener("change", (event) => {
+            const checked = event.target.checked;
+            if (checked) {
+                selectedTabs.add(tab.id);
+            }
+            else {
+                selectedTabs.delete(tab.id);
+            }
+            updateWindowSelectionFromTabs(window);
+            syncGroupButtonState();
+        });
         const main = document.createElement("div");
         main.className = "tab-main";
         const title = document.createElement("p");
@@ -102,7 +162,7 @@ const renderTabs = (tabs) => {
             await loadState();
         });
         actions.append(goButton, pinButton, closeButton);
-        row.append(main, actions);
+        row.append(checkbox, main, actions);
         list.appendChild(row);
     });
     return list;
@@ -133,13 +193,26 @@ const renderWindows = () => {
         header.className = "window-header";
         const meta = document.createElement("div");
         meta.className = "window-meta";
+        const windowCheckbox = document.createElement("input");
+        windowCheckbox.type = "checkbox";
+        windowCheckbox.className = "select-checkbox";
+        windowCheckbox.checked = selectedWindows.has(window.id);
+        windowCheckbox.addEventListener("change", (event) => {
+            const checked = event.target.checked;
+            toggleWindowSelection(window, checked);
+            syncGroupButtonState();
+            renderWindows();
+        });
         const title = document.createElement("h2");
         title.className = "window-title";
         title.textContent = `Window ${window.id}`;
         if (focusedWindowId && focusedWindowId === window.id) {
             title.appendChild(badge("Active", "pill-blue"));
         }
-        meta.append(title, badge(`${window.tabCount} tabs`), badge(`${window.groupCount} groups`), badge(`${window.pinnedCount} pinned`, "pill-green"));
+        const windowTitle = document.createElement("div");
+        windowTitle.className = "window-info";
+        windowTitle.append(windowCheckbox, title);
+        meta.append(windowTitle, badge(`${window.tabCount} tabs`), badge(`${window.groupCount} groups`), badge(`${window.pinnedCount} pinned`, "pill-green"));
         const actions = document.createElement("div");
         actions.className = "window-actions";
         const toggle = document.createElement("button");
@@ -168,7 +241,7 @@ const renderWindows = () => {
         header.append(meta, actions);
         card.appendChild(header);
         if (expanded) {
-            card.appendChild(renderTabs(visibleTabs));
+            card.appendChild(renderTabs(visibleTabs, window));
         }
         windowsContainer.appendChild(card);
     });
@@ -187,14 +260,17 @@ const loadState = async () => {
         return;
     focusedWindowId = currentWindow?.id ?? null;
     windowState = mapWindows(state.data.groups);
+    pruneSelections();
+    syncGroupButtonState();
     renderWindows();
 };
 const initialize = async () => {
     await loadState();
 };
 refreshButton.addEventListener("click", loadState);
-regroupButton.addEventListener("click", async () => {
-    await applyGrouping();
+groupButton.addEventListener("click", async () => {
+    const selection = buildSelectionPayload();
+    await applyGrouping(selection);
     await loadState();
 });
 saveButton.addEventListener("click", onSaveSession);

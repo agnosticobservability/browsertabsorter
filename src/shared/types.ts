@@ -20,6 +20,11 @@ export interface TabGroup {
 export type GroupingStrategy = "domain" | "semantic" | "navigation";
 export type SortingStrategy = "recency" | "hierarchy" | "pinned";
 
+export interface GroupingSelection {
+  windowIds?: number[];
+  tabIds?: number[];
+}
+
 export interface Preferences {
   primaryGrouping: GroupingStrategy;
   secondaryGrouping: GroupingStrategy;

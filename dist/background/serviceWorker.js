@@ -15,7 +15,8 @@ const handleMessage = async (message, sender) => {
         }
         case "applyGrouping": {
             const prefs = await loadPreferences();
-            const groups = await fetchTabGroups(prefs);
+            const selection = message.payload ?? {};
+            const groups = await fetchTabGroups(prefs, selection);
             await applyTabGroups(groups);
             return { ok: true, data: { groups } };
         }
@@ -54,7 +55,7 @@ chrome.tabs.onCreated.addListener(async (tab) => {
         return;
     if (!tab.windowId)
         return;
-    const groups = await fetchTabGroups(prefs, tab.windowId);
+    const groups = await fetchTabGroups(prefs, { windowIds: [tab.windowId] });
     await applyTabGroups(groups);
 });
 chrome.tabGroups.onRemoved.addListener(async (group) => {
