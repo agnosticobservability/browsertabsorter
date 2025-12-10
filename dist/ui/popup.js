@@ -228,6 +228,9 @@ const renderWindows = () => {
         windowCheckbox.type = "checkbox";
         windowCheckbox.className = "select-checkbox";
         windowCheckbox.checked = selectedWindows.has(window.id);
+        windowCheckbox.addEventListener("click", (event) => {
+            event.stopPropagation();
+        });
         windowCheckbox.addEventListener("change", (event) => {
             const checked = event.target.checked;
             toggleWindowSelection(window, checked);
@@ -276,7 +279,7 @@ const renderWindows = () => {
         header.append(meta, actions);
         header.addEventListener("click", (event) => {
             const target = event.target;
-            if (target?.closest(".window-actions"))
+            if (target?.closest(".window-actions") || target?.closest(".select-checkbox"))
                 return;
             toggleWindow();
         });
