@@ -5,17 +5,22 @@ const sessionNameInput = document.getElementById("sessionName");
 const regroupButton = document.getElementById("regroup");
 const searchInput = document.getElementById("tabSearch");
 const windowsContainer = document.getElementById("windows");
+const sortPinned = document.getElementById("sortPinnedFlyout");
+const sortRecency = document.getElementById("sortRecencyFlyout");
+const sortHierarchy = document.getElementById("sortHierarchyFlyout");
 let windowState = [];
 let focusedWindowId = null;
 const expandedWindows = new Set();
 const selectedWindows = new Set();
 const selectedTabs = new Set();
+let preferences = null;
+let sortingInitialized = false;
 const fetchState = async () => {
     const response = await chrome.runtime.sendMessage({ type: "getState" });
     return response;
 };
-const applyGrouping = async (selection) => {
-    const response = await chrome.runtime.sendMessage({ type: "applyGrouping", payload: selection });
+const applyGrouping = async (payload) => {
+    const response = await chrome.runtime.sendMessage({ type: "applyGrouping", payload });
     return response;
 };
 const mapWindows = (groups) => {
@@ -92,6 +97,24 @@ const buildSelectionPayload = () => {
 };
 const syncGroupButtonState = () => {
     groupButton.disabled = selectedWindows.size === 0 && selectedTabs.size === 0;
+};
+const applySortingSelection = (sorting) => {
+    sortPinned.checked = sorting.includes("pinned");
+    sortRecency.checked = sorting.includes("recency");
+    sortHierarchy.checked = sorting.includes("hierarchy");
+};
+const getSelectedSorting = () => {
+    const selected = [];
+    if (sortPinned.checked)
+        selected.push("pinned");
+    if (sortRecency.checked)
+        selected.push("recency");
+    if (sortHierarchy.checked)
+        selected.push("hierarchy");
+    if (selected.length === 0) {
+        return preferences?.sorting ?? ["pinned", "recency"];
+    }
+    return selected;
 };
 const badge = (text, className = "") => {
     const pill = document.createElement("span");
@@ -261,6 +284,11 @@ const loadState = async () => {
     const [state, currentWindow] = await Promise.all([fetchState(), chrome.windows.getCurrent()]);
     if (!state.ok || !state.data)
         return;
+    preferences = state.data.preferences;
+    if (!sortingInitialized) {
+        applySortingSelection(preferences.sorting);
+        sortingInitialized = true;
+    }
     focusedWindowId = currentWindow?.id ?? null;
     windowState = mapWindows(state.data.groups);
     if (windowState.length && expandedWindows.size === 0) {
@@ -277,7 +305,8 @@ const initialize = async () => {
 refreshButton.addEventListener("click", loadState);
 groupButton.addEventListener("click", async () => {
     const selection = buildSelectionPayload();
-    await applyGrouping(selection);
+    const sorting = getSelectedSorting();
+    await applyGrouping({ selection, sorting });
     await loadState();
 });
 searchInput.addEventListener("input", renderWindows);

@@ -15,8 +15,11 @@ const handleMessage = async (message, sender) => {
         }
         case "applyGrouping": {
             const prefs = await loadPreferences();
-            const selection = message.payload ?? {};
-            const groups = await fetchTabGroups(prefs, selection);
+            const payload = message.payload ?? {};
+            const selection = payload.selection ?? {};
+            const sorting = payload.sorting?.length ? payload.sorting : undefined;
+            const preferences = sorting ? { ...prefs, sorting } : prefs;
+            const groups = await fetchTabGroups(preferences, selection);
             await applyTabGroups(groups);
             return { ok: true, data: { groups } };
         }

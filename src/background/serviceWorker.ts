@@ -1,7 +1,13 @@
 import { applyTabGroups, fetchTabGroups } from "./tabManager.js";
 import { loadPreferences, savePreferences } from "./preferences.js";
 import { logDebug, logInfo } from "./logger.js";
-import { GroupingSelection, RuntimeMessage, RuntimeResponse, TabGroup } from "../shared/types.js";
+import {
+  ApplyGroupingPayload,
+  GroupingSelection,
+  RuntimeMessage,
+  RuntimeResponse,
+  TabGroup
+} from "../shared/types.js";
 
 chrome.runtime.onInstalled.addListener(async () => {
   const prefs = await loadPreferences();
@@ -21,8 +27,11 @@ const handleMessage = async <TData>(
     }
     case "applyGrouping": {
       const prefs = await loadPreferences();
-      const selection = (message.payload as GroupingSelection | undefined) ?? {};
-      const groups = await fetchTabGroups(prefs, selection);
+      const payload = (message.payload as ApplyGroupingPayload | undefined) ?? {};
+      const selection = payload.selection ?? {};
+      const sorting = payload.sorting?.length ? payload.sorting : undefined;
+      const preferences = sorting ? { ...prefs, sorting } : prefs;
+      const groups = await fetchTabGroups(preferences, selection);
       await applyTabGroups(groups);
       return { ok: true, data: { groups } as TData };
     }

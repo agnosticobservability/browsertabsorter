@@ -25,6 +25,11 @@ export interface GroupingSelection {
   tabIds?: number[];
 }
 
+export interface ApplyGroupingPayload {
+  selection?: GroupingSelection;
+  sorting?: SortingStrategy[];
+}
+
 export interface Preferences {
   primaryGrouping: GroupingStrategy;
   secondaryGrouping: GroupingStrategy;
