@@ -7,15 +7,36 @@
     <title>Tab Sorter</title>
   </head>
   <body>
-    <header>
-      <h1>Tab Sorter</h1>
-      <button id="refresh" title="Refresh grouping">↻</button>
+    <header class="topbar">
+      <div class="brand">
+        <p class="eyebrow">Flyout</p>
+        <h1>Tab Sorter</h1>
+        <p class="muted">See every window at a glance and dive into any tab.</p>
+      </div>
+      <div class="top-actions">
+        <button id="refresh" class="ghost" title="Refresh view">Refresh</button>
+        <button id="regroup" title="Re-run grouping">Regroup</button>
+      </div>
     </header>
-    <section id="actions">
-      <input id="sessionName" placeholder="Session name" aria-label="Session name" />
-      <button id="saveSession">Save Session</button>
-      <a href="options.html" target="_blank" rel="noreferrer">Preferences</a>
+
+    <section class="toolbar">
+      <label class="search" for="tabSearch">
+        <span aria-hidden="true">🔍</span>
+        <input
+          id="tabSearch"
+          type="search"
+          placeholder="Search tabs by title or URL"
+          aria-label="Search tabs"
+        />
+      </label>
+      <div class="session-actions">
+        <input id="sessionName" placeholder="Session name" aria-label="Session name" />
+        <button id="saveSession">Save session</button>
+        <a href="options.html" target="_blank" rel="noreferrer">Preferences</a>
+      </div>
     </section>
+
+    <section id="windows" class="window-list" aria-live="polite"></section>
     <script type="module" src="../dist/ui/popup.js"></script>
   </body>
 </html>

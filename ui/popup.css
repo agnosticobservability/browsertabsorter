@@ -4,49 +4,114 @@
   background: #f8fafc;
 }
 
+* {
+  box-sizing: border-box;
+}
+
 body {
   margin: 0;
   padding: 12px;
-  width: 360px;
+  width: 420px;
   background: #f8fafc;
 }
 
-header {
+.topbar {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  margin-bottom: 8px;
+  gap: 12px;
 }
 
-h1 {
-  font-size: 1.1rem;
+.brand h1 {
+  margin: 4px 0;
+  font-size: 1.2rem;
+}
+
+.brand .eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+  color: #0ea5e9;
   margin: 0;
+  font-size: 0.7rem;
+}
+
+.brand .muted {
+  margin: 4px 0 0;
+  color: #475569;
+  font-size: 0.9rem;
+}
+
+.top-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
 }
 
 button {
   border: 1px solid #cbd5e1;
   background: #fff;
-  padding: 6px 10px;
-  border-radius: 6px;
+  padding: 8px 12px;
+  border-radius: 8px;
   cursor: pointer;
-  transition: background 0.2s ease;
+  font-weight: 600;
+  transition: background 0.15s ease, transform 0.1s ease;
+  color: #0f172a;
 }
 
 button:hover {
   background: #e2e8f0;
 }
 
-#actions {
+button:active {
+  transform: translateY(1px);
+}
+
+button.ghost {
+  background: transparent;
+}
+
+.toolbar {
   display: flex;
-  gap: 6px;
+  flex-direction: column;
+  gap: 10px;
+  margin: 14px 0;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 10px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+}
+
+.search {
+  display: flex;
   align-items: center;
-  margin-top: 12px;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.search input {
+  border: none;
+  outline: none;
+  background: transparent;
+  flex: 1;
+  font-size: 0.95rem;
+}
+
+.session-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
 }
 
 #sessionName {
   flex: 1;
-  padding: 6px 8px;
-  border-radius: 6px;
+  padding: 8px 10px;
+  border-radius: 10px;
   border: 1px solid #cbd5e1;
 }
 
@@ -63,8 +128,147 @@ button:hover {
 a {
   color: #0ea5e9;
   text-decoration: none;
+  font-weight: 600;
 }
 
 a:hover {
   text-decoration: underline;
+}
+
+.window-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.window-card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 10px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+}
+
+.window-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.window-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.window-title {
+  margin: 0;
+  font-size: 1rem;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.badge {
+  background: #f1f5f9;
+  color: #334155;
+  padding: 3px 6px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  border: 1px solid #e2e8f0;
+}
+
+.window-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.tab-list {
+  margin-top: 8px;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tab-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.tab-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow: hidden;
+}
+
+.tab-title {
+  margin: 0;
+  font-weight: 600;
+  font-size: 0.95rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tab-url {
+  margin: 0;
+  color: #475569;
+  font-size: 0.85rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tab-meta {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.group-pill {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  color: #0f172a;
+  border: 1px solid #e2e8f0;
+  background: #e2e8f0;
+}
+
+.tab-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.empty-state {
+  text-align: center;
+  color: #475569;
+  padding: 16px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 12px;
+}
+
+.pill-green {
+  background: #dcfce7;
+  border-color: #bbf7d0;
+}
+
+.pill-amber {
+  background: #fef3c7;
+  border-color: #fde68a;
+}
+
+.pill-blue {
+  background: #e0f2fe;
+  border-color: #bfdbfe;
 }
