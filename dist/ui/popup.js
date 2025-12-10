@@ -1,7 +1,5 @@
 const refreshButton = document.getElementById("refresh");
 const regroupButton = document.getElementById("regroup");
-const saveButton = document.getElementById("saveSession");
-const sessionNameInput = document.getElementById("sessionName");
 const searchInput = document.getElementById("tabSearch");
 const windowsContainer = document.getElementById("windows");
 let windowState = [];
@@ -173,14 +171,6 @@ const renderWindows = () => {
         windowsContainer.appendChild(card);
     });
 };
-const onSaveSession = async () => {
-    const name = sessionNameInput.value.trim() || `Session ${new Date().toLocaleString()}`;
-    const state = await fetchState();
-    if (!state.ok || !state.data)
-        return;
-    await chrome.runtime.sendMessage({ type: "saveSession", payload: { name, groups: state.data.groups } });
-    sessionNameInput.value = "";
-};
 const loadState = async () => {
     const [state, currentWindow] = await Promise.all([fetchState(), chrome.windows.getCurrent()]);
     if (!state.ok || !state.data)
@@ -197,7 +187,6 @@ regroupButton.addEventListener("click", async () => {
     await applyGrouping();
     await loadState();
 });
-saveButton.addEventListener("click", onSaveSession);
 searchInput.addEventListener("input", renderWindows);
 initialize();
 export {};
