@@ -218,14 +218,18 @@ const renderWindows = () => {
         actions.className = "window-actions";
         const toggle = document.createElement("button");
         toggle.textContent = expanded ? "Hide tabs" : "Show tabs";
-        toggle.addEventListener("click", () => {
-            if (expanded) {
+        const toggleWindow = () => {
+            if (expandedWindows.has(window.id)) {
                 expandedWindows.delete(window.id);
             }
             else {
                 expandedWindows.add(window.id);
             }
             renderWindows();
+        };
+        toggle.addEventListener("click", (event) => {
+            event.stopPropagation();
+            toggleWindow();
         });
         const focus = document.createElement("button");
         focus.textContent = "Focus";
@@ -240,6 +244,12 @@ const renderWindows = () => {
         });
         actions.append(toggle, focus, close);
         header.append(meta, actions);
+        header.addEventListener("click", (event) => {
+            const target = event.target;
+            if (target?.closest(".window-actions"))
+                return;
+            toggleWindow();
+        });
         card.appendChild(header);
         if (expanded) {
             card.appendChild(renderTabs(visibleTabs, window));
@@ -253,6 +263,10 @@ const loadState = async () => {
         return;
     focusedWindowId = currentWindow?.id ?? null;
     windowState = mapWindows(state.data.groups);
+    if (windowState.length && expandedWindows.size === 0) {
+        const initial = windowState.find((win) => win.id === focusedWindowId) ?? windowState[0];
+        expandedWindows.add(initial.id);
+    }
     pruneSelections();
     syncGroupButtonState();
     renderWindows();
