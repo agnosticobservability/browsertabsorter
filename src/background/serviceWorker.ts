@@ -2,7 +2,6 @@ import { applyTabGroups, fetchTabGroups } from "./tabManager.js";
 import { loadPreferences, savePreferences } from "./preferences.js";
 import { logDebug, logInfo } from "./logger.js";
 import { GroupingSelection, RuntimeMessage, RuntimeResponse, TabGroup } from "../shared/types.js";
-import { RuntimeMessage, RuntimeResponse } from "../shared/types.js";
 
 chrome.runtime.onInstalled.addListener(async () => {
   const prefs = await loadPreferences();
