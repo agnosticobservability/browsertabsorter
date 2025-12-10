@@ -1,8 +1,6 @@
 import { groupTabs } from "./groupingStrategies.js";
 import { sortTabs } from "./sortingStrategies.js";
-import { logDebug, logError, logInfo } from "./logger.js";
-import { getStoredValue, setStoredValue } from "./storage.js";
-const SESSIONS_KEY = "sessions";
+import { logDebug, logInfo } from "./logger.js";
 const mapChromeTab = (tab) => {
     if (!tab.id || !tab.windowId || !tab.url || !tab.title)
         return null;
@@ -51,34 +49,6 @@ export const applyTabGroups = async (groups) => {
                 color: group.color
             });
         }
-    }
-};
-export const saveSession = async (name, groups) => {
-    const existing = (await getStoredValue(SESSIONS_KEY)) ?? [];
-    const session = {
-        id: crypto.randomUUID(),
-        createdAt: Date.now(),
-        name,
-        groups
-    };
-    await setStoredValue(SESSIONS_KEY, [...existing, session]);
-    logInfo("Saved session", { name, count: groups.length });
-    return session;
-};
-export const listSessions = async () => {
-    return (await getStoredValue(SESSIONS_KEY)) ?? [];
-};
-export const restoreSession = async (session) => {
-    try {
-        for (const group of session.groups) {
-            const tabs = await Promise.all(group.tabs.map((tab) => chrome.tabs.create({ url: tab.url, pinned: tab.pinned })));
-            const tabIds = tabs.map((tab) => tab.id).filter(Boolean);
-            const groupId = await chrome.tabs.group({ tabIds });
-            await chrome.tabGroups.update(groupId, { title: group.label, color: group.color });
-        }
-    }
-    catch (error) {
-        logError("Failed to restore session", { error: String(error) });
     }
 };
 export const closeGroup = async (group) => {

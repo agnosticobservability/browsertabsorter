@@ -33,19 +33,10 @@ export interface Preferences {
   autoGroupNewTabs: boolean;
 }
 
-export interface SavedSession {
-  id: string;
-  createdAt: number;
-  name: string;
-  groups: TabGroup[];
-}
-
 export interface RuntimeMessage<TPayload = unknown> {
   type:
     | "getState"
     | "applyGrouping"
-    | "saveSession"
-    | "listSessions"
     | "loadPreferences"
     | "savePreferences";
   payload?: TPayload;
