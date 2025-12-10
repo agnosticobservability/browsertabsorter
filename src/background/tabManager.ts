@@ -1,10 +1,7 @@
 import { groupTabs } from "./groupingStrategies.js";
 import { sortTabs } from "./sortingStrategies.js";
-import { logDebug, logError, logInfo } from "./logger.js";
-import { Preferences, SavedSession, TabGroup, TabMetadata } from "../shared/types.js";
-import { getStoredValue, setStoredValue } from "./storage.js";
-
-const SESSIONS_KEY = "sessions";
+import { logDebug, logInfo } from "./logger.js";
+import { Preferences, TabGroup, TabMetadata } from "../shared/types.js";
 
 const mapChromeTab = (tab: chrome.tabs.Tab): TabMetadata | null => {
   if (!tab.id || !tab.windowId || !tab.url || !tab.title) return null;
@@ -51,38 +48,6 @@ export const applyTabGroups = async (groups: TabGroup[]) => {
         color: group.color as chrome.tabGroups.ColorEnum
       });
     }
-  }
-};
-
-export const saveSession = async (name: string, groups: TabGroup[]): Promise<SavedSession> => {
-  const existing = (await getStoredValue<SavedSession[]>(SESSIONS_KEY)) ?? [];
-  const session: SavedSession = {
-    id: crypto.randomUUID(),
-    createdAt: Date.now(),
-    name,
-    groups
-  };
-  await setStoredValue(SESSIONS_KEY, [...existing, session]);
-  logInfo("Saved session", { name, count: groups.length });
-  return session;
-};
-
-export const listSessions = async (): Promise<SavedSession[]> => {
-  return (await getStoredValue<SavedSession[]>(SESSIONS_KEY)) ?? [];
-};
-
-export const restoreSession = async (session: SavedSession) => {
-  try {
-    for (const group of session.groups) {
-      const tabs = await Promise.all(
-        group.tabs.map((tab) => chrome.tabs.create({ url: tab.url, pinned: tab.pinned }))
-      );
-      const tabIds = tabs.map((tab) => tab.id!).filter(Boolean);
-      const groupId = await chrome.tabs.group({ tabIds });
-      await chrome.tabGroups.update(groupId, { title: group.label, color: group.color as chrome.tabGroups.ColorEnum });
-    }
-  } catch (error) {
-    logError("Failed to restore session", { error: String(error) });
   }
 };
 
