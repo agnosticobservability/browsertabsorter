@@ -102,7 +102,7 @@ button.ghost {
   font-size: 0.9rem;
 }
 
-.session-actions {
+.toolbar-actions {
   display: flex;
   gap: 6px;
   align-items: center;
@@ -123,6 +123,7 @@ button.ghost {
 
 #saveSession:hover {
   background: #0284c7;
+  justify-content: flex-end;
 }
 
 a {
@@ -162,6 +163,12 @@ a:hover {
   gap: 8px;
 }
 
+.window-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .window-title {
   margin: 0;
   font-size: 0.95rem;
@@ -198,6 +205,10 @@ a:hover {
   grid-template-columns: 1fr auto;
   gap: 6px;
   padding: 6px;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
   background: #f8fafc;
@@ -248,6 +259,13 @@ a:hover {
   display: flex;
   gap: 4px;
   align-items: center;
+}
+
+.select-checkbox {
+  width: 16px;
+  height: 16px;
+  accent-color: #0ea5e9;
+  margin: 0;
 }
 
 .empty-state {
