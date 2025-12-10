@@ -1,12 +1,8 @@
 import { groupTabs } from "./groupingStrategies.js";
 import { sortTabs } from "./sortingStrategies.js";
 import { logDebug, logError, logInfo } from "./logger.js";
-import { GroupingSelection, Preferences, SavedSession, TabGroup, TabMetadata } from "../shared/types.js";
+import { GroupingSelection, Preferences, TabGroup, TabMetadata } from "../shared/types.js";
 import { getStoredValue, setStoredValue } from "./storage.js";
-
-const SESSIONS_KEY = "sessions";
-import { logDebug, logInfo } from "./logger.js";
-import { Preferences, TabGroup, TabMetadata } from "../shared/types.js";
 
 const mapChromeTab = (tab: chrome.tabs.Tab): TabMetadata | null => {
   if (!tab.id || !tab.windowId || !tab.url || !tab.title) return null;
