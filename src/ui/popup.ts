@@ -164,86 +164,134 @@ const badge = (text: string, className = "") => {
   return pill;
 };
 
-const renderTabs = (tabs: TabWithGroup[], window: WindowView) => {
+const renderTabRow = (tab: TabWithGroup, window: WindowView) => {
+  const row = document.createElement("div");
+  row.className = "tab-row";
+
+  const checkbox = document.createElement("input");
+  checkbox.type = "checkbox";
+  checkbox.className = "select-checkbox";
+  checkbox.checked = selectedTabs.has(tab.id);
+  checkbox.addEventListener("change", (event) => {
+    const checked = (event.target as HTMLInputElement).checked;
+    if (checked) {
+      selectedTabs.add(tab.id);
+    } else {
+      selectedTabs.delete(tab.id);
+    }
+    updateWindowSelectionFromTabs(window);
+    syncGroupButtonState();
+  });
+
+  const main = document.createElement("div");
+  main.className = "tab-main";
+
+  const title = document.createElement("p");
+  title.className = "tab-title";
+  title.textContent = tab.title;
+
+  const url = document.createElement("p");
+  url.className = "tab-url";
+  url.textContent = formatDomain(tab.url);
+
+  const meta = document.createElement("div");
+  meta.className = "tab-meta";
+
+  const reason = badge(tab.reason, "pill-amber");
+  if (tab.pinned) {
+    meta.appendChild(badge("Pinned", "pill-green"));
+  }
+  meta.append(reason);
+
+  main.append(title, url, meta);
+
+  const actions = document.createElement("div");
+  actions.className = "tab-actions";
+
+  const goButton = document.createElement("button");
+  goButton.textContent = "Go to tab";
+  goButton.addEventListener("click", async () => {
+    await chrome.windows.update(tab.windowId, { focused: true });
+    await chrome.tabs.update(tab.id, { active: true });
+  });
+
+  const pinButton = document.createElement("button");
+  pinButton.textContent = tab.pinned ? "Unpin" : "Pin";
+  pinButton.addEventListener("click", async () => {
+    await chrome.tabs.update(tab.id, { pinned: !tab.pinned });
+    await loadState();
+  });
+
+  const closeButton = document.createElement("button");
+  closeButton.textContent = "Close";
+  closeButton.addEventListener("click", async () => {
+    await chrome.tabs.remove(tab.id);
+    await loadState();
+  });
+
+  actions.append(goButton, pinButton, closeButton);
+  row.append(checkbox, main, actions);
+  return row;
+};
+
+const renderGroupList = (tabs: TabWithGroup[], window: WindowView) => {
   const list = document.createElement("div");
-  list.className = "tab-list";
+  list.className = "group-list";
+
+  const groups = new Map<
+    string,
+    { color: string; reason: string; tabs: TabWithGroup[] }
+  >();
 
   tabs.forEach((tab) => {
-    const row = document.createElement("div");
-    row.className = "tab-row";
-
-    const checkbox = document.createElement("input");
-    checkbox.type = "checkbox";
-    checkbox.className = "select-checkbox";
-    checkbox.checked = selectedTabs.has(tab.id);
-    checkbox.addEventListener("change", (event) => {
-      const checked = (event.target as HTMLInputElement).checked;
-      if (checked) {
-        selectedTabs.add(tab.id);
-      } else {
-        selectedTabs.delete(tab.id);
-      }
-      updateWindowSelectionFromTabs(window);
-      syncGroupButtonState();
-    });
-
-    const main = document.createElement("div");
-    main.className = "tab-main";
-
-    const title = document.createElement("p");
-    title.className = "tab-title";
-    title.textContent = tab.title;
-
-    const url = document.createElement("p");
-    url.className = "tab-url";
-    url.textContent = formatDomain(tab.url);
-
-    const meta = document.createElement("div");
-    meta.className = "tab-meta";
-
-    const group = document.createElement("span");
-    group.className = "group-pill";
-    group.textContent = tab.groupLabel;
-    group.style.borderColor = tab.groupColor;
-    group.style.backgroundColor = tab.groupColor;
-    group.style.color = "#0f172a";
-
-    const reason = badge(tab.reason, "pill-amber");
-    if (tab.pinned) {
-      meta.appendChild(badge("Pinned", "pill-green"));
-    }
-    meta.append(group, reason);
-
-    main.append(title, url, meta);
-
-    const actions = document.createElement("div");
-    actions.className = "tab-actions";
-
-    const goButton = document.createElement("button");
-    goButton.textContent = "Go to tab";
-    goButton.addEventListener("click", async () => {
-      await chrome.windows.update(tab.windowId, { focused: true });
-      await chrome.tabs.update(tab.id, { active: true });
-    });
-
-    const pinButton = document.createElement("button");
-    pinButton.textContent = tab.pinned ? "Unpin" : "Pin";
-    pinButton.addEventListener("click", async () => {
-      await chrome.tabs.update(tab.id, { pinned: !tab.pinned });
-      await loadState();
-    });
-
-    const closeButton = document.createElement("button");
-    closeButton.textContent = "Close";
-    closeButton.addEventListener("click", async () => {
-      await chrome.tabs.remove(tab.id);
-      await loadState();
-    });
-
-    actions.append(goButton, pinButton, closeButton);
-    row.append(checkbox, main, actions);
-    list.appendChild(row);
+    const group = groups.get(tab.groupLabel) ?? {
+      color: tab.groupColor,
+      reason: tab.reason,
+      tabs: []
+    };
+    group.tabs.push(tab);
+    groups.set(tab.groupLabel, group);
   });
+
+  Array.from(groups.entries())
+    .sort(([labelA], [labelB]) => labelA.localeCompare(labelB))
+    .forEach(([label, group]) => {
+      const groupCard = document.createElement("article");
+      groupCard.className = "group-card";
+      groupCard.style.borderColor = group.color;
+
+      const header = document.createElement("div");
+      header.className = "group-header";
+
+      const title = document.createElement("div");
+      title.className = "group-title";
+
+      const swatch = document.createElement("span");
+      swatch.className = "group-swatch";
+      swatch.style.backgroundColor = group.color;
+
+      const labelEl = document.createElement("p");
+      labelEl.className = "group-name";
+      labelEl.textContent = label;
+
+      title.append(swatch, labelEl);
+
+      const groupMeta = document.createElement("div");
+      groupMeta.className = "group-meta";
+      groupMeta.append(
+        badge(`${group.tabs.length} tabs`, "pill-blue"),
+        badge(group.reason, "pill-amber")
+      );
+
+      header.append(title, groupMeta);
+
+      const tabList = document.createElement("div");
+      tabList.className = "tab-list";
+      group.tabs.forEach((tab) => tabList.appendChild(renderTabRow(tab, window)));
+
+      groupCard.append(header, tabList);
+      list.appendChild(groupCard);
+    });
 
   return list;
 };
@@ -357,7 +405,7 @@ const renderWindows = () => {
     card.appendChild(header);
 
     if (expanded) {
-      card.appendChild(renderTabs(visibleTabs, window));
+      card.appendChild(renderGroupList(visibleTabs, window));
     }
 
     windowsContainer.appendChild(card);
