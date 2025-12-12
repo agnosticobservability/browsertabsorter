@@ -1,13 +1,14 @@
-const refreshButton = document.getElementById("refresh");
-const groupButton = document.getElementById("group");
-const saveButton = document.getElementById("saveSession");
-const sessionNameInput = document.getElementById("sessionName");
-const regroupButton = document.getElementById("regroup");
+// Elements
 const searchInput = document.getElementById("tabSearch");
 const windowsContainer = document.getElementById("windows");
 const sortPinned = document.getElementById("sortPinnedFlyout");
 const sortRecency = document.getElementById("sortRecencyFlyout");
 const sortHierarchy = document.getElementById("sortHierarchyFlyout");
+// Footer Stats
+const footerTotalTabs = document.getElementById("footerTotalTabs");
+const footerTotalGroups = document.getElementById("footerTotalGroups");
+const footerExtraStat = document.getElementById("footerExtraStat");
+const footerPinned = document.getElementById("footerPinned");
 let windowState = [];
 let focusedWindowId = null;
 const expandedWindows = new Set();
@@ -15,6 +16,15 @@ const selectedWindows = new Set();
 const selectedTabs = new Set();
 let preferences = null;
 let sortingInitialized = false;
+// Icons (SVG strings)
+const ICONS = {
+    active: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"></polygon></svg>`,
+    hide: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>`,
+    show: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>`,
+    focus: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>`,
+    close: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`,
+    defaultFile: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>`
+};
 const fetchState = async () => {
     const response = await chrome.runtime.sendMessage({ type: "getState" });
     return response;
@@ -102,8 +112,11 @@ const buildSelectionPayload = () => {
         tabIds: Array.from(selectedTabs)
     };
 };
-const syncGroupButtonState = () => {
-    groupButton.disabled = selectedWindows.size === 0 && selectedTabs.size === 0;
+const triggerReGroup = async () => {
+    const selection = buildSelectionPayload();
+    const sorting = getSelectedSorting();
+    await applyGrouping({ selection, sorting });
+    await loadState();
 };
 const applySortingSelection = (sorting) => {
     sortPinned.checked = sorting.includes("pinned");
@@ -123,109 +136,65 @@ const getSelectedSorting = () => {
     }
     return selected;
 };
-const badge = (text, className = "") => {
-    const pill = document.createElement("span");
-    pill.className = `badge ${className}`.trim();
-    pill.textContent = text;
-    return pill;
+// --- Render Logic ---
+const updateFooter = () => {
+    const totalTabs = windowState.reduce((acc, win) => acc + win.tabCount, 0);
+    const totalPinned = windowState.reduce((acc, win) => acc + win.pinnedCount, 0);
+    // Calculate total groups across all windows
+    const allGroups = new Set();
+    windowState.forEach(win => {
+        win.tabs.forEach(t => allGroups.add(`${t.windowId}-${t.groupLabel}`));
+    });
+    // Update footer text
+    footerTotalTabs.textContent = `${totalTabs} tabs`;
+    footerTotalGroups.textContent = `${allGroups.size} groups`;
+    footerExtraStat.textContent = `${windowState.length} windows`;
+    footerPinned.textContent = `${totalPinned} pinned`;
 };
-const renderTabRow = (tab, window) => {
-    const row = document.createElement("div");
-    row.className = "tab-row";
-    const checkbox = document.createElement("input");
-    checkbox.type = "checkbox";
-    checkbox.className = "select-checkbox";
-    checkbox.checked = selectedTabs.has(tab.id);
-    checkbox.addEventListener("change", (event) => {
-        const checked = event.target.checked;
-        if (checked) {
-            selectedTabs.add(tab.id);
-        }
-        else {
-            selectedTabs.delete(tab.id);
-        }
-        updateWindowSelectionFromTabs(window);
-        syncGroupButtonState();
-    });
-    const main = document.createElement("div");
-    main.className = "tab-main";
-    const title = document.createElement("p");
-    title.className = "tab-title";
-    title.textContent = tab.title;
-    const url = document.createElement("p");
-    url.className = "tab-url";
-    url.textContent = formatDomain(tab.url);
-    const meta = document.createElement("div");
-    meta.className = "tab-meta";
-    const reason = badge(tab.reason, "pill-amber");
-    if (tab.pinned) {
-        meta.appendChild(badge("Pinned", "pill-green"));
-    }
-    meta.append(reason);
-    main.append(title, url, meta);
-    const actions = document.createElement("div");
-    actions.className = "tab-actions";
-    const goButton = document.createElement("button");
-    goButton.textContent = "Go to tab";
-    goButton.addEventListener("click", async () => {
-        await chrome.windows.update(tab.windowId, { focused: true });
-        await chrome.tabs.update(tab.id, { active: true });
-    });
-    const pinButton = document.createElement("button");
-    pinButton.textContent = tab.pinned ? "Unpin" : "Pin";
-    pinButton.addEventListener("click", async () => {
-        await chrome.tabs.update(tab.id, { pinned: !tab.pinned });
-        await loadState();
-    });
-    const closeButton = document.createElement("button");
-    closeButton.textContent = "Close";
-    closeButton.addEventListener("click", async () => {
-        await chrome.tabs.remove(tab.id);
-        await loadState();
-    });
-    actions.append(goButton, pinButton, closeButton);
-    row.append(checkbox, main, actions);
-    return row;
-};
-const renderGroupList = (tabs, window) => {
+const renderGroupItems = (tabs) => {
     const list = document.createElement("div");
     list.className = "group-list";
+    // Group tabs by label
     const groups = new Map();
     tabs.forEach((tab) => {
-        const group = groups.get(tab.groupLabel) ?? {
+        const key = tab.groupLabel;
+        const group = groups.get(key) ?? {
             color: tab.groupColor,
             reason: tab.reason,
             tabs: []
         };
         group.tabs.push(tab);
-        groups.set(tab.groupLabel, group);
+        groups.set(key, group);
     });
     Array.from(groups.entries())
         .sort(([labelA], [labelB]) => labelA.localeCompare(labelB))
         .forEach(([label, group]) => {
-        const groupCard = document.createElement("article");
-        groupCard.className = "group-card";
-        groupCard.style.borderColor = group.color;
-        const header = document.createElement("div");
-        header.className = "group-header";
+        const item = document.createElement("div");
+        item.className = "group-item";
+        const iconContainer = document.createElement("div");
+        iconContainer.className = "group-icon";
+        const firstTab = group.tabs[0];
+        if (firstTab && firstTab.favIconUrl) {
+            const img = document.createElement("img");
+            img.src = firstTab.favIconUrl;
+            img.onerror = () => { iconContainer.innerHTML = ICONS.defaultFile; };
+            iconContainer.appendChild(img);
+        }
+        else {
+            iconContainer.innerHTML = ICONS.defaultFile;
+        }
+        const content = document.createElement("div");
+        content.className = "group-content";
         const title = document.createElement("div");
         title.className = "group-title";
-        const swatch = document.createElement("span");
-        swatch.className = "group-swatch";
-        swatch.style.backgroundColor = group.color;
-        const labelEl = document.createElement("p");
-        labelEl.className = "group-name";
-        labelEl.textContent = label;
-        title.append(swatch, labelEl);
-        const groupMeta = document.createElement("div");
-        groupMeta.className = "group-meta";
-        groupMeta.append(badge(`${group.tabs.length} tabs`, "pill-blue"), badge(group.reason, "pill-amber"));
-        header.append(title, groupMeta);
-        const tabList = document.createElement("div");
-        tabList.className = "tab-list";
-        group.tabs.forEach((tab) => tabList.appendChild(renderTabRow(tab, window)));
-        groupCard.append(header, tabList);
-        list.appendChild(groupCard);
+        title.textContent = `${label} • ${group.reason}`;
+        const subtitle = document.createElement("div");
+        subtitle.className = "group-subtitle";
+        const tabCountText = group.tabs.length === 1 ? "1 tab" : `${group.tabs.length} tabs`;
+        subtitle.textContent = `${tabCountText}, domain + semantic`;
+        content.append(title, subtitle);
+        item.append(iconContainer, content);
+        list.appendChild(item);
     });
     return list;
 };
@@ -242,7 +211,9 @@ const renderWindows = () => {
         .filter(({ visibleTabs }) => visibleTabs.length > 0 || !query);
     if (!filtered.length) {
         const empty = document.createElement("div");
-        empty.className = "empty-state";
+        empty.style.padding = "20px";
+        empty.style.textAlign = "center";
+        empty.style.color = "#64748b";
         empty.textContent = query ? "No tabs match your search." : "No windows found.";
         windowsContainer.appendChild(empty);
         return;
@@ -251,38 +222,51 @@ const renderWindows = () => {
         const expanded = query ? true : expandedWindows.has(window.id);
         const card = document.createElement("article");
         card.className = "window-card";
+        // Header
         const header = document.createElement("div");
         header.className = "window-header";
-        const meta = document.createElement("div");
-        meta.className = "window-meta";
-        const windowCheckbox = document.createElement("input");
-        windowCheckbox.type = "checkbox";
-        windowCheckbox.className = "select-checkbox";
-        windowCheckbox.checked = selectedWindows.has(window.id);
-        windowCheckbox.addEventListener("click", (event) => {
-            event.stopPropagation();
-        });
-        windowCheckbox.addEventListener("change", (event) => {
+        // Info (Left)
+        const titleContainer = document.createElement("div");
+        titleContainer.className = "window-title-container";
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.className = "window-checkbox";
+        checkbox.checked = selectedWindows.has(window.id);
+        checkbox.addEventListener("change", (event) => {
             const checked = event.target.checked;
             toggleWindowSelection(window, checked);
-            syncGroupButtonState();
             renderWindows();
         });
-        const title = document.createElement("h2");
+        const textBlock = document.createElement("div");
+        textBlock.className = "window-text-block";
+        const title = document.createElement("h3");
         title.className = "window-title";
         title.textContent = window.title;
-        if (focusedWindowId && focusedWindowId === window.id) {
-            title.appendChild(badge("Active", "pill-blue"));
-        }
-        const windowTitle = document.createElement("div");
-        windowTitle.className = "window-info";
-        windowTitle.append(windowCheckbox, title);
-        meta.append(windowTitle, badge(`${window.tabCount} tabs`), badge(`${window.groupCount} groups`), badge(`${window.pinnedCount} pinned`, "pill-green"));
+        title.title = window.title; // Tooltip
+        const meta = document.createElement("div");
+        meta.className = "window-meta";
+        meta.textContent = `(${window.tabCount} tabs, ${window.groupCount} groups, ${window.pinnedCount} pinned)`;
+        textBlock.append(title, meta);
+        titleContainer.append(checkbox, textBlock);
+        // Actions (Right)
         const actions = document.createElement("div");
         actions.className = "window-actions";
-        const toggle = document.createElement("button");
-        toggle.textContent = expanded ? "Hide tabs" : "Show tabs";
-        const toggleWindow = () => {
+        // Helper to create action buttons
+        const createActionBtn = (icon, label, onClick, isActive = false) => {
+            const btn = document.createElement("button");
+            btn.className = `action-btn ${isActive ? "active" : ""}`;
+            btn.innerHTML = `${icon}<span>${label}</span>`;
+            btn.title = label;
+            btn.addEventListener("click", (e) => {
+                e.stopPropagation();
+                onClick();
+            });
+            return btn;
+        };
+        const isActiveWindow = focusedWindowId === window.id;
+        actions.append(createActionBtn(ICONS.active, "Active", async () => {
+            await chrome.windows.update(window.id, { focused: true });
+        }, isActiveWindow), createActionBtn(expanded ? ICONS.hide : ICONS.show, expanded ? "Hide" : "Show", () => {
             if (expandedWindows.has(window.id)) {
                 expandedWindows.delete(window.id);
             }
@@ -290,36 +274,23 @@ const renderWindows = () => {
                 expandedWindows.add(window.id);
             }
             renderWindows();
-        };
-        toggle.addEventListener("click", (event) => {
-            event.stopPropagation();
-            toggleWindow();
-        });
-        const focus = document.createElement("button");
-        focus.textContent = "Focus";
-        focus.addEventListener("click", async () => {
+        }), createActionBtn(ICONS.focus, "Focus", async () => {
             await chrome.windows.update(window.id, { focused: true });
-        });
-        const close = document.createElement("button");
-        close.textContent = "Close window";
-        close.addEventListener("click", async () => {
-            await chrome.windows.remove(window.id);
-            await loadState();
-        });
-        actions.append(toggle, focus, close);
-        header.append(meta, actions);
-        header.addEventListener("click", (event) => {
-            const target = event.target;
-            if (target?.closest(".window-actions") || target?.closest(".select-checkbox"))
-                return;
-            toggleWindow();
-        });
+        }), createActionBtn(ICONS.close, "Close", async () => {
+            if (confirm("Are you sure you want to close this window?")) {
+                await chrome.windows.remove(window.id);
+                await loadState();
+            }
+        }));
+        header.append(titleContainer, actions);
         card.appendChild(header);
+        // Body (Groups)
         if (expanded) {
-            card.appendChild(renderGroupList(visibleTabs, window));
+            card.appendChild(renderGroupItems(visibleTabs));
         }
         windowsContainer.appendChild(card);
     });
+    updateFooter();
 };
 const loadState = async () => {
     const [state, currentWindow, chromeWindows] = await Promise.all([
@@ -347,22 +318,27 @@ const loadState = async () => {
     windowState = mapWindows(state.data.groups, windowTitles);
     if (windowState.length && expandedWindows.size === 0) {
         const initial = windowState.find((win) => win.id === focusedWindowId) ?? windowState[0];
-        expandedWindows.add(initial.id);
+        if (initial)
+            expandedWindows.add(initial.id);
     }
     pruneSelections();
-    syncGroupButtonState();
     renderWindows();
 };
 const initialize = async () => {
     await loadState();
 };
-refreshButton.addEventListener("click", loadState);
-groupButton.addEventListener("click", async () => {
-    const selection = buildSelectionPayload();
-    const sorting = getSelectedSorting();
-    await applyGrouping({ selection, sorting });
-    await loadState();
-});
+// Event Listeners for Sort Toggles
+const handleSortChange = async () => {
+    await triggerReGroup();
+};
+sortPinned.addEventListener("change", handleSortChange);
+sortRecency.addEventListener("change", handleSortChange);
+sortHierarchy.addEventListener("change", handleSortChange);
+// Keep search listener
 searchInput.addEventListener("input", renderWindows);
+// Auto-refresh?
+chrome.tabs.onUpdated.addListener(() => loadState());
+chrome.tabs.onRemoved.addListener(() => loadState());
+chrome.windows.onRemoved.addListener(() => loadState());
 initialize();
 export {};

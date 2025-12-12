@@ -13,7 +13,8 @@ const mapChromeTab = (tab: chrome.tabs.Tab): TabMetadata | null => {
     url: tab.url,
     pinned: Boolean(tab.pinned),
     lastAccessed: tab.lastAccessed,
-    openerTabId: tab.openerTabId ?? undefined
+    openerTabId: tab.openerTabId ?? undefined,
+    favIconUrl: tab.favIconUrl
   };
 };
 
