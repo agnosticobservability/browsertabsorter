@@ -7,31 +7,42 @@
     <title>Tab Sorter</title>
   </head>
   <body>
-    <header class="topbar">
+    <header class="topbar card">
       <div class="brand">
         <p class="eyebrow">Flyout</p>
-        <h1>Tab Sorter</h1>
-        <p class="muted">See every window at a glance and dive into any tab.</p>
+        <div class="title-row">
+          <h1>Tab Sorter</h1>
+          <p class="muted">Compact controls for grouping and navigating tabs.</p>
+        </div>
       </div>
       <div class="top-actions">
-        <button id="refresh" class="ghost" title="Refresh view">Refresh</button>
-        <button id="group" title="Group selected items">Group</button>
+        <button id="refresh" class="ghost icon-button" title="Refresh view">
+          <span aria-hidden="true">↻</span>
+          <span>Refresh</span>
+        </button>
+        <button id="group" class="primary icon-button" title="Group selected items">
+          <span aria-hidden="true">⚡</span>
+          <span>Group</span>
+        </button>
       </div>
     </header>
 
-    <section class="toolbar">
-      <label class="search" for="tabSearch">
-        <span aria-hidden="true">🔍</span>
-        <input
-          id="tabSearch"
-          type="search"
-          placeholder="Search tabs by title or URL"
-          aria-label="Search tabs"
-        />
-      </label>
+    <section class="toolbar card">
+      <div class="toolbar-row">
+        <label class="search" for="tabSearch">
+          <span aria-hidden="true">🔍</span>
+          <input
+            id="tabSearch"
+            type="search"
+            placeholder="Search tabs by title or URL"
+            aria-label="Search tabs"
+          />
+        </label>
+        <a class="preferences-link" href="options.html" target="_blank" rel="noreferrer">Preferences</a>
+      </div>
       <div class="sorting-panel" role="group" aria-labelledby="sorting-label">
         <div class="panel-header">
-          <p id="sorting-label" class="panel-title">Sort tabs by</p>
+          <p id="sorting-label" class="panel-title">Sort tabs</p>
           <p class="muted small">Applies to selected windows or tabs</p>
         </div>
         <div class="sorting-options">
@@ -48,9 +59,6 @@
             <span>Link hierarchy</span>
           </label>
         </div>
-      </div>
-      <div class="toolbar-actions">
-        <a class="preferences-link" href="options.html" target="_blank" rel="noreferrer">Preferences</a>
       </div>
     </section>
 
