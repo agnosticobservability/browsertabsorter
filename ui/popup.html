@@ -12,26 +12,36 @@
         <p class="eyebrow">Flyout</p>
         <div class="title-row">
           <h1>Tab Sorter</h1>
-          <p class="muted">Compact controls for grouping tabs</p>
+          <p class="muted">Condensed controls for tab cleanup</p>
         </div>
       </div>
       <div class="top-actions" aria-label="Primary actions">
-        <a class="preferences-link" href="options.html" target="_blank" rel="noreferrer" title="Open preferences">
+        <a
+          class="preferences-link icon-only"
+          href="options.html"
+          target="_blank"
+          rel="noreferrer"
+          title="Open preferences"
+        >
           ⚙︎
         </a>
-        <button id="refresh" class="ghost icon-button" title="Refresh view">
-          <span aria-hidden="true">↻</span>
-          <span>Refresh</span>
-        </button>
-        <button id="group" class="primary icon-button" title="Group selected items">
-          <span aria-hidden="true">⚡</span>
-          <span>Group</span>
-        </button>
+        <div class="micro-actions" role="group" aria-label="Quick actions">
+          <button id="refresh" class="ghost icon-button icon-only" title="Refresh view">
+            <span aria-hidden="true">↻</span>
+          </button>
+          <button id="regroup" class="ghost icon-button icon-only" title="Regroup open tabs">
+            <span aria-hidden="true">⇆</span>
+          </button>
+          <button id="group" class="primary icon-button tight" title="Group selected items">
+            <span aria-hidden="true">⚡</span>
+            <span>Group</span>
+          </button>
+        </div>
       </div>
     </header>
 
     <section class="toolbar card">
-      <div class="toolbar-row">
+      <div class="toolbar-row compact">
         <label class="search" for="tabSearch">
           <span aria-hidden="true">🔍</span>
           <input
@@ -42,10 +52,19 @@
           />
         </label>
       </div>
+      <div class="toolbar-row session-bar" aria-label="Session actions">
+        <input
+          id="sessionName"
+          class="session-input"
+          placeholder="Session name"
+          aria-label="Session name"
+        />
+        <button id="saveSession" class="ghost tight" title="Save selected tabs to a session">Save</button>
+      </div>
       <div class="sorting-panel" role="group" aria-labelledby="sorting-label">
         <div class="panel-header">
           <p id="sorting-label" class="panel-title">Sort tabs</p>
-          <p class="muted small">Applies to selected windows/tabs</p>
+          <p class="muted small">Affects selected windows/tabs</p>
         </div>
         <div class="sorting-options">
           <label class="checkbox-option" for="sortPinnedFlyout">
