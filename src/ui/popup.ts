@@ -32,6 +32,9 @@ const sortHierarchy = document.getElementById("sortHierarchyFlyout") as HTMLInpu
 const sortTitle = document.getElementById("sortTitleFlyout") as HTMLInputElement;
 const sortUrl = document.getElementById("sortUrlFlyout") as HTMLInputElement;
 
+const btnSort = document.getElementById("btnSort") as HTMLButtonElement;
+const btnGroup = document.getElementById("btnGroup") as HTMLButtonElement;
+
 // Footer Stats
 const footerTotalTabs = document.getElementById("footerTotalTabs") as HTMLElement;
 const footerTotalGroups = document.getElementById("footerTotalGroups") as HTMLElement;
@@ -78,6 +81,11 @@ const fetchState = async () => {
 
 const applyGrouping = async (payload: ApplyGroupingPayload) => {
   const response = await chrome.runtime.sendMessage({ type: "applyGrouping", payload });
+  return response as RuntimeResponse<unknown>;
+};
+
+const applySorting = async (payload: ApplyGroupingPayload) => {
+  const response = await chrome.runtime.sendMessage({ type: "applySorting", payload });
   return response as RuntimeResponse<unknown>;
 };
 
@@ -169,6 +177,13 @@ const triggerReGroup = async () => {
   const selection = buildSelectionPayload();
   const sorting = getSelectedSorting();
   await applyGrouping({ selection, sorting });
+  await loadState();
+};
+
+const triggerSort = async () => {
+  const selection = buildSelectionPayload();
+  const sorting = getSelectedSorting();
+  await applySorting({ selection, sorting });
   await loadState();
 };
 
@@ -487,15 +502,13 @@ const initialize = async () => {
 };
 
 // Event Listeners for Sort Toggles
-const handleSortChange = async () => {
-    await triggerReGroup();
-};
+// Note: We removed auto-triggering on sort change.
+// The user must click "Sort" or "Group" explicitly.
+// But we might want to persist the selection locally or just rely on the UI state when button is clicked.
+// Since getSelectedSorting() reads from DOM, we don't need to do anything on change except maybe visual feedback if we had it.
 
-sortPinned.addEventListener("change", handleSortChange);
-sortRecency.addEventListener("change", handleSortChange);
-sortHierarchy.addEventListener("change", handleSortChange);
-sortTitle.addEventListener("change", handleSortChange);
-sortUrl.addEventListener("change", handleSortChange);
+btnSort.addEventListener("click", triggerSort);
+btnGroup.addEventListener("click", triggerReGroup);
 
 // Keep search listener
 searchInput.addEventListener("input", renderWindows);

@@ -6,6 +6,8 @@ const sortRecency = document.getElementById("sortRecencyFlyout");
 const sortHierarchy = document.getElementById("sortHierarchyFlyout");
 const sortTitle = document.getElementById("sortTitleFlyout");
 const sortUrl = document.getElementById("sortUrlFlyout");
+const btnSort = document.getElementById("btnSort");
+const btnGroup = document.getElementById("btnGroup");
 // Footer Stats
 const footerTotalTabs = document.getElementById("footerTotalTabs");
 const footerTotalGroups = document.getElementById("footerTotalGroups");
@@ -46,6 +48,10 @@ const fetchState = async () => {
 };
 const applyGrouping = async (payload) => {
     const response = await chrome.runtime.sendMessage({ type: "applyGrouping", payload });
+    return response;
+};
+const applySorting = async (payload) => {
+    const response = await chrome.runtime.sendMessage({ type: "applySorting", payload });
     return response;
 };
 const mapWindows = (groups, windowTitles) => {
@@ -131,6 +137,12 @@ const triggerReGroup = async () => {
     const selection = buildSelectionPayload();
     const sorting = getSelectedSorting();
     await applyGrouping({ selection, sorting });
+    await loadState();
+};
+const triggerSort = async () => {
+    const selection = buildSelectionPayload();
+    const sorting = getSelectedSorting();
+    await applySorting({ selection, sorting });
     await loadState();
 };
 const applySortingSelection = (sorting) => {
@@ -399,14 +411,12 @@ const initialize = async () => {
     await loadState();
 };
 // Event Listeners for Sort Toggles
-const handleSortChange = async () => {
-    await triggerReGroup();
-};
-sortPinned.addEventListener("change", handleSortChange);
-sortRecency.addEventListener("change", handleSortChange);
-sortHierarchy.addEventListener("change", handleSortChange);
-sortTitle.addEventListener("change", handleSortChange);
-sortUrl.addEventListener("change", handleSortChange);
+// Note: We removed auto-triggering on sort change.
+// The user must click "Sort" or "Group" explicitly.
+// But we might want to persist the selection locally or just rely on the UI state when button is clicked.
+// Since getSelectedSorting() reads from DOM, we don't need to do anything on change except maybe visual feedback if we had it.
+btnSort.addEventListener("click", triggerSort);
+btnGroup.addEventListener("click", triggerReGroup);
 // Keep search listener
 searchInput.addEventListener("input", renderWindows);
 // Auto-refresh?
