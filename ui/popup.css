@@ -321,10 +321,36 @@ body {
 
 /* Header inside group section */
 .group-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   font-size: 13px;
   font-weight: 700;
   color: var(--text-main);
   padding: 0 4px;
+}
+
+.group-action-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.group-action-btn:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+  color: var(--text-main);
+}
+
+.group-action-btn svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 2.5;
 }
 
 /* Individual tab item inside group */
@@ -383,6 +409,34 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.tab-close-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 50%;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0; /* Hidden by default */
+  transition: opacity 0.2s, background-color 0.2s;
+}
+
+.group-tab-item:hover .tab-close-btn {
+  opacity: 1;
+}
+
+.tab-close-btn:hover {
+  background-color: #f1f5f9;
+  color: #ef4444; /* Red color on hover */
+}
+
+.tab-close-btn svg {
+  width: 14px;
+  height: 14px;
 }
 
 /* Footer */
