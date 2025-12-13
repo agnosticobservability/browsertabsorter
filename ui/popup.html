@@ -30,7 +30,7 @@
 
       <div class="sort-toggles">
         <div class="sort-toggle-item">
-          <label class="toggle-control">
+          <label class="toggle-control" title="Sort by pinned state first">
             <input type="checkbox" id="sortPinnedFlyout" />
             <svg class="toggle-icon-side" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <line x1="12" y1="17" x2="12" y2="22"></line>
@@ -44,7 +44,7 @@
         </div>
 
         <div class="sort-toggle-item">
-          <label class="toggle-control">
+          <label class="toggle-control" title="Sort by most recently used">
             <input type="checkbox" id="sortRecencyFlyout" />
             <svg class="toggle-icon-side" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <circle cx="12" cy="12" r="10"></circle>
@@ -58,7 +58,7 @@
         </div>
 
         <div class="sort-toggle-item">
-          <label class="toggle-control">
+          <label class="toggle-control" title="Sort by creation/opener relationship">
             <input type="checkbox" id="sortHierarchyFlyout" />
             <svg class="toggle-icon-side" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
@@ -68,6 +68,34 @@
             </div>
           </label>
           <span class="toggle-label">Hierarchy</span>
+        </div>
+
+        <div class="sort-toggle-item">
+          <label class="toggle-control" title="Sort alphabetically by tab title">
+            <input type="checkbox" id="sortTitleFlyout" />
+            <svg class="toggle-icon-side" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 7V4h16v3M9 20h6M12 4v16"></path>
+            </svg>
+            <div class="toggle-track">
+              <div class="toggle-knob"></div>
+            </div>
+          </label>
+          <span class="toggle-label">Title</span>
+        </div>
+
+        <div class="sort-toggle-item">
+          <label class="toggle-control" title="Sort by URL domain and path">
+            <input type="checkbox" id="sortUrlFlyout" />
+            <svg class="toggle-icon-side" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="2" y1="12" x2="22" y2="12"></line>
+              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+            </svg>
+            <div class="toggle-track">
+              <div class="toggle-knob"></div>
+            </div>
+          </label>
+          <span class="toggle-label">URL</span>
         </div>
       </div>
 

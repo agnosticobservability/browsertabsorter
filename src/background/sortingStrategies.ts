@@ -23,6 +23,10 @@ const compareBy = (strategy: SortingStrategy, a: TabMetadata, b: TabMetadata): n
       return hierarchyScore(a) - hierarchyScore(b);
     case "pinned":
       return pinnedScore(a) - pinnedScore(b);
+    case "title":
+      return a.title.localeCompare(b.title);
+    case "url":
+      return a.url.localeCompare(b.url);
     default:
       return 0;
   }
