@@ -6,6 +6,7 @@ export interface TabMetadata {
   pinned: boolean;
   lastAccessed?: number;
   openerTabId?: number;
+  favIconUrl?: string;
 }
 
 export interface TabGroup {

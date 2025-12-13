@@ -11,7 +11,8 @@ const mapChromeTab = (tab) => {
         url: tab.url,
         pinned: Boolean(tab.pinned),
         lastAccessed: tab.lastAccessed,
-        openerTabId: tab.openerTabId ?? undefined
+        openerTabId: tab.openerTabId ?? undefined,
+        favIconUrl: tab.favIconUrl
     };
 };
 export const fetchTabGroups = async (preferences, filter) => {

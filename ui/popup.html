@@ -7,62 +7,97 @@
     <title>Tab Sorter</title>
   </head>
   <body>
-    <header class="topbar card">
-      <div class="brand">
-        <p class="eyebrow">Flyout</p>
-        <div class="title-row">
-          <h1>Tab Sorter</h1>
-          <p class="muted">Compact controls for grouping and navigating tabs.</p>
-        </div>
+    <!-- Header -->
+    <header class="header">
+      <div class="search-box">
+        <svg class="icon search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        <input
+          id="tabSearch"
+          type="search"
+          placeholder="Search tabs by title or URL"
+          aria-label="Search tabs"
+        />
       </div>
-      <div class="top-actions">
-        <button id="refresh" class="ghost icon-button" title="Refresh view">
-          <span aria-hidden="true">↻</span>
-          <span>Refresh</span>
-        </button>
-        <button id="group" class="primary icon-button" title="Group selected items">
-          <span aria-hidden="true">⚡</span>
-          <span>Group</span>
-        </button>
-      </div>
+      <a class="preferences-btn" href="options.html" target="_blank" rel="noreferrer">Preferences</a>
     </header>
 
-    <section class="toolbar card">
-      <div class="toolbar-row">
-        <label class="search" for="tabSearch">
-          <span aria-hidden="true">🔍</span>
-          <input
-            id="tabSearch"
-            type="search"
-            placeholder="Search tabs by title or URL"
-            aria-label="Search tabs"
-          />
-        </label>
-        <a class="preferences-link" href="options.html" target="_blank" rel="noreferrer">Preferences</a>
-      </div>
-      <div class="sorting-panel" role="group" aria-labelledby="sorting-label">
-        <div class="panel-header">
-          <p id="sorting-label" class="panel-title">Sort tabs</p>
-          <p class="muted small">Applies to selected windows or tabs</p>
-        </div>
-        <div class="sorting-options">
-          <label class="checkbox-option" for="sortPinnedFlyout">
+    <!-- Sort Controls -->
+    <section class="sort-section card">
+      <div class="sort-label">Sort</div>
+
+      <div class="sort-toggles">
+        <div class="sort-toggle-item">
+          <label class="toggle-control">
             <input type="checkbox" id="sortPinnedFlyout" />
-            <span>Pin state</span>
+            <svg class="toggle-icon-side" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="17" x2="12" y2="22"></line>
+              <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"></path>
+            </svg>
+            <div class="toggle-track">
+              <div class="toggle-knob"></div>
+            </div>
           </label>
-          <label class="checkbox-option" for="sortRecencyFlyout">
+          <span class="toggle-label">Pin State</span>
+        </div>
+
+        <div class="sort-toggle-item">
+          <label class="toggle-control">
             <input type="checkbox" id="sortRecencyFlyout" />
-            <span>Recent activity</span>
+            <svg class="toggle-icon-side" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+            <div class="toggle-track">
+              <div class="toggle-knob"></div>
+            </div>
           </label>
-          <label class="checkbox-option" for="sortHierarchyFlyout">
+          <span class="toggle-label">Recent Activity</span>
+        </div>
+
+        <div class="sort-toggle-item">
+          <label class="toggle-control">
             <input type="checkbox" id="sortHierarchyFlyout" />
-            <span>Link hierarchy</span>
+            <svg class="toggle-icon-side" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+            </svg>
+            <div class="toggle-track">
+              <div class="toggle-knob"></div>
+            </div>
           </label>
+          <span class="toggle-label">Hierarchy</span>
         </div>
       </div>
+
+      <button class="icon-button outline" title="More sorting options">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="6 9 12 15 18 9"></polyline>
+        </svg>
+      </button>
     </section>
 
+    <!-- Windows List -->
     <section id="windows" class="window-list" aria-live="polite"></section>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <div class="stat-item">
+        <span class="stat-label">Total tabs</span>
+        <span class="stat-value" id="footerTotalTabs">0</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-value" id="footerTotalGroups">0 groups</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-value" id="footerExtraStat"></span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-value" id="footerPinned">0 pinned</span>
+      </div>
+    </footer>
+
     <script type="module" src="../dist/ui/popup.js"></script>
   </body>
 </html>
