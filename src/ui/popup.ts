@@ -279,6 +279,12 @@ const renderGroupItems = (tabs: TabWithGroup[]) => {
         content.append(title, subtitle);
         item.append(iconContainer, content);
 
+        // Click to jump to tab
+        item.addEventListener("click", async () => {
+          await chrome.tabs.update(tab.id, { active: true });
+          await chrome.windows.update(tab.windowId, { focused: true });
+        });
+
         groupSection.appendChild(item);
       });
 
