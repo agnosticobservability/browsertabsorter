@@ -51,6 +51,7 @@ const ICONS = {
   show: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>`,
   focus: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>`,
   close: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`,
+  ungroup: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="8" y1="12" x2="16" y2="12"></line></svg>`,
   defaultFile: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>`
 };
 
@@ -241,7 +242,25 @@ const renderGroupItems = (tabs: TabWithGroup[]) => {
       // 2. Group Header
       const header = document.createElement("div");
       header.className = "group-header";
-      header.textContent = label;
+
+      const headerLabel = document.createElement("span");
+      headerLabel.textContent = label;
+      header.appendChild(headerLabel);
+
+      const ungroupBtn = document.createElement("button");
+      ungroupBtn.className = "group-action-btn";
+      ungroupBtn.innerHTML = ICONS.ungroup;
+      ungroupBtn.title = "Ungroup tabs";
+      ungroupBtn.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        if (confirm(`Ungroup ${group.tabs.length} tabs from "${label}"?`)) {
+          const tabIds = group.tabs.map((t) => t.id);
+          await chrome.tabs.ungroup(tabIds);
+          await loadState();
+        }
+      });
+      header.appendChild(ungroupBtn);
+
       groupSection.appendChild(header);
 
       // 3. Render Individual Tabs
@@ -278,6 +297,18 @@ const renderGroupItems = (tabs: TabWithGroup[]) => {
 
         content.append(title, subtitle);
         item.append(iconContainer, content);
+
+        // Close Tab Button
+        const closeBtn = document.createElement("button");
+        closeBtn.className = "tab-close-btn";
+        closeBtn.innerHTML = ICONS.close;
+        closeBtn.title = "Close tab";
+        closeBtn.addEventListener("click", async (e) => {
+          e.stopPropagation();
+          await chrome.tabs.remove(tab.id);
+          await loadState();
+        });
+        item.appendChild(closeBtn);
 
         // Click to jump to tab
         item.addEventListener("click", async () => {
