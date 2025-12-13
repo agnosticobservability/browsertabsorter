@@ -313,7 +313,7 @@ body {
 .group-section {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 0;
   border: 1px solid var(--border-color); /* will be overridden inline */
   border-radius: var(--radius-sm);
   padding: 8px 8px 10px 8px;
@@ -329,6 +329,7 @@ body {
   font-weight: 700;
   color: var(--text-main);
   padding: 0 4px;
+  margin-bottom: 6px;
 }
 
 .group-action-btn {
@@ -364,6 +365,23 @@ body {
   border: 1px solid var(--border-color);
   border-radius: 6px; /* Slightly smaller radius for inner items? or same */
   box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+}
+
+.group-section .group-tab-item {
+  border-radius: 0;
+  box-shadow: none;
+  margin-bottom: -1px;
+}
+
+.group-section .group-tab-item:nth-of-type(2) {
+  border-top-left-radius: 6px;
+  border-top-right-radius: 6px;
+}
+
+.group-section .group-tab-item:last-child {
+  border-bottom-left-radius: 6px;
+  border-bottom-right-radius: 6px;
+  margin-bottom: 0;
 }
 
 .group-icon {
