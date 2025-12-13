@@ -54,6 +54,20 @@ const ICONS = {
   defaultFile: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>`
 };
 
+const GROUP_COLORS: Record<string, string> = {
+  grey: "#64748b",
+  blue: "#3b82f6",
+  red: "#ef4444",
+  yellow: "#eab308",
+  green: "#22c55e",
+  pink: "#ec4899",
+  purple: "#a855f7",
+  cyan: "#06b6d4",
+  orange: "#f97316"
+};
+
+const getGroupColor = (name: string) => GROUP_COLORS[name] || "#cbd5e1";
+
 const fetchState = async () => {
   const response = await chrome.runtime.sendMessage({ type: "getState" });
   return response as RuntimeResponse<{ groups: TabGroup[]; preferences: Preferences }>;
@@ -215,38 +229,60 @@ const renderGroupItems = (tabs: TabWithGroup[]) => {
   Array.from(groups.entries())
     .sort(([labelA], [labelB]) => labelA.localeCompare(labelB))
     .forEach(([label, group]) => {
-      const item = document.createElement("div");
-      item.className = "group-item";
+      // 1. Group Container
+      const groupSection = document.createElement("div");
+      groupSection.className = "group-section";
 
-      const iconContainer = document.createElement("div");
-      iconContainer.className = "group-icon";
-      const firstTab = group.tabs[0];
-      if (firstTab && firstTab.favIconUrl) {
-          const img = document.createElement("img");
-          img.src = firstTab.favIconUrl;
-          img.onerror = () => { iconContainer.innerHTML = ICONS.defaultFile; };
-          iconContainer.appendChild(img);
-      } else {
-          iconContainer.innerHTML = ICONS.defaultFile;
-      }
+      const colorHex = getGroupColor(group.color);
+      groupSection.style.borderColor = colorHex;
+      // Use color-mix for tint (works in modern Chrome)
+      groupSection.style.backgroundColor = `color-mix(in srgb, ${colorHex}, transparent 90%)`;
 
-      const content = document.createElement("div");
-      content.className = "group-content";
+      // 2. Group Header
+      const header = document.createElement("div");
+      header.className = "group-header";
+      header.textContent = label;
+      groupSection.appendChild(header);
 
-      const title = document.createElement("div");
-      title.className = "group-title";
-      title.textContent = `${label} • ${group.reason}`;
+      // 3. Render Individual Tabs
+      group.tabs.forEach(tab => {
+        const item = document.createElement("div");
+        item.className = "group-tab-item";
 
-      const subtitle = document.createElement("div");
-      subtitle.className = "group-subtitle";
-      const tabCountText = group.tabs.length === 1 ? "1 tab" : `${group.tabs.length} tabs`;
-      subtitle.textContent = `${tabCountText}, domain + semantic`;
+        // Icon
+        const iconContainer = document.createElement("div");
+        iconContainer.className = "group-icon";
+        if (tab.favIconUrl) {
+            const img = document.createElement("img");
+            img.src = tab.favIconUrl;
+            img.onerror = () => { iconContainer.innerHTML = ICONS.defaultFile; };
+            iconContainer.appendChild(img);
+        } else {
+            iconContainer.innerHTML = ICONS.defaultFile;
+        }
 
-      content.append(title, subtitle);
+        // Content
+        const content = document.createElement("div");
+        content.className = "group-content";
 
-      item.append(iconContainer, content);
+        const title = document.createElement("div");
+        title.className = "group-title";
+        // "amazon.com • Misc"
+        title.textContent = `${formatDomain(tab.url)} • ${group.reason}`;
 
-      list.appendChild(item);
+        const subtitle = document.createElement("div");
+        subtitle.className = "group-subtitle";
+        // "1 tab, domain + semantic" (Placeholder-ish logic)
+        // Let's use real data: "1 tab, [Title of page]"
+        subtitle.textContent = `1 tab, ${tab.title}`;
+
+        content.append(title, subtitle);
+        item.append(iconContainer, content);
+
+        groupSection.appendChild(item);
+      });
+
+      list.appendChild(groupSection);
     });
 
   return list;
