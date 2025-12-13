@@ -115,6 +115,7 @@ body {
   display: flex;
   gap: 16px;
   flex: 1;
+  flex-wrap: wrap;
   justify-content: flex-start; /* Aligned left next to label */
 }
 

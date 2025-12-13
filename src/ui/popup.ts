@@ -29,6 +29,8 @@ const windowsContainer = document.getElementById("windows") as HTMLDivElement;
 const sortPinned = document.getElementById("sortPinnedFlyout") as HTMLInputElement;
 const sortRecency = document.getElementById("sortRecencyFlyout") as HTMLInputElement;
 const sortHierarchy = document.getElementById("sortHierarchyFlyout") as HTMLInputElement;
+const sortTitle = document.getElementById("sortTitleFlyout") as HTMLInputElement;
+const sortUrl = document.getElementById("sortUrlFlyout") as HTMLInputElement;
 
 // Footer Stats
 const footerTotalTabs = document.getElementById("footerTotalTabs") as HTMLElement;
@@ -174,6 +176,8 @@ const applySortingSelection = (sorting: SortingStrategy[]) => {
   sortPinned.checked = sorting.includes("pinned");
   sortRecency.checked = sorting.includes("recency");
   sortHierarchy.checked = sorting.includes("hierarchy");
+  sortTitle.checked = sorting.includes("title");
+  sortUrl.checked = sorting.includes("url");
 };
 
 const getSelectedSorting = (): SortingStrategy[] => {
@@ -181,6 +185,8 @@ const getSelectedSorting = (): SortingStrategy[] => {
   if (sortPinned.checked) selected.push("pinned");
   if (sortRecency.checked) selected.push("recency");
   if (sortHierarchy.checked) selected.push("hierarchy");
+  if (sortTitle.checked) selected.push("title");
+  if (sortUrl.checked) selected.push("url");
   if (selected.length === 0) {
     return preferences?.sorting ?? ["pinned", "recency"];
   }
@@ -488,6 +494,8 @@ const handleSortChange = async () => {
 sortPinned.addEventListener("change", handleSortChange);
 sortRecency.addEventListener("change", handleSortChange);
 sortHierarchy.addEventListener("change", handleSortChange);
+sortTitle.addEventListener("change", handleSortChange);
+sortUrl.addEventListener("change", handleSortChange);
 
 // Keep search listener
 searchInput.addEventListener("input", renderWindows);

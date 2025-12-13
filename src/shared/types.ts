@@ -19,7 +19,7 @@ export interface TabGroup {
 }
 
 export type GroupingStrategy = "domain" | "semantic" | "navigation";
-export type SortingStrategy = "recency" | "hierarchy" | "pinned";
+export type SortingStrategy = "recency" | "hierarchy" | "pinned" | "title" | "url";
 
 export interface GroupingSelection {
   windowIds?: number[];
