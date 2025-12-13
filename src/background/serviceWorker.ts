@@ -1,4 +1,4 @@
-import { applyTabGroups, fetchTabGroups } from "./tabManager.js";
+import { applyTabGroups, applyTabSorting, fetchTabGroups } from "./tabManager.js";
 import { loadPreferences, savePreferences } from "./preferences.js";
 import { logDebug, logInfo } from "./logger.js";
 import {
@@ -34,6 +34,15 @@ const handleMessage = async <TData>(
       const groups = await fetchTabGroups(preferences, selection);
       await applyTabGroups(groups);
       return { ok: true, data: { groups } as TData };
+    }
+    case "applySorting": {
+      const prefs = await loadPreferences();
+      const payload = (message.payload as ApplyGroupingPayload | undefined) ?? {};
+      const selection = payload.selection ?? {};
+      const sorting = payload.sorting?.length ? payload.sorting : undefined;
+      const preferences = sorting ? { ...prefs, sorting } : prefs;
+      await applyTabSorting(preferences, selection);
+      return { ok: true };
     }
     case "loadPreferences": {
       const prefs = await loadPreferences();

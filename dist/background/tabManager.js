@@ -51,6 +51,34 @@ export const applyTabGroups = async (groups) => {
         }
     }
 };
+export const applyTabSorting = async (preferences, filter) => {
+    const chromeTabs = await chrome.tabs.query({});
+    const targetWindowIds = new Set();
+    if (!filter || (!filter.windowIds?.length && !filter.tabIds?.length)) {
+        chromeTabs.forEach(t => { if (t.windowId)
+            targetWindowIds.add(t.windowId); });
+    }
+    else {
+        filter.windowIds?.forEach(id => targetWindowIds.add(id));
+        if (filter.tabIds?.length) {
+            const ids = new Set(filter.tabIds);
+            chromeTabs.forEach(t => {
+                if (t.id && ids.has(t.id) && t.windowId)
+                    targetWindowIds.add(t.windowId);
+            });
+        }
+    }
+    for (const windowId of targetWindowIds) {
+        const windowTabs = chromeTabs.filter(t => t.windowId === windowId);
+        const mapped = windowTabs.map(mapChromeTab).filter((t) => Boolean(t));
+        const sorted = sortTabs(mapped, preferences.sorting);
+        const sortedIds = sorted.map(t => t.id);
+        if (sortedIds.length > 0) {
+            await chrome.tabs.ungroup(sortedIds);
+            await chrome.tabs.move(sortedIds, { index: 0 });
+        }
+    }
+};
 export const closeGroup = async (group) => {
     const ids = group.tabs.map((tab) => tab.id);
     await chrome.tabs.remove(ids);

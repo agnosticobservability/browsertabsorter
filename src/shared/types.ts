@@ -43,6 +43,7 @@ export interface RuntimeMessage<TPayload = unknown> {
   type:
     | "getState"
     | "applyGrouping"
+    | "applySorting"
     | "loadPreferences"
     | "savePreferences";
   payload?: TPayload;
