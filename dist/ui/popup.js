@@ -6,6 +6,7 @@ const sortRecency = document.getElementById("sortRecencyFlyout");
 const sortHierarchy = document.getElementById("sortHierarchyFlyout");
 const sortTitle = document.getElementById("sortTitleFlyout");
 const sortUrl = document.getElementById("sortUrlFlyout");
+const sortContext = document.getElementById("sortContextFlyout");
 const btnSort = document.getElementById("btnSort");
 const btnGroup = document.getElementById("btnGroup");
 // Footer Stats
@@ -151,6 +152,7 @@ const applySortingSelection = (sorting) => {
     sortHierarchy.checked = sorting.includes("hierarchy");
     sortTitle.checked = sorting.includes("title");
     sortUrl.checked = sorting.includes("url");
+    sortContext.checked = sorting.includes("context");
 };
 const getSelectedSorting = () => {
     const selected = [];
@@ -164,6 +166,8 @@ const getSelectedSorting = () => {
         selected.push("title");
     if (sortUrl.checked)
         selected.push("url");
+    if (sortContext.checked)
+        selected.push("context");
     if (selected.length === 0) {
         return preferences?.sorting ?? ["pinned", "recency"];
     }

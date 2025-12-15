@@ -31,6 +31,7 @@ const sortRecency = document.getElementById("sortRecencyFlyout") as HTMLInputEle
 const sortHierarchy = document.getElementById("sortHierarchyFlyout") as HTMLInputElement;
 const sortTitle = document.getElementById("sortTitleFlyout") as HTMLInputElement;
 const sortUrl = document.getElementById("sortUrlFlyout") as HTMLInputElement;
+const sortContext = document.getElementById("sortContextFlyout") as HTMLInputElement;
 
 const btnSort = document.getElementById("btnSort") as HTMLButtonElement;
 const btnGroup = document.getElementById("btnGroup") as HTMLButtonElement;
@@ -193,6 +194,7 @@ const applySortingSelection = (sorting: SortingStrategy[]) => {
   sortHierarchy.checked = sorting.includes("hierarchy");
   sortTitle.checked = sorting.includes("title");
   sortUrl.checked = sorting.includes("url");
+  sortContext.checked = sorting.includes("context");
 };
 
 const getSelectedSorting = (): SortingStrategy[] => {
@@ -202,6 +204,7 @@ const getSelectedSorting = (): SortingStrategy[] => {
   if (sortHierarchy.checked) selected.push("hierarchy");
   if (sortTitle.checked) selected.push("title");
   if (sortUrl.checked) selected.push("url");
+  if (sortContext.checked) selected.push("context");
   if (selected.length === 0) {
     return preferences?.sorting ?? ["pinned", "recency"];
   }
