@@ -27,6 +27,8 @@ const compareBy = (strategy: SortingStrategy, a: TabMetadata, b: TabMetadata): n
       return a.title.localeCompare(b.title);
     case "url":
       return a.url.localeCompare(b.url);
+    case "context":
+      return (a.context ?? "").localeCompare(b.context ?? "");
     case "youtube-channel":
       if (a.youtubeChannel && b.youtubeChannel) {
         return a.youtubeChannel.localeCompare(b.youtubeChannel);

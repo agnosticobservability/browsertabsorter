@@ -32,9 +32,12 @@ const sortHierarchy = document.getElementById("sortHierarchyFlyout") as HTMLInpu
 const sortTitle = document.getElementById("sortTitleFlyout") as HTMLInputElement;
 const sortUrl = document.getElementById("sortUrlFlyout") as HTMLInputElement;
 const sortYoutube = document.getElementById("sortYoutubeFlyout") as HTMLInputElement;
+const sortContext = document.getElementById("sortContextFlyout") as HTMLInputElement;
 
-const btnSort = document.getElementById("btnSort") as HTMLButtonElement;
-const btnGroup = document.getElementById("btnGroup") as HTMLButtonElement;
+const btnSortSelected = document.getElementById("btnSortSelected") as HTMLButtonElement;
+const btnGroupSelected = document.getElementById("btnGroupSelected") as HTMLButtonElement;
+const btnSortAll = document.getElementById("btnSortAll") as HTMLButtonElement;
+const btnGroupAll = document.getElementById("btnGroupAll") as HTMLButtonElement;
 
 // Footer Stats
 const footerTotalTabs = document.getElementById("footerTotalTabs") as HTMLElement;
@@ -54,7 +57,7 @@ let sortingInitialized = false;
 const ICONS = {
   active: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"></polygon></svg>`,
   hide: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>`,
-  show: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>`,
+  show: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>`,
   focus: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>`,
   close: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`,
   ungroup: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="8" y1="12" x2="16" y2="12"></line></svg>`,
@@ -174,17 +177,29 @@ const buildSelectionPayload = (): GroupingSelection => {
   };
 };
 
-const triggerReGroup = async () => {
+const triggerReGroupSelected = async () => {
   const selection = buildSelectionPayload();
   const sorting = getSelectedSorting();
   await applyGrouping({ selection, sorting });
   await loadState();
 };
 
-const triggerSort = async () => {
+const triggerSortSelected = async () => {
   const selection = buildSelectionPayload();
   const sorting = getSelectedSorting();
   await applySorting({ selection, sorting });
+  await loadState();
+};
+
+const triggerReGroupAll = async () => {
+  const sorting = getSelectedSorting();
+  await applyGrouping({ sorting });
+  await loadState();
+};
+
+const triggerSortAll = async () => {
+  const sorting = getSelectedSorting();
+  await applySorting({ sorting });
   await loadState();
 };
 
@@ -195,6 +210,7 @@ const applySortingSelection = (sorting: SortingStrategy[]) => {
   sortTitle.checked = sorting.includes("title");
   sortUrl.checked = sorting.includes("url");
   sortYoutube.checked = sorting.includes("youtube-channel");
+  sortContext.checked = sorting.includes("context");
 };
 
 const getSelectedSorting = (): SortingStrategy[] => {
@@ -205,6 +221,7 @@ const getSelectedSorting = (): SortingStrategy[] => {
   if (sortTitle.checked) selected.push("title");
   if (sortUrl.checked) selected.push("url");
   if (sortYoutube.checked) selected.push("youtube-channel");
+  if (sortContext.checked) selected.push("context");
   if (selected.length === 0) {
     return preferences?.sorting ?? ["pinned", "recency"];
   }
@@ -510,8 +527,10 @@ const initialize = async () => {
 // But we might want to persist the selection locally or just rely on the UI state when button is clicked.
 // Since getSelectedSorting() reads from DOM, we don't need to do anything on change except maybe visual feedback if we had it.
 
-btnSort.addEventListener("click", triggerSort);
-btnGroup.addEventListener("click", triggerReGroup);
+btnSortSelected.addEventListener("click", triggerSortSelected);
+btnGroupSelected.addEventListener("click", triggerReGroupSelected);
+btnSortAll.addEventListener("click", triggerSortAll);
+btnGroupAll.addEventListener("click", triggerReGroupAll);
 
 // Keep search listener
 searchInput.addEventListener("input", renderWindows);

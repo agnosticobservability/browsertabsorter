@@ -1,5 +1,6 @@
 import { groupTabs } from "./groupingStrategies.js";
 import { sortTabs } from "./sortingStrategies.js";
+import { analyzeTabContext } from "./contextAnalysis.js";
 import { logDebug, logInfo } from "./logger.js";
 const mapChromeTab = (tab) => {
     if (!tab.id || !tab.windowId || !tab.url || !tab.title)
@@ -55,6 +56,12 @@ export const fetchTabGroups = async (preferences, filter) => {
     if (preferences.sorting.includes("youtube-channel")) {
         mapped = await enrichTabsWithYoutubeChannel(mapped);
     }
+    if (preferences.sorting.includes("context")) {
+        const contextMap = await analyzeTabContext(mapped);
+        mapped.forEach(tab => {
+            tab.context = contextMap.get(tab.id);
+        });
+    }
     const grouped = groupTabs(mapped, preferences.primaryGrouping, preferences.secondaryGrouping);
     grouped.forEach((group) => {
         group.tabs = sortTabs(group.tabs, preferences.sorting);
@@ -100,6 +107,12 @@ export const applyTabSorting = async (preferences, filter) => {
         let mapped = windowTabs.map(mapChromeTab).filter((t) => Boolean(t));
         if (preferences.sorting.includes("youtube-channel")) {
             mapped = await enrichTabsWithYoutubeChannel(mapped);
+        }
+        if (preferences.sorting.includes("context")) {
+            const contextMap = await analyzeTabContext(mapped);
+            mapped.forEach(tab => {
+                tab.context = contextMap.get(tab.id);
+            });
         }
         const sorted = sortTabs(mapped, preferences.sorting);
         const sortedIds = sorted.map(t => t.id);

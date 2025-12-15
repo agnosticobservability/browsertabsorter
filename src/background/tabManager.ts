@@ -1,5 +1,6 @@
 import { groupTabs } from "./groupingStrategies.js";
 import { sortTabs } from "./sortingStrategies.js";
+import { analyzeTabContext } from "./contextAnalysis.js";
 import { logDebug, logError, logInfo } from "./logger.js";
 import { GroupingSelection, Preferences, TabGroup, TabMetadata } from "../shared/types.js";
 import { getStoredValue, setStoredValue } from "./storage.js";
@@ -64,6 +65,12 @@ export const fetchTabGroups = async (
   if (preferences.sorting.includes("youtube-channel")) {
     mapped = await enrichTabsWithYoutubeChannel(mapped);
   }
+  if (preferences.sorting.includes("context")) {
+    const contextMap = await analyzeTabContext(mapped);
+    mapped.forEach(tab => {
+      tab.context = contextMap.get(tab.id);
+    });
+  }
 
   const grouped = groupTabs(mapped, preferences.primaryGrouping, preferences.secondaryGrouping);
   grouped.forEach((group) => {
@@ -117,6 +124,12 @@ export const applyTabSorting = async (
 
       if (preferences.sorting.includes("youtube-channel")) {
         mapped = await enrichTabsWithYoutubeChannel(mapped);
+      }
+      if (preferences.sorting.includes("context")) {
+        const contextMap = await analyzeTabContext(mapped);
+        mapped.forEach(tab => {
+          tab.context = contextMap.get(tab.id);
+        });
       }
 
       const sorted = sortTabs(mapped, preferences.sorting);
