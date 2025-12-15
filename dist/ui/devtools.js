@@ -1,3 +1,4 @@
+import { analyzeTabContext } from "../background/contextAnalysis.js";
 document.addEventListener('DOMContentLoaded', () => {
     const refreshBtn = document.getElementById('refreshBtn');
     if (refreshBtn) {
@@ -12,10 +13,40 @@ async function loadTabs() {
     if (totalTabsEl) {
         totalTabsEl.textContent = tabs.length.toString();
     }
+    // Create a map of tab ID to title for parent lookup
+    const tabTitles = new Map();
+    tabs.forEach(tab => {
+        if (tab.id !== undefined) {
+            tabTitles.set(tab.id, tab.title || 'Untitled');
+        }
+    });
+    // Convert to TabMetadata for context analysis
+    const mappedTabs = tabs
+        .filter((tab) => !!tab.id && !!tab.windowId && !!tab.url && !!tab.title)
+        .map(tab => ({
+        id: tab.id,
+        windowId: tab.windowId,
+        title: tab.title,
+        url: tab.url,
+        pinned: !!tab.pinned,
+        lastAccessed: tab.lastAccessed,
+        openerTabId: tab.openerTabId,
+        favIconUrl: tab.favIconUrl || undefined
+    }));
+    // Analyze context
+    let contextMap = new Map();
+    try {
+        contextMap = await analyzeTabContext(mappedTabs);
+    }
+    catch (error) {
+        console.error("Failed to analyze context", error);
+    }
     if (tbody) {
         tbody.innerHTML = ''; // Clear existing rows
         tabs.forEach(tab => {
             const row = document.createElement('tr');
+            const parentTitle = tab.openerTabId ? (tabTitles.get(tab.openerTabId) || 'Unknown') : '-';
+            const context = (tab.id && contextMap.get(tab.id)) || 'N/A';
             row.innerHTML = `
         <td>${tab.id ?? 'N/A'}</td>
         <td>${tab.index}</td>
@@ -27,6 +58,8 @@ async function loadTabs() {
         <td>${tab.active ? 'Yes' : 'No'}</td>
         <td>${tab.pinned ? 'Yes' : 'No'}</td>
         <td>${tab.openerTabId ?? '-'}</td>
+        <td title="${escapeHtml(parentTitle)}">${escapeHtml(parentTitle)}</td>
+        <td>${escapeHtml(context)}</td>
         <td>${new Date(tab.lastAccessed || 0).toLocaleString()}</td>
       `;
             tbody.appendChild(row);
@@ -43,4 +76,3 @@ function escapeHtml(text) {
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
 }
-export {};

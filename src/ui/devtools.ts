@@ -1,8 +1,5 @@
-export {};
-
-interface TabData extends chrome.tabs.Tab {
-  // Add any extra properties if needed, but chrome.tabs.Tab covers most
-}
+import { analyzeTabContext } from "../background/contextAnalysis.js";
+import { TabMetadata } from "../shared/types.js";
 
 document.addEventListener('DOMContentLoaded', () => {
   const refreshBtn = document.getElementById('refreshBtn');
@@ -22,11 +19,46 @@ async function loadTabs() {
     totalTabsEl.textContent = tabs.length.toString();
   }
 
+  // Create a map of tab ID to title for parent lookup
+  const tabTitles = new Map<number, string>();
+  tabs.forEach(tab => {
+    if (tab.id !== undefined) {
+      tabTitles.set(tab.id, tab.title || 'Untitled');
+    }
+  });
+
+  // Convert to TabMetadata for context analysis
+  const mappedTabs: TabMetadata[] = tabs
+    .filter((tab): tab is chrome.tabs.Tab & { id: number; windowId: number; url: string; title: string } =>
+      !!tab.id && !!tab.windowId && !!tab.url && !!tab.title
+    )
+    .map(tab => ({
+      id: tab.id,
+      windowId: tab.windowId,
+      title: tab.title,
+      url: tab.url,
+      pinned: !!tab.pinned,
+      lastAccessed: tab.lastAccessed,
+      openerTabId: tab.openerTabId,
+      favIconUrl: tab.favIconUrl || undefined
+    }));
+
+  // Analyze context
+  let contextMap = new Map<number, string>();
+  try {
+      contextMap = await analyzeTabContext(mappedTabs);
+  } catch (error) {
+      console.error("Failed to analyze context", error);
+  }
+
   if (tbody) {
     tbody.innerHTML = ''; // Clear existing rows
 
     tabs.forEach(tab => {
       const row = document.createElement('tr');
+
+      const parentTitle = tab.openerTabId ? (tabTitles.get(tab.openerTabId) || 'Unknown') : '-';
+      const context = (tab.id && contextMap.get(tab.id)) || 'N/A';
 
       row.innerHTML = `
         <td>${tab.id ?? 'N/A'}</td>
@@ -39,6 +71,8 @@ async function loadTabs() {
         <td>${tab.active ? 'Yes' : 'No'}</td>
         <td>${tab.pinned ? 'Yes' : 'No'}</td>
         <td>${tab.openerTabId ?? '-'}</td>
+        <td title="${escapeHtml(parentTitle)}">${escapeHtml(parentTitle)}</td>
+        <td>${escapeHtml(context)}</td>
         <td>${new Date(tab.lastAccessed || 0).toLocaleString()}</td>
       `;
 
