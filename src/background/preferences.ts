@@ -8,8 +8,7 @@ export const defaultPreferences: Preferences = {
   primaryGrouping: "domain",
   secondaryGrouping: "semantic",
   sorting: ["pinned", "recency"],
-  debug: false,
-  autoGroupNewTabs: false
+  debug: false
 };
 
 export const loadPreferences = async (): Promise<Preferences> => {

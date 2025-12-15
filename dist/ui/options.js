@@ -4,7 +4,6 @@ const sortList = document.getElementById("sortList");
 const debugMode = document.getElementById("debugMode");
 const saveButton = document.getElementById("save");
 const toast = document.getElementById("toast");
-let autoGroupNewTabs = false;
 // Define all available strategies with labels
 const STRATEGIES = [
     { id: "pinned", label: "Pinned before others" },
@@ -151,7 +150,6 @@ const loadPreferences = async () => {
     primarySelect.value = prefs.primaryGrouping;
     secondarySelect.value = prefs.secondaryGrouping;
     debugMode.checked = prefs.debug;
-    autoGroupNewTabs = prefs.autoGroupNewTabs;
     renderSortList(prefs.sorting);
 };
 const savePreferences = async () => {
@@ -169,8 +167,7 @@ const savePreferences = async () => {
         primaryGrouping: primarySelect.value,
         secondaryGrouping: secondarySelect.value,
         sorting: newSorting.length ? newSorting : ["pinned", "recency"], // Fallback default
-        debug: debugMode.checked,
-        autoGroupNewTabs
+        debug: debugMode.checked
     };
     const response = await chrome.runtime.sendMessage({ type: "savePreferences", payload: prefs });
     if (response.ok) {
