@@ -32,8 +32,10 @@ const sortHierarchy = document.getElementById("sortHierarchyFlyout") as HTMLInpu
 const sortTitle = document.getElementById("sortTitleFlyout") as HTMLInputElement;
 const sortUrl = document.getElementById("sortUrlFlyout") as HTMLInputElement;
 
-const btnSort = document.getElementById("btnSort") as HTMLButtonElement;
-const btnGroup = document.getElementById("btnGroup") as HTMLButtonElement;
+const btnSortSelected = document.getElementById("btnSortSelected") as HTMLButtonElement;
+const btnGroupSelected = document.getElementById("btnGroupSelected") as HTMLButtonElement;
+const btnSortAll = document.getElementById("btnSortAll") as HTMLButtonElement;
+const btnGroupAll = document.getElementById("btnGroupAll") as HTMLButtonElement;
 
 // Footer Stats
 const footerTotalTabs = document.getElementById("footerTotalTabs") as HTMLElement;
@@ -173,17 +175,29 @@ const buildSelectionPayload = (): GroupingSelection => {
   };
 };
 
-const triggerReGroup = async () => {
+const triggerReGroupSelected = async () => {
   const selection = buildSelectionPayload();
   const sorting = getSelectedSorting();
   await applyGrouping({ selection, sorting });
   await loadState();
 };
 
-const triggerSort = async () => {
+const triggerSortSelected = async () => {
   const selection = buildSelectionPayload();
   const sorting = getSelectedSorting();
   await applySorting({ selection, sorting });
+  await loadState();
+};
+
+const triggerReGroupAll = async () => {
+  const sorting = getSelectedSorting();
+  await applyGrouping({ sorting });
+  await loadState();
+};
+
+const triggerSortAll = async () => {
+  const sorting = getSelectedSorting();
+  await applySorting({ sorting });
   await loadState();
 };
 
@@ -507,8 +521,10 @@ const initialize = async () => {
 // But we might want to persist the selection locally or just rely on the UI state when button is clicked.
 // Since getSelectedSorting() reads from DOM, we don't need to do anything on change except maybe visual feedback if we had it.
 
-btnSort.addEventListener("click", triggerSort);
-btnGroup.addEventListener("click", triggerReGroup);
+btnSortSelected.addEventListener("click", triggerSortSelected);
+btnGroupSelected.addEventListener("click", triggerReGroupSelected);
+btnSortAll.addEventListener("click", triggerSortAll);
+btnGroupAll.addEventListener("click", triggerReGroupAll);
 
 // Keep search listener
 searchInput.addEventListener("input", renderWindows);

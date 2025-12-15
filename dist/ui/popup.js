@@ -6,8 +6,10 @@ const sortRecency = document.getElementById("sortRecencyFlyout");
 const sortHierarchy = document.getElementById("sortHierarchyFlyout");
 const sortTitle = document.getElementById("sortTitleFlyout");
 const sortUrl = document.getElementById("sortUrlFlyout");
-const btnSort = document.getElementById("btnSort");
-const btnGroup = document.getElementById("btnGroup");
+const btnSortSelected = document.getElementById("btnSortSelected");
+const btnGroupSelected = document.getElementById("btnGroupSelected");
+const btnSortAll = document.getElementById("btnSortAll");
+const btnGroupAll = document.getElementById("btnGroupAll");
 // Footer Stats
 const footerTotalTabs = document.getElementById("footerTotalTabs");
 const footerTotalGroups = document.getElementById("footerTotalGroups");
@@ -133,16 +135,26 @@ const buildSelectionPayload = () => {
         tabIds: Array.from(selectedTabs)
     };
 };
-const triggerReGroup = async () => {
+const triggerReGroupSelected = async () => {
     const selection = buildSelectionPayload();
     const sorting = getSelectedSorting();
     await applyGrouping({ selection, sorting });
     await loadState();
 };
-const triggerSort = async () => {
+const triggerSortSelected = async () => {
     const selection = buildSelectionPayload();
     const sorting = getSelectedSorting();
     await applySorting({ selection, sorting });
+    await loadState();
+};
+const triggerReGroupAll = async () => {
+    const sorting = getSelectedSorting();
+    await applyGrouping({ sorting });
+    await loadState();
+};
+const triggerSortAll = async () => {
+    const sorting = getSelectedSorting();
+    await applySorting({ sorting });
     await loadState();
 };
 const applySortingSelection = (sorting) => {
@@ -415,8 +427,10 @@ const initialize = async () => {
 // The user must click "Sort" or "Group" explicitly.
 // But we might want to persist the selection locally or just rely on the UI state when button is clicked.
 // Since getSelectedSorting() reads from DOM, we don't need to do anything on change except maybe visual feedback if we had it.
-btnSort.addEventListener("click", triggerSort);
-btnGroup.addEventListener("click", triggerReGroup);
+btnSortSelected.addEventListener("click", triggerSortSelected);
+btnGroupSelected.addEventListener("click", triggerReGroupSelected);
+btnSortAll.addEventListener("click", triggerSortAll);
+btnGroupAll.addEventListener("click", triggerReGroupAll);
 // Keep search listener
 searchInput.addEventListener("input", renderWindows);
 // Auto-refresh?
