@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="devtools.css" />
+    <title>Tab Sorter DevTools</title>
+  </head>
+  <body>
+    <header>
+      <h1>Tab Sorter Developer Tools</h1>
+      <button id="refreshBtn">Refresh Data</button>
+    </header>
+
+    <main>
+      <div id="stats">
+        <span>Total Tabs: <span id="totalTabs">0</span></span>
+      </div>
+      <div class="table-container">
+        <table id="tabsTable">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Index</th>
+              <th>Window</th>
+              <th>Group</th>
+              <th>Title</th>
+              <th>URL</th>
+              <th>Status</th>
+              <th>Active</th>
+              <th>Pinned</th>
+              <th>Opener ID</th>
+              <th>Last Accessed</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- Rows will be populated here -->
+          </tbody>
+        </table>
+      </div>
+    </main>
+
+    <script type="module" src="../dist/ui/devtools.js"></script>
+  </body>
+</html>

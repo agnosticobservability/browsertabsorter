@@ -1,12 +1,21 @@
 const primarySelect = document.getElementById("primaryGrouping");
 const secondarySelect = document.getElementById("secondaryGrouping");
-const sortPinned = document.getElementById("sortPinned");
-const sortRecency = document.getElementById("sortRecency");
-const sortHierarchy = document.getElementById("sortHierarchy");
+const sortList = document.getElementById("sortList");
 const debugMode = document.getElementById("debugMode");
 const saveButton = document.getElementById("save");
 const toast = document.getElementById("toast");
 let autoGroupNewTabs = false;
+// Define all available strategies with labels
+const STRATEGIES = [
+    { id: "pinned", label: "Pinned before others" },
+    { id: "recency", label: "Most recent first" },
+    { id: "hierarchy", label: "Parents before children" },
+    { id: "title", label: "Alphabetical by title" },
+    { id: "url", label: "Alphabetical by URL" }
+];
+const ICONS = {
+    drag: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="12" r="1"></circle><circle cx="9" cy="5" r="1"></circle><circle cx="9" cy="19" r="1"></circle><circle cx="15" cy="12" r="1"></circle><circle cx="15" cy="5" r="1"></circle><circle cx="15" cy="19" r="1"></circle></svg>`
+};
 const populateOptions = () => {
     [primarySelect, secondarySelect].forEach((select) => {
         ["domain", "semantic", "navigation"].forEach((value) => {
@@ -17,6 +26,123 @@ const populateOptions = () => {
         });
     });
 };
+const renderSortList = (activeStrategies) => {
+    sortList.innerHTML = "";
+    // Create a merged list: Active strategies first (in order), then remaining strategies
+    const activeSet = new Set(activeStrategies);
+    const orderedItems = [
+        ...activeStrategies.map(id => STRATEGIES.find(s => s.id === id)),
+        ...STRATEGIES.filter(s => !activeSet.has(s.id))
+    ].filter(Boolean); // Filter out any undefined if strategies changed
+    orderedItems.forEach((strategy, index) => {
+        const li = document.createElement("li");
+        li.className = "sort-item";
+        li.draggable = true;
+        li.dataset.id = strategy.id;
+        // Drag Handle
+        const handle = document.createElement("div");
+        handle.className = "sort-handle";
+        handle.innerHTML = ICONS.drag;
+        // Content
+        const content = document.createElement("label");
+        content.className = "sort-content";
+        // Numbering (Hierarchy visual)
+        const number = document.createElement("span");
+        number.className = "sort-number";
+        number.textContent = `${index + 1}`;
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.checked = activeSet.has(strategy.id);
+        const text = document.createElement("span");
+        text.textContent = strategy.label;
+        content.append(number, checkbox, text);
+        li.append(handle, content);
+        // Drag Events
+        li.addEventListener("dragstart", handleDragStart);
+        li.addEventListener("dragover", handleDragOver);
+        li.addEventListener("drop", handleDrop);
+        li.addEventListener("dragenter", handleDragEnter);
+        li.addEventListener("dragleave", handleDragLeave);
+        li.addEventListener("dragend", handleDragEnd);
+        sortList.appendChild(li);
+    });
+};
+// --- Drag and Drop Logic ---
+let dragSrcEl = null;
+let dropPosition = null;
+function handleDragStart(e) {
+    this.style.opacity = "0.4";
+    dragSrcEl = this;
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/html", this.innerHTML);
+    this.classList.add("dragging");
+}
+function handleDragOver(e) {
+    if (e.preventDefault) {
+        e.preventDefault();
+    }
+    e.dataTransfer.dropEffect = "move";
+    // Calculate mouse position relative to the element
+    const rect = this.getBoundingClientRect();
+    const offset = e.clientY - rect.top;
+    const height = rect.height;
+    // Remove existing classes
+    this.classList.remove("over-top", "over-bottom");
+    // If hovering over the top 50%, insert before. Else, insert after.
+    if (offset < height / 2) {
+        this.classList.add("over-top");
+        dropPosition = "before";
+    }
+    else {
+        this.classList.add("over-bottom");
+        dropPosition = "after";
+    }
+    return false;
+}
+function handleDragEnter() {
+    // Logic handled in dragover for continuous updates
+}
+function handleDragLeave() {
+    this.classList.remove("over-top", "over-bottom");
+    dropPosition = null;
+}
+function handleDrop(e) {
+    if (e.stopPropagation) {
+        e.stopPropagation();
+    }
+    if (dragSrcEl !== this && dropPosition) {
+        // Insert based on dropPosition
+        if (dropPosition === "before") {
+            this.before(dragSrcEl);
+        }
+        else {
+            this.after(dragSrcEl);
+        }
+        updateListNumbers();
+    }
+    // Clean up
+    this.classList.remove("over-top", "over-bottom");
+    dropPosition = null;
+    return false;
+}
+function handleDragEnd() {
+    this.style.opacity = "1";
+    this.classList.remove("dragging");
+    const items = sortList.querySelectorAll(".sort-item");
+    items.forEach((item) => {
+        item.classList.remove("over-top", "over-bottom");
+    });
+    dropPosition = null;
+}
+const updateListNumbers = () => {
+    const items = sortList.querySelectorAll(".sort-item");
+    items.forEach((item, index) => {
+        const num = item.querySelector(".sort-number");
+        if (num)
+            num.textContent = `${index + 1}`;
+    });
+};
+// --- Load / Save ---
 const loadPreferences = async () => {
     const response = (await chrome.runtime.sendMessage({ type: "loadPreferences" }));
     if (!response.ok || !response.data)
@@ -24,22 +150,25 @@ const loadPreferences = async () => {
     const prefs = response.data;
     primarySelect.value = prefs.primaryGrouping;
     secondarySelect.value = prefs.secondaryGrouping;
-    sortPinned.checked = prefs.sorting.includes("pinned");
-    sortRecency.checked = prefs.sorting.includes("recency");
-    sortHierarchy.checked = prefs.sorting.includes("hierarchy");
     debugMode.checked = prefs.debug;
     autoGroupNewTabs = prefs.autoGroupNewTabs;
+    renderSortList(prefs.sorting);
 };
 const savePreferences = async () => {
-    const sorting = [
-        sortPinned.checked ? "pinned" : null,
-        sortRecency.checked ? "recency" : null,
-        sortHierarchy.checked ? "hierarchy" : null
-    ].filter(Boolean);
+    // Extract sorting from list order + checked state
+    const items = Array.from(sortList.querySelectorAll(".sort-item"));
+    const newSorting = [];
+    items.forEach(item => {
+        const id = item.dataset.id;
+        const checked = item.querySelector("input[type='checkbox']").checked;
+        if (checked) {
+            newSorting.push(id);
+        }
+    });
     const prefs = {
         primaryGrouping: primarySelect.value,
         secondaryGrouping: secondarySelect.value,
-        sorting: sorting.length ? sorting : ["pinned", "recency"],
+        sorting: newSorting.length ? newSorting : ["pinned", "recency"], // Fallback default
         debug: debugMode.checked,
         autoGroupNewTabs
     };

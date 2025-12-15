@@ -27,6 +27,8 @@ const compareBy = (strategy: SortingStrategy, a: TabMetadata, b: TabMetadata): n
       return a.title.localeCompare(b.title);
     case "url":
       return a.url.localeCompare(b.url);
+    case "context":
+      return (a.context ?? "").localeCompare(b.context ?? "");
     default:
       return 0;
   }

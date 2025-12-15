@@ -20,18 +20,18 @@
           <select id="secondaryGrouping"></select>
         </label>
       </section>
+
+      <!-- Collapsible Sorting Section -->
       <section>
-        <h2>Sorting</h2>
-        <label>
-          <input type="checkbox" id="sortPinned" /> Pinned before others
-        </label>
-        <label>
-          <input type="checkbox" id="sortRecency" /> Most recent first
-        </label>
-        <label>
-          <input type="checkbox" id="sortHierarchy" /> Parents before children
-        </label>
+        <details class="sort-details" open>
+          <summary>Sorting</summary>
+          <div class="sort-content-wrapper">
+            <p class="description">Drag to reorder priority. Uncheck to disable.</p>
+            <ul id="sortList" class="sort-list"></ul>
+          </div>
+        </details>
       </section>
+
       <section>
         <h2>Debug</h2>
         <label>
