@@ -18,6 +18,33 @@ const mapChromeTab = (tab: chrome.tabs.Tab): TabMetadata | null => {
   };
 };
 
+const enrichTabsWithYoutubeChannel = async (tabs: TabMetadata[]): Promise<TabMetadata[]> => {
+  const youtubeTabs = tabs.filter((t) => t.url.includes("youtube.com/watch"));
+  if (youtubeTabs.length === 0) return tabs;
+
+  await Promise.all(
+    youtubeTabs.map(async (tab) => {
+      try {
+        const results = await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          func: () => {
+            const selector =
+              "ytd-video-owner-renderer #channel-name a, ytd-channel-name a, #owner #channel-name a";
+            const el = document.querySelector(selector);
+            return el?.textContent?.trim() || null;
+          }
+        });
+        if (results && results[0] && results[0].result) {
+          tab.youtubeChannel = results[0].result;
+        }
+      } catch (err) {
+        // Ignore scripting errors (e.g. if tab is restricted)
+      }
+    })
+  );
+  return tabs;
+};
+
 export const fetchTabGroups = async (
   preferences: Preferences,
   filter?: GroupingSelection
@@ -30,9 +57,14 @@ export const fetchTabGroups = async (
     if (!hasFilters) return true;
     return (tab.windowId && windowIdSet.has(tab.windowId)) || (tab.id && tabIdSet.has(tab.id));
   });
-  const mapped = filteredTabs
+  let mapped = filteredTabs
     .map(mapChromeTab)
     .filter((tab): tab is TabMetadata => Boolean(tab));
+
+  if (preferences.sorting.includes("youtube-channel")) {
+    mapped = await enrichTabsWithYoutubeChannel(mapped);
+  }
+
   const grouped = groupTabs(mapped, preferences.primaryGrouping, preferences.secondaryGrouping);
   grouped.forEach((group) => {
     group.tabs = sortTabs(group.tabs, preferences.sorting);
@@ -81,7 +113,12 @@ export const applyTabSorting = async (
 
   for (const windowId of targetWindowIds) {
       const windowTabs = chromeTabs.filter(t => t.windowId === windowId);
-      const mapped = windowTabs.map(mapChromeTab).filter((t): t is TabMetadata => Boolean(t));
+      let mapped = windowTabs.map(mapChromeTab).filter((t): t is TabMetadata => Boolean(t));
+
+      if (preferences.sorting.includes("youtube-channel")) {
+        mapped = await enrichTabsWithYoutubeChannel(mapped);
+      }
+
       const sorted = sortTabs(mapped, preferences.sorting);
       const sortedIds = sorted.map(t => t.id);
 

@@ -7,6 +7,7 @@ export interface TabMetadata {
   lastAccessed?: number;
   openerTabId?: number;
   favIconUrl?: string;
+  youtubeChannel?: string;
 }
 
 export interface TabGroup {
@@ -19,7 +20,7 @@ export interface TabGroup {
 }
 
 export type GroupingStrategy = "domain" | "semantic" | "navigation";
-export type SortingStrategy = "recency" | "hierarchy" | "pinned" | "title" | "url";
+export type SortingStrategy = "recency" | "hierarchy" | "pinned" | "title" | "url" | "youtube-channel";
 
 export interface GroupingSelection {
   windowIds?: number[];

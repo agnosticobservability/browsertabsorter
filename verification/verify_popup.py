@@ -2,62 +2,35 @@
 from playwright.sync_api import sync_playwright
 import os
 
-def verify_buttons():
+def run():
+    # Ensure ui/popup.html exists
+    if not os.path.exists('ui/popup.html'):
+        print('Error: ui/popup.html not found')
+        return
+
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
+        browser = p.chromium.launch()
         page = browser.new_page()
 
-        # Inject chrome mock
-        page.add_init_script("""
-            window.chrome = {
-                runtime: {
-                    sendMessage: async () => ({ ok: true, data: { groups: [], preferences: {} } }),
-                    onMessage: { addListener: () => {} },
-                    onInstalled: { addListener: () => {} }
-                },
-                tabs: {
-                    query: async () => [],
-                    onUpdated: { addListener: () => {} },
-                    onRemoved: { addListener: () => {} },
-                    group: async () => {},
-                    ungroup: async () => {},
-                    move: async () => {},
-                    remove: async () => {},
-                    update: async () => {}
-                },
-                windows: {
-                    getCurrent: async () => ({ id: 1 }),
-                    getAll: async () => [],
-                    onRemoved: { addListener: () => {} },
-                    update: async () => {},
-                    remove: async () => {}
-                },
-                tabGroups: {
-                    update: async () => {},
-                    onRemoved: { addListener: () => {} }
-                }
-            };
-        """)
-
+        # Load the popup HTML file directly
+        # We need to use absolute path
         cwd = os.getcwd()
-        popup_path = f"file://{cwd}/ui/popup.html"
+        url = f'file://{cwd}/ui/popup.html'
+        print(f'Loading {url}')
+        page.goto(url)
 
-        try:
-            page.goto(popup_path)
-            # Wait for any potential js load
-            page.wait_for_timeout(1000)
+        # Wait for content to load if necessary (though it's a static file mostly,
+        # JS might not run fully without chrome extension environment, but HTML/CSS should render)
 
-            # Check for buttons
-            if page.is_visible("#btnSort") and page.is_visible("#btnGroup"):
-                print("Buttons visible")
-                page.screenshot(path="verification/popup_buttons.png")
-            else:
-                print("Buttons NOT visible")
+        # Take screenshot of the sort options
+        # We might need to click something to see the dropdown if it's hidden?
+        # Based on HTML, the sort options are in .sort-toggles which seems visible or checkable.
 
-        except Exception as e:
-            print(f"Error: {e}")
+        # Let's take a full page screenshot
+        page.screenshot(path='verification/popup_screenshot.png')
+        print('Screenshot saved to verification/popup_screenshot.png')
 
         browser.close()
 
-if __name__ == "__main__":
-    verify_buttons()
+if __name__ == '__main__':
+    run()

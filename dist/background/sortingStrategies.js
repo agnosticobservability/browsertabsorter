@@ -24,6 +24,15 @@ const compareBy = (strategy, a, b) => {
             return a.title.localeCompare(b.title);
         case "url":
             return a.url.localeCompare(b.url);
+        case "youtube-channel":
+            if (a.youtubeChannel && b.youtubeChannel) {
+                return a.youtubeChannel.localeCompare(b.youtubeChannel);
+            }
+            if (a.youtubeChannel)
+                return -1;
+            if (b.youtubeChannel)
+                return 1;
+            return 0;
         default:
             return 0;
     }
