@@ -24,6 +24,8 @@ const compareBy = (strategy, a, b) => {
             return a.title.localeCompare(b.title);
         case "url":
             return a.url.localeCompare(b.url);
+        case "context":
+            return (a.context ?? "").localeCompare(b.context ?? "");
         default:
             return 0;
     }
