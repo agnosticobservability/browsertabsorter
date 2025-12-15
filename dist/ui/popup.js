@@ -6,13 +6,11 @@ const sortRecency = document.getElementById("sortRecencyFlyout");
 const sortHierarchy = document.getElementById("sortHierarchyFlyout");
 const sortTitle = document.getElementById("sortTitleFlyout");
 const sortUrl = document.getElementById("sortUrlFlyout");
+const sortContext = document.getElementById("sortContextFlyout");
 const btnSortSelected = document.getElementById("btnSortSelected");
 const btnGroupSelected = document.getElementById("btnGroupSelected");
 const btnSortAll = document.getElementById("btnSortAll");
 const btnGroupAll = document.getElementById("btnGroupAll");
-const sortContext = document.getElementById("sortContextFlyout");
-const btnSort = document.getElementById("btnSort");
-const btnGroup = document.getElementById("btnGroup");
 // Footer Stats
 const footerTotalTabs = document.getElementById("footerTotalTabs");
 const footerTotalGroups = document.getElementById("footerTotalGroups");
