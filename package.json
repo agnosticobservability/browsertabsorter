@@ -5,11 +5,12 @@
   "license": "MIT",
   "scripts": {
     "prebuild": "node scripts/generate-icons.mjs",
-    "build": "tsc --pretty",
+    "build": "esbuild src/background/extraction/content_main.ts --bundle --outfile=dist/extraction/content.js --target=es2020 && tsc --pretty",
     "clean": "rm -rf dist"
   },
   "devDependencies": {
     "@types/chrome": "^0.0.246",
+    "esbuild": "^0.27.2",
     "typescript": "^5.9.3"
   }
 }
