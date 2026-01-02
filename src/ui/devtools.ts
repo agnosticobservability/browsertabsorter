@@ -52,6 +52,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  // Listen for tab removals to refresh data
+  chrome.tabs.onRemoved.addListener(() => {
+    loadTabs();
+  });
+
   document.addEventListener('click', (event) => {
     const target = event.target as HTMLElement | null;
     if (!target) return;
@@ -87,6 +92,11 @@ document.addEventListener('DOMContentLoaded', () => {
       if (tabId && windowId) {
         chrome.tabs.update(tabId, { active: true });
         chrome.windows.update(windowId, { focused: true });
+      }
+    } else if (target.matches('.close-tab-btn')) {
+      const tabId = Number(target.dataset.tabId);
+      if (tabId) {
+        chrome.tabs.remove(tabId);
       }
     }
   });
@@ -264,6 +274,7 @@ function renderTable() {
       <td>${new Date(tab.lastAccessed || 0).toLocaleString()}</td>
       <td>
         <button class="goto-tab-btn" data-tab-id="${tab.id}" data-window-id="${tab.windowId}">Go to Tab</button>
+        <button class="close-tab-btn" data-tab-id="${tab.id}" style="background-color: #dc3545; margin-left: 5px;">Close</button>
       </td>
     `;
 
