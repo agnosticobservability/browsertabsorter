@@ -63,6 +63,25 @@ th {
   top: 0;
 }
 
+th.sortable {
+  cursor: pointer;
+  user-select: none;
+}
+
+th.sortable:hover {
+  background-color: #ddd;
+}
+
+th.sort-asc::after {
+  content: ' ▲';
+  font-size: 0.8em;
+}
+
+th.sort-desc::after {
+  content: ' ▼';
+  font-size: 0.8em;
+}
+
 tr:hover {
   background-color: #f1f1f1;
 }
