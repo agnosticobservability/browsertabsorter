@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="popup_terminal.css" />
+    <title>Tab Sorter (Terminal)</title>
+  </head>
+  <body>
+    <div class="terminal-screen">
+      <div class="output">
+        <span class="prompt">root@tabs:~#</span> init_sequence<br/>
+        <span class="system-msg">Loading modules... OK</span><br/>
+        <span class="system-msg">Scanning windows... OK</span>
+      </div>
+
+      <div class="command-line">
+        <span class="prompt">root@tabs:~#</span>
+        <input id="cmdInput" type="text" placeholder="type 'help' or filter..." autofocus />
+      </div>
+
+      <div class="status-bar">
+         [ <span id="btnSort">SORT</span> ] [ <span id="btnGroup">GROUP</span> ] [ <span id="btnUndo">UNDO</span> ]
+      </div>
+
+      <div class="toggles">
+         [<input type="checkbox" id="sortPinned" /> PIN]
+         [<input type="checkbox" id="sortRecency" /> REC]
+         [<input type="checkbox" id="sortContext" /> CTX]
+      </div>
+
+      <div id="windows" class="window-list"></div>
+    </div>
+    <script type="module" src="../dist/ui/popup_terminal.js"></script>
+  </body>
+</html>

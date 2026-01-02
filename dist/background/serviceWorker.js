@@ -3,7 +3,29 @@ import { loadPreferences, savePreferences } from "./preferences.js";
 import { logDebug, logInfo } from "./logger.js";
 import { pushUndoState, saveState, undo, getSavedStates, deleteSavedState, restoreState } from "./stateManager.js";
 const setPopup = (variant) => {
-    const popup = variant === "redesigned" ? "ui/popup_redesigned.html" : "ui/popup.html";
+    let popup = "ui/popup.html";
+    switch (variant) {
+        case "redesigned":
+            popup = "ui/popup_redesigned.html";
+            break;
+        case "compact":
+            popup = "ui/popup_compact.html";
+            break;
+        case "midnight":
+            popup = "ui/popup_midnight.html";
+            break;
+        case "warm":
+            popup = "ui/popup_warm.html";
+            break;
+        case "terminal":
+            popup = "ui/popup_terminal.html";
+            break;
+        case "glass":
+            popup = "ui/popup_glass.html";
+            break;
+        default:
+            popup = "ui/popup.html";
+    }
     chrome.action.setPopup({ popup });
 };
 chrome.runtime.onInstalled.addListener(async () => {

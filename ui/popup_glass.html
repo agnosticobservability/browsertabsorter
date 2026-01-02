@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="popup_glass.css" />
+    <title>Tab Sorter (Glass)</title>
+  </head>
+  <body>
+    <div class="glass-container">
+      <header>
+        <div class="search-box">
+          <input id="tabSearch" type="search" placeholder="Search..." />
+        </div>
+        <div class="glass-actions">
+           <button id="btnSort" class="glass-btn">Sort</button>
+           <button id="btnGroup" class="glass-btn">Group</button>
+           <button id="btnUndo" class="glass-btn">Undo</button>
+        </div>
+      </header>
+
+      <div class="glass-toggles">
+         <label><input type="checkbox" id="sortPinned" /> Pinned</label>
+         <label><input type="checkbox" id="sortRecency" /> Recent</label>
+         <label><input type="checkbox" id="sortContext" /> Context</label>
+      </div>
+
+      <div id="windows" class="window-list"></div>
+    </div>
+    <script type="module" src="../dist/ui/popup_glass.js"></script>
+  </body>
+</html>

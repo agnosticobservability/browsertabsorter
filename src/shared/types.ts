@@ -112,7 +112,7 @@ export interface Preferences {
   secondaryGrouping: GroupingStrategy;
   sorting: SortingStrategy[];
   debug: boolean;
-  popupVariant?: "default" | "redesigned";
+  popupVariant?: "default" | "redesigned" | "compact" | "midnight" | "warm" | "terminal" | "glass";
 }
 
 export interface RuntimeMessage<TPayload = unknown> {

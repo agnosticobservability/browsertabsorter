@@ -1,10 +1,4 @@
-const sendMessage = async (type, payload) => {
-    return new Promise((resolve) => {
-        chrome.runtime.sendMessage({ type, payload }, (response) => {
-            resolve(response);
-        });
-    });
-};
+import { applyGrouping, applySorting, fetchState, formatDomain, ICONS, mapWindows, sendMessage } from "./common.js";
 // Elements
 const searchInput = document.getElementById("tabSearch");
 const windowsContainer = document.getElementById("windows");
@@ -28,63 +22,6 @@ const selectedWindows = new Set();
 const selectedTabs = new Set();
 let preferences = null;
 let sortingInitialized = false;
-// Icons
-const ICONS = {
-    close: `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`,
-    ungroup: `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="8" y1="12" x2="16" y2="12"></line></svg>`,
-    defaultFile: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>`
-};
-const fetchState = async () => {
-    const response = await chrome.runtime.sendMessage({ type: "getState" });
-    return response;
-};
-const applyGrouping = async (payload) => {
-    const response = await chrome.runtime.sendMessage({ type: "applyGrouping", payload });
-    return response;
-};
-const applySorting = async (payload) => {
-    const response = await chrome.runtime.sendMessage({ type: "applySorting", payload });
-    return response;
-};
-const mapWindows = (groups, windowTitles) => {
-    const windows = new Map();
-    groups.forEach((group) => {
-        group.tabs.forEach((tab) => {
-            const decorated = {
-                ...tab,
-                groupLabel: group.label,
-                groupColor: group.color,
-                reason: group.reason
-            };
-            const existing = windows.get(tab.windowId) ?? [];
-            existing.push(decorated);
-            windows.set(tab.windowId, existing);
-        });
-    });
-    return Array.from(windows.entries())
-        .map(([id, tabs]) => {
-        const groupCount = new Set(tabs.map((tab) => tab.groupLabel)).size;
-        const pinnedCount = tabs.filter((tab) => tab.pinned).length;
-        return {
-            id,
-            title: windowTitles.get(id) ?? `Window ${id}`,
-            tabs,
-            tabCount: tabs.length,
-            groupCount,
-            pinnedCount
-        };
-    })
-        .sort((a, b) => a.id - b.id);
-};
-const formatDomain = (url) => {
-    try {
-        const parsed = new URL(url);
-        return parsed.hostname.replace(/^www\./, "");
-    }
-    catch (error) {
-        return url;
-    }
-};
 const updateStats = () => {
     const totalTabs = windowState.reduce((acc, win) => acc + win.tabCount, 0);
     const totalGroups = new Set(windowState.flatMap(w => w.tabs.map(t => `${w.id}-${t.groupLabel}`))).size;
@@ -103,7 +40,8 @@ const renderGroup = (label, color, tabs) => {
     labelSpan.textContent = label;
     const ungroupBtn = document.createElement("button");
     ungroupBtn.className = "ungroup-btn";
-    ungroupBtn.innerHTML = ICONS.ungroup;
+    ungroupBtn.innerHTML = ICONS.ungroup; // Note: ICONS.ungroup is slightly different in common.ts, adapting UI to match or accept change.
+    // The common ICONS.ungroup is 16x16, the redesigned one was 12x12. CSS can handle sizing.
     ungroupBtn.title = "Ungroup";
     ungroupBtn.addEventListener("click", async (e) => {
         e.stopPropagation();
@@ -358,4 +296,3 @@ chrome.tabs.onUpdated.addListener(() => loadState());
 chrome.tabs.onRemoved.addListener(() => loadState());
 chrome.windows.onRemoved.addListener(() => loadState());
 loadState();
-export {};

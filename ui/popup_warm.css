@@ -1,0 +1,124 @@
+:root {
+  --bg-color: #fdf6e3;
+  --text-color: #586e75;
+  --accent: #b58900;
+  --border: #eee8d5;
+}
+
+body {
+  font-family: 'Georgia', 'Times New Roman', Times, serif;
+  background-color: #eee8d5;
+  color: var(--text-color);
+  width: 340px;
+  min-height: 300px;
+  margin: 0;
+  padding: 10px;
+}
+
+.paper {
+  background: var(--bg-color);
+  padding: 15px;
+  box-shadow: 1px 1px 5px rgba(0,0,0,0.1);
+  border-radius: 2px;
+}
+
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  border-bottom: 2px solid var(--border);
+  margin-bottom: 15px;
+  padding-bottom: 10px;
+}
+
+h1 {
+  margin: 0;
+  font-size: 20px;
+  color: var(--accent);
+}
+
+.actions button {
+  background: transparent;
+  border: 1px solid var(--text-color);
+  color: var(--text-color);
+  font-family: inherit;
+  font-size: 12px;
+  padding: 4px 8px;
+  cursor: pointer;
+  border-radius: 3px;
+}
+
+.actions button:hover {
+  background: var(--border);
+}
+
+.filter-bar {
+    margin-bottom: 10px;
+}
+
+input[type="search"] {
+    width: 100%;
+    padding: 8px;
+    background: #fff;
+    border: 1px solid var(--border);
+    font-family: inherit;
+    font-size: 14px;
+    box-sizing: border-box;
+}
+
+.toggles {
+    margin-bottom: 15px;
+    font-size: 12px;
+    font-style: italic;
+    display: flex;
+    gap: 10px;
+}
+
+.window-card {
+    margin-bottom: 20px;
+}
+
+.window-header {
+    font-weight: bold;
+    font-size: 16px;
+    margin-bottom: 8px;
+    color: #cb4b16; /* Orange-red */
+}
+
+.group-block {
+    margin-left: 10px;
+    margin-bottom: 10px;
+    padding-left: 10px;
+    border-left: 3px solid var(--border);
+}
+
+.group-title {
+    font-weight: bold;
+    font-size: 13px;
+    color: #2aa198;
+    margin-bottom: 5px;
+}
+
+.tab-item {
+    padding: 3px 0;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+}
+
+.tab-item:hover {
+    background: rgba(0,0,0,0.03);
+}
+
+.tab-icon img {
+    width: 14px;
+    height: 14px;
+    margin-right: 8px;
+    border-radius: 2px;
+}
+
+.tab-text {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
