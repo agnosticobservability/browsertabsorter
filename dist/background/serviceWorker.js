@@ -1,6 +1,7 @@
 import { applyTabGroups, applyTabSorting, fetchTabGroups } from "./tabManager.js";
 import { loadPreferences, savePreferences } from "./preferences.js";
 import { logDebug, logInfo } from "./logger.js";
+import { pushUndoState, saveState, undo, getSavedStates, deleteSavedState, restoreState } from "./stateManager.js";
 const setPopup = (variant) => {
     const popup = variant === "redesigned" ? "ui/popup_redesigned.html" : "ui/popup.html";
     chrome.action.setPopup({ popup });
@@ -23,6 +24,7 @@ const handleMessage = async (message, sender) => {
             return { ok: true, data: { groups, preferences: prefs } };
         }
         case "applyGrouping": {
+            await pushUndoState();
             const prefs = await loadPreferences();
             const payload = message.payload ?? {};
             const selection = payload.selection ?? {};
@@ -33,6 +35,7 @@ const handleMessage = async (message, sender) => {
             return { ok: true, data: { groups } };
         }
         case "applySorting": {
+            await pushUndoState();
             const prefs = await loadPreferences();
             const payload = message.payload ?? {};
             const selection = payload.selection ?? {};
@@ -40,6 +43,38 @@ const handleMessage = async (message, sender) => {
             const preferences = sorting ? { ...prefs, sorting } : prefs;
             await applyTabSorting(preferences, selection);
             return { ok: true };
+        }
+        case "undo": {
+            await undo();
+            return { ok: true };
+        }
+        case "saveState": {
+            const name = message.payload?.name;
+            if (typeof name === "string") {
+                await saveState(name);
+                return { ok: true };
+            }
+            return { ok: false, error: "Invalid name" };
+        }
+        case "getSavedStates": {
+            const states = await getSavedStates();
+            return { ok: true, data: states };
+        }
+        case "restoreState": {
+            const state = message.payload?.state;
+            if (state) {
+                await restoreState(state);
+                return { ok: true };
+            }
+            return { ok: false, error: "Invalid state" };
+        }
+        case "deleteSavedState": {
+            const name = message.payload?.name;
+            if (typeof name === "string") {
+                await deleteSavedState(name);
+                return { ok: true };
+            }
+            return { ok: false, error: "Invalid name" };
         }
         case "loadPreferences": {
             const prefs = await loadPreferences();

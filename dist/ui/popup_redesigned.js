@@ -1,3 +1,10 @@
+const sendMessage = async (type, payload) => {
+    return new Promise((resolve) => {
+        chrome.runtime.sendMessage({ type, payload }, (response) => {
+            resolve(response);
+        });
+    });
+};
 // Elements
 const searchInput = document.getElementById("tabSearch");
 const windowsContainer = document.getElementById("windows");
@@ -267,6 +274,74 @@ btnSortSelected.addEventListener("click", () => {
     triggerSort();
 });
 btnGroupSelected.addEventListener("click", () => triggerGroup());
+document.getElementById("btnUndo")?.addEventListener("click", async () => {
+    const res = await sendMessage("undo");
+    if (!res.ok)
+        alert("Undo failed: " + res.error);
+});
+document.getElementById("btnSaveState")?.addEventListener("click", async () => {
+    const name = prompt("Enter a name for this state:");
+    if (name) {
+        const res = await sendMessage("saveState", { name });
+        if (!res.ok)
+            alert("Save failed: " + res.error);
+    }
+});
+const loadStateDialog = document.getElementById("loadStateDialog");
+const savedStateList = document.getElementById("savedStateList");
+document.getElementById("btnLoadState")?.addEventListener("click", async () => {
+    const res = await sendMessage("getSavedStates");
+    if (res.ok && res.data) {
+        savedStateList.innerHTML = "";
+        res.data.forEach((state) => {
+            const li = document.createElement("li");
+            li.style.display = "flex";
+            li.style.justifyContent = "space-between";
+            li.style.padding = "8px";
+            li.style.borderBottom = "1px solid var(--border-color)";
+            const span = document.createElement("span");
+            span.textContent = `${state.name} (${new Date(state.timestamp).toLocaleString()})`;
+            span.style.cursor = "pointer";
+            span.onclick = async () => {
+                if (confirm(`Load state "${state.name}"?`)) {
+                    const r = await sendMessage("restoreState", { state });
+                    if (r.ok) {
+                        loadStateDialog.close();
+                        window.close(); // Close popup to let background work
+                    }
+                    else {
+                        alert("Restore failed: " + r.error);
+                    }
+                }
+            };
+            const delBtn = document.createElement("button");
+            delBtn.textContent = "Delete";
+            delBtn.style.marginLeft = "8px";
+            delBtn.style.background = "transparent";
+            delBtn.style.color = "var(--text-color)";
+            delBtn.style.border = "1px solid var(--border-color)";
+            delBtn.style.borderRadius = "4px";
+            delBtn.style.padding = "2px 6px";
+            delBtn.onclick = async (e) => {
+                e.stopPropagation();
+                if (confirm(`Delete state "${state.name}"?`)) {
+                    await sendMessage("deleteSavedState", { name: state.name });
+                    li.remove();
+                }
+            };
+            li.appendChild(span);
+            li.appendChild(delBtn);
+            savedStateList.appendChild(li);
+        });
+        loadStateDialog.showModal();
+    }
+    else {
+        alert("Failed to load states: " + res.error);
+    }
+});
+document.getElementById("btnCloseLoadState")?.addEventListener("click", () => {
+    loadStateDialog.close();
+});
 // Add toggle active class for chips
 document.querySelectorAll('.chip input').forEach(input => {
     input.addEventListener('change', (e) => {
