@@ -18,10 +18,15 @@
   box-sizing: border-box;
 }
 
+html {
+  min-height: 100%;
+}
+
 body {
   margin: 0;
   padding: 12px;
-  width: 400px;
+  min-width: 400px;
+  min-height: 100%;
   background: var(--bg-body);
   font-family: var(--font-family);
   color: var(--text-main);
@@ -473,6 +478,23 @@ body {
   margin: 0 -12px -12px -12px; /* Extend to edges */
   padding-left: 16px;
   padding-right: 16px;
+}
+
+#resizeHandle {
+  position: fixed;
+  bottom: 0;
+  right: 0;
+  width: 16px;
+  height: 16px;
+  cursor: nwse-resize;
+  background: linear-gradient(135deg, transparent 50%, var(--text-muted) 50%);
+  opacity: 0.3;
+  z-index: 1000;
+  clip-path: polygon(100% 0, 100% 100%, 0 100%);
+}
+
+#resizeHandle:hover {
+  opacity: 0.8;
 }
 
 .stat-item {
