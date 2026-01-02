@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="popup_midnight.css" />
+    <title>Tab Sorter (Midnight)</title>
+  </head>
+  <body>
+    <div class="neon-line"></div>
+    <header>
+      <div class="logo">MIDNIGHT</div>
+      <div class="controls">
+        <button id="btnSort">SORT</button>
+        <button id="btnGroup">GROUP</button>
+        <button id="btnUndo">UNDO</button>
+      </div>
+    </header>
+
+    <div class="search-container">
+        <input id="tabSearch" type="search" placeholder="SEARCH SYSTEM..." />
+    </div>
+
+    <div class="sorting-options">
+       <label class="neon-checkbox">
+           <input type="checkbox" id="sortPinned" />
+           <span>PIN</span>
+       </label>
+       <label class="neon-checkbox">
+           <input type="checkbox" id="sortRecency" />
+           <span>RECENCY</span>
+       </label>
+       <label class="neon-checkbox">
+           <input type="checkbox" id="sortContext" />
+           <span>CONTEXT</span>
+       </label>
+       <label class="neon-checkbox">
+           <input type="checkbox" id="sortUrl" />
+           <span>URL</span>
+       </label>
+    </div>
+
+    <div id="windows" class="window-list"></div>
+
+    <script type="module" src="../dist/ui/popup_midnight.js"></script>
+  </body>
+</html>

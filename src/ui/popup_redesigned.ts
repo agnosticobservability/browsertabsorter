@@ -2,36 +2,21 @@ import {
   ApplyGroupingPayload,
   GroupingSelection,
   Preferences,
-  RuntimeMessage,
-  RuntimeResponse,
   SavedState,
   SortingStrategy,
   TabGroup,
-  TabMetadata
 } from "../shared/types.js";
-
-const sendMessage = async <TData>(type: RuntimeMessage["type"], payload?: any): Promise<RuntimeResponse<TData>> => {
-  return new Promise((resolve) => {
-    chrome.runtime.sendMessage({ type, payload }, (response) => {
-      resolve(response);
-    });
-  });
-};
-
-type TabWithGroup = TabMetadata & {
-  groupLabel: string;
-  groupColor: string;
-  reason: string;
-};
-
-interface WindowView {
-  id: number;
-  title: string;
-  tabs: TabWithGroup[];
-  tabCount: number;
-  groupCount: number;
-  pinnedCount: number;
-}
+import {
+  applyGrouping,
+  applySorting,
+  fetchState,
+  formatDomain,
+  ICONS,
+  mapWindows,
+  sendMessage,
+  TabWithGroup,
+  WindowView
+} from "./common.js";
 
 // Elements
 const searchInput = document.getElementById("tabSearch") as HTMLInputElement;
@@ -60,70 +45,6 @@ const selectedTabs = new Set<number>();
 let preferences: Preferences | null = null;
 let sortingInitialized = false;
 
-// Icons
-const ICONS = {
-  close: `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`,
-  ungroup: `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="8" y1="12" x2="16" y2="12"></line></svg>`,
-  defaultFile: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>`
-};
-
-const fetchState = async () => {
-  const response = await chrome.runtime.sendMessage({ type: "getState" });
-  return response as RuntimeResponse<{ groups: TabGroup[]; preferences: Preferences }>;
-};
-
-const applyGrouping = async (payload: ApplyGroupingPayload) => {
-  const response = await chrome.runtime.sendMessage({ type: "applyGrouping", payload });
-  return response as RuntimeResponse<unknown>;
-};
-
-const applySorting = async (payload: ApplyGroupingPayload) => {
-  const response = await chrome.runtime.sendMessage({ type: "applySorting", payload });
-  return response as RuntimeResponse<unknown>;
-};
-
-const mapWindows = (groups: TabGroup[], windowTitles: Map<number, string>): WindowView[] => {
-  const windows = new Map<number, TabWithGroup[]>();
-
-  groups.forEach((group) => {
-    group.tabs.forEach((tab) => {
-      const decorated: TabWithGroup = {
-        ...tab,
-        groupLabel: group.label,
-        groupColor: group.color,
-        reason: group.reason
-      };
-      const existing = windows.get(tab.windowId) ?? [];
-      existing.push(decorated);
-      windows.set(tab.windowId, existing);
-    });
-  });
-
-  return Array.from(windows.entries())
-    .map<WindowView>(([id, tabs]) => {
-      const groupCount = new Set(tabs.map((tab) => tab.groupLabel)).size;
-      const pinnedCount = tabs.filter((tab) => tab.pinned).length;
-      return {
-        id,
-        title: windowTitles.get(id) ?? `Window ${id}`,
-        tabs,
-        tabCount: tabs.length,
-        groupCount,
-        pinnedCount
-      };
-    })
-    .sort((a, b) => a.id - b.id);
-};
-
-const formatDomain = (url: string) => {
-  try {
-    const parsed = new URL(url);
-    return parsed.hostname.replace(/^www\./, "");
-  } catch (error) {
-    return url;
-  }
-};
-
 const updateStats = () => {
   const totalTabs = windowState.reduce((acc, win) => acc + win.tabCount, 0);
   const totalGroups = new Set(windowState.flatMap(w => w.tabs.map(t => `${w.id}-${t.groupLabel}`))).size;
@@ -147,7 +68,8 @@ const renderGroup = (label: string, color: string, tabs: TabWithGroup[]) => {
 
   const ungroupBtn = document.createElement("button");
   ungroupBtn.className = "ungroup-btn";
-  ungroupBtn.innerHTML = ICONS.ungroup;
+  ungroupBtn.innerHTML = ICONS.ungroup; // Note: ICONS.ungroup is slightly different in common.ts, adapting UI to match or accept change.
+  // The common ICONS.ungroup is 16x16, the redesigned one was 12x12. CSS can handle sizing.
   ungroupBtn.title = "Ungroup";
   ungroupBtn.addEventListener("click", async (e) => {
       e.stopPropagation();

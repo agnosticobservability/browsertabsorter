@@ -5,13 +5,36 @@ import { pushUndoState, saveState, undo, getSavedStates, deleteSavedState, resto
 import {
   ApplyGroupingPayload,
   GroupingSelection,
+  Preferences,
   RuntimeMessage,
   RuntimeResponse,
   TabGroup
 } from "../shared/types.js";
 
-const setPopup = (variant: "default" | "redesigned" | undefined) => {
-  const popup = variant === "redesigned" ? "ui/popup_redesigned.html" : "ui/popup.html";
+const setPopup = (variant: Preferences["popupVariant"]) => {
+  let popup = "ui/popup.html";
+  switch (variant) {
+    case "redesigned":
+      popup = "ui/popup_redesigned.html";
+      break;
+    case "compact":
+      popup = "ui/popup_compact.html";
+      break;
+    case "midnight":
+      popup = "ui/popup_midnight.html";
+      break;
+    case "warm":
+      popup = "ui/popup_warm.html";
+      break;
+    case "terminal":
+      popup = "ui/popup_terminal.html";
+      break;
+    case "glass":
+      popup = "ui/popup_glass.html";
+      break;
+    default:
+      popup = "ui/popup.html";
+  }
   chrome.action.setPopup({ popup });
 };
 
