@@ -85,10 +85,59 @@ export const applyTabSorting = async (preferences, filter) => {
                 tab.context = contextMap.get(tab.id)?.context;
             });
         }
-        const sorted = sortTabs(mapped, preferences.sorting);
-        const sortedIds = sorted.map(t => t.id);
-        if (sortedIds.length > 0) {
-            await chrome.tabs.ungroup(sortedIds);
+        // Group tabs by groupId to sort within groups
+        const tabsByGroup = new Map();
+        const ungroupedTabs = [];
+        mapped.forEach(tab => {
+            const groupId = tab.groupId ?? -1;
+            if (groupId !== -1) {
+                const group = tabsByGroup.get(groupId) ?? [];
+                group.push(tab);
+                tabsByGroup.set(groupId, group);
+            }
+            else {
+                ungroupedTabs.push(tab);
+            }
+        });
+        // 1. Sort tabs within each group
+        for (const [groupId, tabs] of tabsByGroup) {
+            // Find the "start index" of this group in the current window state.
+            // We use the raw chromeTabs because 'mapped' might be filtered?
+            // Actually, 'mapped' is derived from 'windowTabs' which is all tabs in window (unless filtered by selection? Wait.)
+            // If 'filter' is active, 'mapped' might only contain *selected* tabs.
+            // If I sort only selected tabs within a group, I might disrupt the group order if I move them?
+            // But 'Sort All' passes no filter, so 'mapped' is all tabs in window.
+            // If 'Sort Selected' is used, we only want to sort the selected tabs?
+            // If I move selected tabs, I should be careful.
+            // Assuming 'Sort All' for now as per user request.
+            // Even with partial selection, we can sort the subset relative to each other?
+            // But to keep it simple and robust:
+            // We find the index of the first tab in the group (among the tabs we are processing).
+            // Actually, to preserve group position, we should find the min index of *any* tab in this group in the real window.
+            // chromeTabs contains the real indices.
+            const groupTabIndices = windowTabs
+                .filter(t => t.groupId === groupId)
+                .map(t => t.index)
+                .sort((a, b) => a - b);
+            const startIndex = groupTabIndices[0] ?? 0;
+            const sortedGroupTabs = sortTabs(tabs, preferences.sorting);
+            const sortedIds = sortedGroupTabs.map(t => t.id);
+            // Move them to the start index of the group.
+            // chrome.tabs.move with index will place them there.
+            // Since they are already in the group, moving them to an index that is inside the group (or at start) should keep them in group.
+            // Important: if we move multiple tabs, we should do it in one go to preserve relative order?
+            // chrome.tabs.move(tabIds, index) moves them to 'index'. The tabs in tabIds will be placed at 'index', 'index+1', etc.
+            if (sortedIds.length > 0) {
+                await chrome.tabs.move(sortedIds, { index: startIndex });
+            }
+        }
+        // 2. Sort ungrouped tabs
+        // We want to sort them and place them... where?
+        // If we place them at index 0, they will be at the very top.
+        if (ungroupedTabs.length > 0) {
+            const sortedUngrouped = sortTabs(ungroupedTabs, preferences.sorting);
+            const sortedIds = sortedUngrouped.map(t => t.id);
+            // Move to index 0 (top of window)
             await chrome.tabs.move(sortedIds, { index: 0 });
         }
     }
