@@ -54,31 +54,41 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.addEventListener('click', (event) => {
     const target = event.target as HTMLElement | null;
-    if (!target || !target.matches('.context-json-btn')) return;
-    const tabId = Number(target.dataset.tabId);
-    if (!tabId) return;
-    const data = currentContextMap.get(tabId)?.data;
-    if (!data) return;
-    const json = JSON.stringify(data, null, 2);
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>JSON View</title>
-        <style>
-          body { font-family: monospace; background-color: #f0f0f0; padding: 20px; }
-          pre { background-color: white; padding: 15px; border-radius: 5px; border: 1px solid #ccc; overflow: auto; }
-        </style>
-      </head>
-      <body>
-        <h3>JSON Data</h3>
-        <pre>${escapeHtml(json)}</pre>
-      </body>
-      </html>
-    `;
-    const blob = new Blob([htmlContent], { type: 'text/html' });
-    const url = URL.createObjectURL(blob);
-    window.open(url, '_blank', 'noopener,noreferrer');
+    if (!target) return;
+
+    if (target.matches('.context-json-btn')) {
+      const tabId = Number(target.dataset.tabId);
+      if (!tabId) return;
+      const data = currentContextMap.get(tabId)?.data;
+      if (!data) return;
+      const json = JSON.stringify(data, null, 2);
+      const htmlContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>JSON View</title>
+          <style>
+            body { font-family: monospace; background-color: #f0f0f0; padding: 20px; }
+            pre { background-color: white; padding: 15px; border-radius: 5px; border: 1px solid #ccc; overflow: auto; }
+          </style>
+        </head>
+        <body>
+          <h3>JSON Data</h3>
+          <pre>${escapeHtml(json)}</pre>
+        </body>
+        </html>
+      `;
+      const blob = new Blob([htmlContent], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank', 'noopener,noreferrer');
+    } else if (target.matches('.goto-tab-btn')) {
+      const tabId = Number(target.dataset.tabId);
+      const windowId = Number(target.dataset.windowId);
+      if (tabId && windowId) {
+        chrome.tabs.update(tabId, { active: true });
+        chrome.windows.update(windowId, { focused: true });
+      }
+    }
   });
 
   loadTabs();
@@ -252,6 +262,9 @@ function renderTable() {
         ${contextResult?.data ? ` <button class="context-json-btn" data-tab-id="${tab.id}">View JSON</button>` : ''}
       </td>
       <td>${new Date(tab.lastAccessed || 0).toLocaleString()}</td>
+      <td>
+        <button class="goto-tab-btn" data-tab-id="${tab.id}" data-window-id="${tab.windowId}">Go to Tab</button>
+      </td>
     `;
 
     tbody.appendChild(row);
