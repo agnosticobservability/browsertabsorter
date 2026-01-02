@@ -5,7 +5,7 @@
   "description": "Automatically group and sort tabs with adjustable strategies and a rich UI.",
   "permissions": ["tabs", "tabGroups", "storage", "scripting"],
   "optional_permissions": ["history"],
-  "host_permissions": ["<all_urls>"],
+  "host_permissions": ["https://*/*", "http://*/*", "<all_urls>"],
   "action": {
     "default_title": "Tab Sorter",
     "default_popup": "ui/popup.html"

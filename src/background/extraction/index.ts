@@ -1,10 +1,17 @@
 import { PageContext } from "../../shared/types.js";
+import { normalizeUrl } from "./logic.js";
 import { logDebug } from "../logger.js";
 
 interface ExtractionResponse {
   data: PageContext | null;
   error?: string;
-  status: 'OK' | 'RESTRICTED' | 'INJECTION_FAILED' | 'NO_RESPONSE';
+  status:
+    | 'OK'
+    | 'RESTRICTED'
+    | 'INJECTION_FAILED'
+    | 'NO_RESPONSE'
+    | 'NO_HOST_PERMISSION'
+    | 'FRAME_ACCESS_DENIED';
 }
 
 export const extractPageContext = async (tabId: number): Promise<ExtractionResponse> => {
@@ -24,6 +31,8 @@ export const extractPageContext = async (tabId: number): Promise<ExtractionRespo
         return { data: null, error: "Restricted URL scheme", status: 'RESTRICTED' };
     }
 
+    const baseline = buildBaselineContext(tab);
+
     // 1. Inject the bundled script
     try {
         await chrome.scripting.executeScript({
@@ -31,8 +40,12 @@ export const extractPageContext = async (tabId: number): Promise<ExtractionRespo
             files: ['dist/extraction/content.js']
         });
     } catch (injectError: any) {
-        // e.g. "Cannot access contents of url..."
-        return { data: null, error: injectError.message, status: 'INJECTION_FAILED' };
+        const message = injectError?.message || String(injectError);
+        return {
+          data: baseline,
+          error: message,
+          status: classifyInjectionError(message, tab.url)
+        };
     }
 
     // 2. Read the result from global variable
@@ -49,13 +62,118 @@ export const extractPageContext = async (tabId: number): Promise<ExtractionRespo
     });
 
     if (results && results.length > 0 && results[0].result) {
-      return { data: results[0].result as PageContext, status: 'OK' };
+      const merged = mergeBaselineContext(results[0].result as PageContext, baseline);
+      return { data: merged, status: 'OK' };
     }
 
-    return { data: null, error: "Script executed but returned no data", status: 'NO_RESPONSE' };
+    return {
+      data: baseline,
+      error: "Script executed but returned no data",
+      status: 'NO_RESPONSE'
+    };
 
   } catch (e: any) {
     logDebug(`Extraction failed for tab ${tabId}`, { error: String(e) });
-    return { data: null, error: String(e), status: 'INJECTION_FAILED' };
+    return {
+      data: null,
+      error: String(e),
+      status: 'INJECTION_FAILED'
+    };
   }
+};
+
+const buildBaselineContext = (tab: chrome.tabs.Tab): PageContext => {
+  const url = tab.url || "";
+  let hostname = "";
+  try {
+    hostname = new URL(url).hostname.replace(/^www\./, '');
+  } catch (e) {
+    hostname = "";
+  }
+  const objectType = url.includes('/login') || url.includes('/signin') ? 'login' : 'unknown';
+  return {
+    canonicalUrl: url || null,
+    normalizedUrl: normalizeUrl(url),
+    siteName: hostname || null,
+    platform: hostname || null,
+    objectType,
+    objectId: url || null,
+    title: tab.title || null,
+    description: null,
+    authorOrCreator: null,
+    publishedAt: null,
+    modifiedAt: null,
+    language: null,
+    tags: [],
+    breadcrumbs: [],
+    isAudible: false,
+    isMuted: false,
+    isCapturing: false,
+    progress: null,
+    hasUnsavedChangesLikely: false,
+    isAuthenticatedLikely: false,
+    sources: {
+      canonicalUrl: 'url',
+      normalizedUrl: 'url',
+      siteName: 'url',
+      platform: 'url',
+      objectType: 'url',
+      title: tab.title ? 'tab' : 'url'
+    },
+    confidence: {}
+  };
+};
+
+const mergeBaselineContext = (data: PageContext, baseline: PageContext): PageContext => {
+  const sources = { ...(data.sources || {}) };
+
+  if (!data.title && baseline.title) {
+    data.title = baseline.title;
+    sources.title = baseline.sources.title;
+  }
+  if (!data.siteName && baseline.siteName) {
+    data.siteName = baseline.siteName;
+    sources.siteName = baseline.sources.siteName;
+  }
+  if (!data.canonicalUrl && baseline.canonicalUrl) {
+    data.canonicalUrl = baseline.canonicalUrl;
+    sources.canonicalUrl = baseline.sources.canonicalUrl;
+  }
+  if (!data.normalizedUrl && baseline.normalizedUrl) {
+    data.normalizedUrl = baseline.normalizedUrl;
+    sources.normalizedUrl = baseline.sources.normalizedUrl;
+  }
+  if (!data.platform && baseline.platform) {
+    data.platform = baseline.platform;
+    sources.platform = baseline.sources.platform;
+  }
+  if (!data.objectType && baseline.objectType) {
+    data.objectType = baseline.objectType;
+    sources.objectType = baseline.sources.objectType;
+  }
+  if (!data.objectId && baseline.objectId) {
+    data.objectId = baseline.objectId;
+  }
+
+  data.sources = sources;
+  return data;
+};
+
+const classifyInjectionError = (message: string, url: string): ExtractionResponse['status'] => {
+  if (
+    url.startsWith('chrome://') ||
+    url.startsWith('edge://') ||
+    url.startsWith('about:') ||
+    url.startsWith('chrome-extension://') ||
+    url.startsWith('chrome-error://')
+  ) {
+    return 'RESTRICTED';
+  }
+  if (message.includes('Extension manifest must request permission') || message.includes('Cannot access contents of url')) {
+    return 'NO_HOST_PERMISSION';
+  }
+  if (message.includes('Frame with ID') || message.includes('frame is showing error page')) {
+    return 'FRAME_ACCESS_DENIED';
+  }
+  return 'INJECTION_FAILED';
 };
