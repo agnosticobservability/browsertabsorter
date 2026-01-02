@@ -60,11 +60,25 @@ document.addEventListener('DOMContentLoaded', () => {
     const data = currentContextMap.get(tabId)?.data;
     if (!data) return;
     const json = JSON.stringify(data, null, 2);
-    const win = window.open('', '_blank', 'noopener,noreferrer');
-    if (win) {
-      win.document.write(`<pre>${escapeHtml(json)}</pre>`);
-      win.document.close();
-    }
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>JSON View</title>
+        <style>
+          body { font-family: monospace; background-color: #f0f0f0; padding: 20px; }
+          pre { background-color: white; padding: 15px; border-radius: 5px; border: 1px solid #ccc; overflow: auto; }
+        </style>
+      </head>
+      <body>
+        <h3>JSON Data</h3>
+        <pre>${escapeHtml(json)}</pre>
+      </body>
+      </html>
+    `;
+    const blob = new Blob([htmlContent], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank', 'noopener,noreferrer');
   });
 
   loadTabs();
