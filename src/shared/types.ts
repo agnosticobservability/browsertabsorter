@@ -1,3 +1,52 @@
+export interface PageContext {
+  // Identity / normalization
+  canonicalUrl: string | null;
+  normalizedUrl: string;
+  siteName: string | null;
+  platform: string | null;
+  objectType: 'video' | 'article' | 'doc' | 'ticket' | 'repo' | 'product' | 'search' | 'dashboard' | 'login' | 'unknown';
+  objectId: string | null;
+
+  // Content descriptors
+  title: string | null;
+  description: string | null;
+  authorOrCreator: string | null;
+  publishedAt: string | null;
+  modifiedAt: string | null;
+  language: string | null;
+  tags: string[];
+  breadcrumbs: string[];
+
+  // Session/state (privacy-safe)
+  isAudible: boolean;
+  isMuted: boolean;
+  isCapturing: boolean;
+  progress: number | null;
+  hasUnsavedChangesLikely: boolean;
+  isAuthenticatedLikely: boolean;
+
+  // Provenance
+  sources: Record<string, string>;
+  confidence: Record<string, number>;
+
+  // Site-specific enrichments
+  youtube?: {
+    videoId: string | null;
+    channelId: string | null;
+    contentSubtype: 'shorts' | 'live' | 'premiere' | 'standard' | null;
+    durationSeconds: number | null;
+    playbackProgress: {
+      currentSeconds: number;
+      durationSeconds: number;
+      percent: number;
+    } | null;
+    playlistId: string | null;
+    playlistIndex: number | null;
+  };
+
+  enrichments?: Record<string, any>;
+}
+
 export interface TabMetadata {
   id: number;
   windowId: number;
@@ -8,6 +57,7 @@ export interface TabMetadata {
   openerTabId?: number;
   favIconUrl?: string;
   context?: string;
+  contextData?: PageContext;
   groupId?: number;
 }
 

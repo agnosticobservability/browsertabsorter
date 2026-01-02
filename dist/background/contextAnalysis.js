@@ -1,4 +1,5 @@
 import { logDebug, logError } from "./logger.js";
+import { extractPageContext } from "./extraction/index.js";
 const HF_API_URL = "https://api-inference.huggingface.co/models/facebook/bart-large-mnli";
 // We will categorize tabs into these contexts:
 const CONTEXT_LABELS = [
@@ -14,7 +15,7 @@ export const analyzeTabContext = async (tabs) => {
         }
         catch (error) {
             logError(`Failed to analyze context for tab ${tab.id}`, { error: String(error) });
-            // Even if fetchContextForTab fails completely (including fallback), we try a safe sync fallback or just uncategorized
+            // Even if fetchContextForTab fails completely, we try a safe sync fallback
             contextMap.set(tab.id, { context: "Uncategorized", source: 'Heuristic' });
         }
     });
@@ -22,84 +23,75 @@ export const analyzeTabContext = async (tabs) => {
     return contextMap;
 };
 const fetchContextForTab = async (tab) => {
-    const textToClassify = `${tab.title} ${tab.url}`;
-    // Payload for Zero-Shot Classification
-    const payload = {
-        inputs: textToClassify,
-        parameters: { candidate_labels: CONTEXT_LABELS }
-    };
+    // 1. Run Generic Extraction (Always)
+    let data = null;
     try {
-        const response = await fetch(HF_API_URL, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify(payload)
-        });
-        if (!response.ok) {
-            logDebug("LLM API failed, falling back to heuristic", { status: response.status });
-            return await localHeuristic(tab);
-        }
-        const result = await response.json();
-        if (result && result.labels && result.labels.length > 0) {
-            return { context: result.labels[0], source: 'AI' };
-        }
-        return await localHeuristic(tab);
+        data = await extractPageContext(tab.id);
     }
     catch (e) {
-        logDebug("LLM API error, falling back to heuristic", { error: String(e) });
-        return await localHeuristic(tab);
+        logDebug(`Extraction failed for tab ${tab.id}`, { error: String(e) });
     }
-};
-const analyzeYoutubeContext = async (tab) => {
-    if (!tab.url.includes("youtube.com/watch"))
-        return null;
-    try {
-        const results = await chrome.scripting.executeScript({
-            target: { tabId: tab.id },
-            func: () => {
-                // Try multiple selectors for robustness
-                const title = document.querySelector("h1.ytd-video-primary-info-renderer")?.innerText
-                    || document.querySelector("#title h1")?.innerText
-                    || document.title;
-                const channel = document.querySelector("#upload-info #channel-name a")?.innerText
-                    || document.querySelector("ytd-channel-name a")?.innerText
-                    || document.querySelector(".ytd-channel-name a")?.innerText
-                    || "";
-                const date = document.querySelector("#info-strings yt-formatted-string")?.innerText
-                    || document.querySelector("#date yt-formatted-string")?.innerText
-                    || "";
-                return {
-                    title,
-                    channel,
-                    date
-                };
+    let context = "Uncategorized";
+    let source = 'Heuristic';
+    // 2. Try to Determine Category from Extraction Data
+    if (data) {
+        if (data.platform === 'YouTube' || data.platform === 'Netflix' || data.platform === 'Spotify' || data.platform === 'Twitch') {
+            context = "Entertainment";
+            source = 'Extraction';
+        }
+        else if (data.platform === 'GitHub' || data.platform === 'Stack Overflow' || data.platform === 'Jira' || data.platform === 'GitLab') {
+            context = "Development";
+            source = 'Extraction';
+        }
+        else if (data.platform === 'Google' && (data.normalizedUrl.includes('docs') || data.normalizedUrl.includes('sheets') || data.normalizedUrl.includes('slides'))) {
+            context = "Work";
+            source = 'Extraction';
+        }
+        // Add more specific mappings if needed based on platform
+    }
+    // 3. Fallback to Local Heuristic (URL Regex)
+    if (context === "Uncategorized") {
+        const h = await localHeuristic(tab);
+        if (h.context !== "Uncategorized") {
+            context = h.context;
+            // source remains 'Heuristic'
+        }
+    }
+    // 4. Fallback to AI (LLM)
+    // Only if we have no clue from extraction or heuristics
+    if (context === "Uncategorized") {
+        const textToClassify = `${tab.title} ${tab.url}`;
+        const payload = {
+            inputs: textToClassify,
+            parameters: { candidate_labels: CONTEXT_LABELS }
+        };
+        try {
+            const response = await fetch(HF_API_URL, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(payload)
+            });
+            if (response.ok) {
+                const result = await response.json();
+                if (result && result.labels && result.labels.length > 0) {
+                    context = result.labels[0];
+                    source = 'AI';
+                }
             }
-        });
-        if (results && results.length > 0 && results[0].result) {
-            const data = results[0].result;
-            // Clean up
-            const cleanData = {
-                platform: "YouTube",
-                channel: data.channel.trim(),
-                title: data.title.trim(),
-                date: data.date.trim()
-            };
-            // Return JSON string
-            return { context: JSON.stringify(cleanData), source: 'Heuristic' };
+            else {
+                logDebug("LLM API failed", { status: response.status });
+            }
+        }
+        catch (e) {
+            logDebug("LLM API error", { error: String(e) });
         }
     }
-    catch (e) {
-        logDebug("Failed to extract YouTube context", { error: String(e) });
-    }
-    return null;
+    return { context, source, data: data || undefined };
 };
 const localHeuristic = async (tab) => {
     const url = tab.url.toLowerCase();
-    // YouTube Extraction
-    const ytContext = await analyzeYoutubeContext(tab);
-    if (ytContext)
-        return ytContext;
     let context = "Uncategorized";
     if (url.includes("github") || url.includes("stackoverflow") || url.includes("localhost") || url.includes("jira") || url.includes("gitlab"))
         context = "Development";
@@ -107,7 +99,7 @@ const localHeuristic = async (tab) => {
         context = "Work";
     else if (url.includes("linkedin") || url.includes("slack") || url.includes("zoom") || url.includes("teams"))
         context = "Work";
-    else if (url.includes("netflix") || url.includes("spotify") || url.includes("hulu") || url.includes("disney"))
+    else if (url.includes("netflix") || url.includes("spotify") || url.includes("hulu") || url.includes("disney") || url.includes("youtube"))
         context = "Entertainment";
     else if (url.includes("twitter") || url.includes("facebook") || url.includes("instagram") || url.includes("reddit") || url.includes("tiktok") || url.includes("pinterest"))
         context = "Social";
