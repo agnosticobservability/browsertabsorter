@@ -18,8 +18,9 @@ export const loadPreferences = async (): Promise<Preferences> => {
   return merged;
 };
 
-export const savePreferences = async (prefs: Preferences): Promise<Preferences> => {
-  const merged = { ...defaultPreferences, ...prefs };
+export const savePreferences = async (prefs: Partial<Preferences>): Promise<Preferences> => {
+  const current = await loadPreferences();
+  const merged = { ...current, ...prefs };
   await setStoredValue(PREFERENCES_KEY, merged);
   setLoggerPreferences(merged);
   return merged;

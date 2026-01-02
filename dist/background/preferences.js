@@ -14,7 +14,8 @@ export const loadPreferences = async () => {
     return merged;
 };
 export const savePreferences = async (prefs) => {
-    const merged = { ...defaultPreferences, ...prefs };
+    const current = await loadPreferences();
+    const merged = { ...current, ...prefs };
     await setStoredValue(PREFERENCES_KEY, merged);
     setLoggerPreferences(merged);
     return merged;

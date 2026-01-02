@@ -225,6 +225,28 @@ const getSelectedSorting = (): SortingStrategy[] => {
   return selected;
 };
 
+const getDOMSorting = (): SortingStrategy[] => {
+  const selected: SortingStrategy[] = [];
+  if (sortPinned.checked) selected.push("pinned");
+  if (sortRecency.checked) selected.push("recency");
+  if (sortHierarchy.checked) selected.push("hierarchy");
+  if (sortTitle.checked) selected.push("title");
+  if (sortUrl.checked) selected.push("url");
+  if (sortContext.checked) selected.push("context");
+  return selected;
+};
+
+const saveSortingState = async () => {
+  const sorting = getDOMSorting();
+  // We explicitly want to save the current state, even if it's empty.
+  await chrome.runtime.sendMessage({ type: "savePreferences", payload: { sorting } });
+
+  // Update local preferences to reflect the change immediately
+  if (preferences) {
+    preferences.sorting = sorting;
+  }
+};
+
 // --- Render Logic ---
 
 const updateFooter = () => {
@@ -523,6 +545,9 @@ const initialize = async () => {
 // The user must click "Sort" or "Group" explicitly.
 // But we might want to persist the selection locally or just rely on the UI state when button is clicked.
 // Since getSelectedSorting() reads from DOM, we don't need to do anything on change except maybe visual feedback if we had it.
+[sortPinned, sortRecency, sortHierarchy, sortTitle, sortUrl, sortContext].forEach(el => {
+  el.addEventListener("change", saveSortingState);
+});
 
 btnSortSelected.addEventListener("click", triggerSortSelected);
 btnGroupSelected.addEventListener("click", triggerReGroupSelected);
