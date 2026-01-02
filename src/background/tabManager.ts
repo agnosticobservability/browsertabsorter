@@ -39,7 +39,7 @@ export const fetchTabGroups = async (
   if (preferences.sorting.includes("context")) {
     const contextMap = await analyzeTabContext(mapped);
     mapped.forEach(tab => {
-      tab.context = contextMap.get(tab.id);
+      tab.context = contextMap.get(tab.id)?.context;
     });
   }
 
@@ -96,7 +96,7 @@ export const applyTabSorting = async (
       if (preferences.sorting.includes("context")) {
         const contextMap = await analyzeTabContext(mapped);
         mapped.forEach(tab => {
-          tab.context = contextMap.get(tab.id);
+          tab.context = contextMap.get(tab.id)?.context;
         });
       }
 

@@ -1,4 +1,4 @@
-import { analyzeTabContext } from "../background/contextAnalysis.js";
+import { analyzeTabContext, ContextResult } from "../background/contextAnalysis.js";
 import { Preferences, TabMetadata } from "../shared/types.js";
 
 // State
@@ -81,6 +81,7 @@ async function loadTabs() {
     }));
 
   // Analyze context
+  let contextMap = new Map<number, ContextResult>();
   try {
       currentContextMap = await analyzeTabContext(mappedTabs);
   } catch (error) {
@@ -143,6 +144,42 @@ function renderTable() {
 
   let tabsDisplay = [...currentTabs];
 
+  if (tbody) {
+    tbody.innerHTML = ''; // Clear existing rows
+
+    tabs.forEach(tab => {
+      const row = document.createElement('tr');
+
+      const parentTitle = tab.openerTabId ? (tabTitles.get(tab.openerTabId) || 'Unknown') : '-';
+
+      const contextResult = tab.id ? contextMap.get(tab.id) : undefined;
+      const effectiveContext = contextResult ? contextResult.context : 'N/A';
+
+      let aiContext = 'N/A';
+      if (contextResult && contextResult.source === 'AI') {
+          aiContext = contextResult.context;
+      } else if (contextResult && contextResult.source === 'Heuristic') {
+          aiContext = `Fallback (${contextResult.context})`;
+      }
+
+      row.innerHTML = `
+        <td>${tab.id ?? 'N/A'}</td>
+        <td>${tab.index}</td>
+        <td>${tab.windowId}</td>
+        <td>${tab.groupId}</td>
+        <td class="title-cell" title="${escapeHtml(tab.title || '')}">${escapeHtml(tab.title || '')}</td>
+        <td class="url-cell" title="${escapeHtml(tab.url || '')}">${escapeHtml(tab.url || '')}</td>
+        <td>${tab.status}</td>
+        <td>${tab.active ? 'Yes' : 'No'}</td>
+        <td>${tab.pinned ? 'Yes' : 'No'}</td>
+        <td>${tab.openerTabId ?? '-'}</td>
+        <td title="${escapeHtml(parentTitle)}">${escapeHtml(parentTitle)}</td>
+        <td>${escapeHtml(effectiveContext)}</td>
+        <td>${escapeHtml(aiContext)}</td>
+        <td>${new Date(tab.lastAccessed || 0).toLocaleString()}</td>
+      `;
+
+      tbody.appendChild(row);
   if (sortKey) {
     tabsDisplay.sort((a, b) => {
       let valA: any = getSortValue(a, sortKey!);

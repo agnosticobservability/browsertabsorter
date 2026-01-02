@@ -10,8 +10,13 @@ const HF_API_URL = "https://api-inference.huggingface.co/models/facebook/bart-la
 // We will categorize tabs into these contexts:
 const CONTEXT_LABELS = ["Work", "Personal", "Social", "News", "Development", "Shopping", "Entertainment", "Finance"];
 
-export const analyzeTabContext = async (tabs: TabMetadata[]): Promise<Map<number, string>> => {
-  const contextMap = new Map<number, string>();
+export interface ContextResult {
+  context: string;
+  source: 'AI' | 'Heuristic';
+}
+
+export const analyzeTabContext = async (tabs: TabMetadata[]): Promise<Map<number, ContextResult>> => {
+  const contextMap = new Map<number, ContextResult>();
 
   // We process tabs in batches to avoid overwhelming the API if we were doing bulk updates,
   // but for now let's just do them one by one or in small groups.
@@ -23,11 +28,11 @@ export const analyzeTabContext = async (tabs: TabMetadata[]): Promise<Map<number
 
   const promises = tabs.map(async (tab) => {
     try {
-      const context = await fetchContextForTab(tab);
-      contextMap.set(tab.id, context);
+      const result = await fetchContextForTab(tab);
+      contextMap.set(tab.id, result);
     } catch (error) {
       logError(`Failed to analyze context for tab ${tab.id}`, { error: String(error) });
-      contextMap.set(tab.id, "Uncategorized");
+      contextMap.set(tab.id, { context: "Uncategorized", source: 'Heuristic' });
     }
   });
 
@@ -35,7 +40,7 @@ export const analyzeTabContext = async (tabs: TabMetadata[]): Promise<Map<number
   return contextMap;
 };
 
-const fetchContextForTab = async (tab: TabMetadata): Promise<string> => {
+const fetchContextForTab = async (tab: TabMetadata): Promise<ContextResult> => {
   // Simple caching could be added here but keeping it simple for now.
 
   const textToClassify = `${tab.title} ${tab.url}`;
@@ -67,10 +72,10 @@ const fetchContextForTab = async (tab: TabMetadata): Promise<string> => {
     // { sequence: "...", labels: ["Work", ...], scores: [0.9, ...] }
 
     if (result && result.labels && result.labels.length > 0) {
-      return result.labels[0];
+      return { context: result.labels[0], source: 'AI' };
     }
 
-    return "Uncategorized";
+    return { context: "Uncategorized", source: 'Heuristic' };
 
   } catch (e) {
     logDebug("LLM API error, falling back to heuristic", { error: String(e) });
@@ -78,17 +83,19 @@ const fetchContextForTab = async (tab: TabMetadata): Promise<string> => {
   }
 };
 
-const localHeuristic = (tab: TabMetadata): string => {
+const localHeuristic = (tab: TabMetadata): ContextResult => {
   const url = tab.url.toLowerCase();
   const title = tab.title.toLowerCase();
 
-  if (url.includes("github") || url.includes("stackoverflow") || url.includes("localhost")) return "Development";
-  if (url.includes("google") && (url.includes("docs") || url.includes("sheets"))) return "Work";
-  if (url.includes("linkedin") || url.includes("slack")) return "Work";
-  if (url.includes("youtube") || url.includes("netflix") || url.includes("spotify")) return "Entertainment";
-  if (url.includes("twitter") || url.includes("facebook") || url.includes("instagram") || url.includes("reddit")) return "Social";
-  if (url.includes("amazon") || url.includes("ebay")) return "Shopping";
-  if (url.includes("cnn") || url.includes("bbc") || url.includes("nytimes")) return "News";
+  let context = "Uncategorized";
 
-  return "Uncategorized";
+  if (url.includes("github") || url.includes("stackoverflow") || url.includes("localhost")) context = "Development";
+  else if (url.includes("google") && (url.includes("docs") || url.includes("sheets"))) context = "Work";
+  else if (url.includes("linkedin") || url.includes("slack")) context = "Work";
+  else if (url.includes("youtube") || url.includes("netflix") || url.includes("spotify")) context = "Entertainment";
+  else if (url.includes("twitter") || url.includes("facebook") || url.includes("instagram") || url.includes("reddit")) context = "Social";
+  else if (url.includes("amazon") || url.includes("ebay")) context = "Shopping";
+  else if (url.includes("cnn") || url.includes("bbc") || url.includes("nytimes")) context = "News";
+
+  return { context, source: 'Heuristic' };
 };

@@ -16,12 +16,12 @@ export const analyzeTabContext = async (tabs) => {
     // So we should try to call the API.
     const promises = tabs.map(async (tab) => {
         try {
-            const context = await fetchContextForTab(tab);
-            contextMap.set(tab.id, context);
+            const result = await fetchContextForTab(tab);
+            contextMap.set(tab.id, result);
         }
         catch (error) {
             logError(`Failed to analyze context for tab ${tab.id}`, { error: String(error) });
-            contextMap.set(tab.id, "Uncategorized");
+            contextMap.set(tab.id, { context: "Uncategorized", source: 'Heuristic' });
         }
     });
     await Promise.all(promises);
@@ -53,9 +53,9 @@ const fetchContextForTab = async (tab) => {
         // specific format for zero-shot classification:
         // { sequence: "...", labels: ["Work", ...], scores: [0.9, ...] }
         if (result && result.labels && result.labels.length > 0) {
-            return result.labels[0];
+            return { context: result.labels[0], source: 'AI' };
         }
-        return "Uncategorized";
+        return { context: "Uncategorized", source: 'Heuristic' };
     }
     catch (e) {
         logDebug("LLM API error, falling back to heuristic", { error: String(e) });
@@ -65,19 +65,20 @@ const fetchContextForTab = async (tab) => {
 const localHeuristic = (tab) => {
     const url = tab.url.toLowerCase();
     const title = tab.title.toLowerCase();
+    let context = "Uncategorized";
     if (url.includes("github") || url.includes("stackoverflow") || url.includes("localhost"))
-        return "Development";
-    if (url.includes("google") && (url.includes("docs") || url.includes("sheets")))
-        return "Work";
-    if (url.includes("linkedin") || url.includes("slack"))
-        return "Work";
-    if (url.includes("youtube") || url.includes("netflix") || url.includes("spotify"))
-        return "Entertainment";
-    if (url.includes("twitter") || url.includes("facebook") || url.includes("instagram") || url.includes("reddit"))
-        return "Social";
-    if (url.includes("amazon") || url.includes("ebay"))
-        return "Shopping";
-    if (url.includes("cnn") || url.includes("bbc") || url.includes("nytimes"))
-        return "News";
-    return "Uncategorized";
+        context = "Development";
+    else if (url.includes("google") && (url.includes("docs") || url.includes("sheets")))
+        context = "Work";
+    else if (url.includes("linkedin") || url.includes("slack"))
+        context = "Work";
+    else if (url.includes("youtube") || url.includes("netflix") || url.includes("spotify"))
+        context = "Entertainment";
+    else if (url.includes("twitter") || url.includes("facebook") || url.includes("instagram") || url.includes("reddit"))
+        context = "Social";
+    else if (url.includes("amazon") || url.includes("ebay"))
+        context = "Shopping";
+    else if (url.includes("cnn") || url.includes("bbc") || url.includes("nytimes"))
+        context = "News";
+    return { context, source: 'Heuristic' };
 };
