@@ -8,6 +8,7 @@ export interface TabMetadata {
   openerTabId?: number;
   favIconUrl?: string;
   context?: string;
+  groupId?: number;
 }
 
 export interface TabGroup {
