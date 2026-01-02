@@ -127,7 +127,21 @@
         <button id="btnSortAll" class="primary-button" style="flex: 1; padding: 8px;">Sort All</button>
         <button id="btnGroupAll" class="primary-button" style="flex: 1; padding: 8px;">Group All</button>
       </div>
+
+      <div class="state-actions" style="display: flex; gap: 8px; margin-top: 16px; border-top: 1px solid var(--border-color); padding-top: 16px;">
+        <button id="btnUndo" class="secondary-button" style="flex: 1; padding: 8px;">Undo</button>
+        <button id="btnSaveState" class="secondary-button" style="flex: 1; padding: 8px;">Save State</button>
+        <button id="btnLoadState" class="secondary-button" style="flex: 1; padding: 8px;">Load State</button>
+      </div>
     </section>
+
+    <dialog id="loadStateDialog" style="border: 1px solid var(--border-color); border-radius: 8px; padding: 16px; min-width: 300px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <h3>Saved States</h3>
+        <button id="btnCloseLoadState" style="background: none; border: none; cursor: pointer;">✕</button>
+      </div>
+      <ul id="savedStateList" style="list-style: none; padding: 0; margin: 0; max-height: 300px; overflow-y: auto;"></ul>
+    </dialog>
 
     <!-- Windows List -->
     <section id="windows" class="window-list" aria-live="polite"></section>
