@@ -175,16 +175,22 @@ function renderTable() {
     let cellTitle = '';
 
     if (contextResult) {
-        if (contextResult.error) {
-            aiContext = `Error (${contextResult.error})`;
-            cellStyle = 'color: red;';
-            cellTitle = contextResult.error;
-        } else if (contextResult.status === 'RESTRICTED') {
+        if (contextResult.status === 'RESTRICTED') {
             aiContext = 'Unextractable (restricted)';
             cellStyle = 'color: gray; font-style: italic;';
+            cellTitle = contextResult.error || '';
         } else if (contextResult.status === 'INJECTION_FAILED') {
             aiContext = 'Injection Failed';
             cellStyle = 'color: orange;';
+            cellTitle = contextResult.error || '';
+        } else if (contextResult.status === 'NO_RESPONSE') {
+            aiContext = 'No extractable data';
+            cellStyle = 'color: gray;';
+            cellTitle = contextResult.error || '';
+        } else if (contextResult.error) {
+            aiContext = `Error (${contextResult.error})`;
+            cellStyle = 'color: red;';
+            cellTitle = contextResult.error;
         } else if (contextResult.source === 'Extraction') {
             aiContext = `${contextResult.context} (Extracted)`;
             cellStyle = 'color: green; font-weight: bold;';
