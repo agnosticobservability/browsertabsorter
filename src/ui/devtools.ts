@@ -1,10 +1,30 @@
 import { analyzeTabContext } from "../background/contextAnalysis.js";
-import { TabMetadata } from "../shared/types.js";
+import { Preferences, TabMetadata } from "../shared/types.js";
 
 document.addEventListener('DOMContentLoaded', () => {
   const refreshBtn = document.getElementById('refreshBtn');
   if (refreshBtn) {
     refreshBtn.addEventListener('click', loadTabs);
+  }
+
+  const popupVariantSelect = document.getElementById('popupVariant') as HTMLSelectElement;
+  if (popupVariantSelect) {
+    // Load initial preference
+    chrome.runtime.sendMessage({ type: "loadPreferences" }, (response) => {
+      if (response && response.ok && response.data) {
+        const prefs = response.data as Preferences;
+        popupVariantSelect.value = prefs.popupVariant || "default";
+      }
+    });
+
+    // Save on change
+    popupVariantSelect.addEventListener('change', () => {
+       const variant = popupVariantSelect.value;
+       chrome.runtime.sendMessage({
+         type: "savePreferences",
+         payload: { popupVariant: variant }
+       });
+    });
   }
 
   loadTabs();

@@ -1,9 +1,18 @@
 import { applyTabGroups, applyTabSorting, fetchTabGroups } from "./tabManager.js";
 import { loadPreferences, savePreferences } from "./preferences.js";
 import { logDebug, logInfo } from "./logger.js";
+const setPopup = (variant) => {
+    const popup = variant === "redesigned" ? "ui/popup_redesigned.html" : "ui/popup.html";
+    chrome.action.setPopup({ popup });
+};
 chrome.runtime.onInstalled.addListener(async () => {
     const prefs = await loadPreferences();
     logInfo("Extension installed", { prefs });
+    setPopup(prefs.popupVariant);
+});
+chrome.runtime.onStartup.addListener(async () => {
+    const prefs = await loadPreferences();
+    setPopup(prefs.popupVariant);
 });
 const handleMessage = async (message, sender) => {
     logDebug("Received message", { type: message.type, from: sender.id });
@@ -38,6 +47,7 @@ const handleMessage = async (message, sender) => {
         }
         case "savePreferences": {
             const prefs = await savePreferences(message.payload);
+            setPopup(prefs.popupVariant);
             return { ok: true, data: prefs };
         }
         default:

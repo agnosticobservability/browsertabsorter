@@ -9,9 +9,20 @@ import {
   TabGroup
 } from "../shared/types.js";
 
+const setPopup = (variant: "default" | "redesigned" | undefined) => {
+  const popup = variant === "redesigned" ? "ui/popup_redesigned.html" : "ui/popup.html";
+  chrome.action.setPopup({ popup });
+};
+
 chrome.runtime.onInstalled.addListener(async () => {
   const prefs = await loadPreferences();
   logInfo("Extension installed", { prefs });
+  setPopup(prefs.popupVariant);
+});
+
+chrome.runtime.onStartup.addListener(async () => {
+  const prefs = await loadPreferences();
+  setPopup(prefs.popupVariant);
 });
 
 const handleMessage = async <TData>(
@@ -50,6 +61,7 @@ const handleMessage = async <TData>(
     }
     case "savePreferences": {
       const prefs = await savePreferences(message.payload as any);
+      setPopup(prefs.popupVariant);
       return { ok: true, data: prefs as TData };
     }
     default:

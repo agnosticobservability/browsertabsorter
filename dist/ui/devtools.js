@@ -4,6 +4,24 @@ document.addEventListener('DOMContentLoaded', () => {
     if (refreshBtn) {
         refreshBtn.addEventListener('click', loadTabs);
     }
+    const popupVariantSelect = document.getElementById('popupVariant');
+    if (popupVariantSelect) {
+        // Load initial preference
+        chrome.runtime.sendMessage({ type: "loadPreferences" }, (response) => {
+            if (response && response.ok && response.data) {
+                const prefs = response.data;
+                popupVariantSelect.value = prefs.popupVariant || "default";
+            }
+        });
+        // Save on change
+        popupVariantSelect.addEventListener('change', () => {
+            const variant = popupVariantSelect.value;
+            chrome.runtime.sendMessage({
+                type: "savePreferences",
+                payload: { popupVariant: variant }
+            });
+        });
+    }
     loadTabs();
 });
 async function loadTabs() {
