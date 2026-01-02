@@ -1,0 +1,5 @@
+127.0.0.1 - - [02/Jan/2026 15:00:08] "GET /ui/devtools.html HTTP/1.1" 200 -
+127.0.0.1 - - [02/Jan/2026 15:00:08] "GET /ui/devtools.css HTTP/1.1" 200 -
+127.0.0.1 - - [02/Jan/2026 15:00:08] "GET /dist/ui/devtools.js HTTP/1.1" 200 -
+127.0.0.1 - - [02/Jan/2026 15:00:09] "GET /dist/background/contextAnalysis.js HTTP/1.1" 200 -
+127.0.0.1 - - [02/Jan/2026 15:00:09] "GET /dist/background/logger.js HTTP/1.1" 200 -

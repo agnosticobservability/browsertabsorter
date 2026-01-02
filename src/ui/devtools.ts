@@ -1,4 +1,4 @@
-import { analyzeTabContext } from "../background/contextAnalysis.js";
+import { analyzeTabContext, ContextResult } from "../background/contextAnalysis.js";
 import { Preferences, TabMetadata } from "../shared/types.js";
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -64,7 +64,7 @@ async function loadTabs() {
     }));
 
   // Analyze context
-  let contextMap = new Map<number, string>();
+  let contextMap = new Map<number, ContextResult>();
   try {
       contextMap = await analyzeTabContext(mappedTabs);
   } catch (error) {
@@ -78,7 +78,16 @@ async function loadTabs() {
       const row = document.createElement('tr');
 
       const parentTitle = tab.openerTabId ? (tabTitles.get(tab.openerTabId) || 'Unknown') : '-';
-      const context = (tab.id && contextMap.get(tab.id)) || 'N/A';
+
+      const contextResult = tab.id ? contextMap.get(tab.id) : undefined;
+      const effectiveContext = contextResult ? contextResult.context : 'N/A';
+
+      let aiContext = 'N/A';
+      if (contextResult && contextResult.source === 'AI') {
+          aiContext = contextResult.context;
+      } else if (contextResult && contextResult.source === 'Heuristic') {
+          aiContext = `Fallback (${contextResult.context})`;
+      }
 
       row.innerHTML = `
         <td>${tab.id ?? 'N/A'}</td>
@@ -92,7 +101,8 @@ async function loadTabs() {
         <td>${tab.pinned ? 'Yes' : 'No'}</td>
         <td>${tab.openerTabId ?? '-'}</td>
         <td title="${escapeHtml(parentTitle)}">${escapeHtml(parentTitle)}</td>
-        <td>${escapeHtml(context)}</td>
+        <td>${escapeHtml(effectiveContext)}</td>
+        <td>${escapeHtml(aiContext)}</td>
         <td>${new Date(tab.lastAccessed || 0).toLocaleString()}</td>
       `;
 
