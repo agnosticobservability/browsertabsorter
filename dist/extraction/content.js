@@ -48,7 +48,7 @@
     let modifiedAt = null;
     let tags = [];
     let breadcrumbs = [];
-    const mainEntity = jsonLd.find((i) => i["@type"] === "Article" || i["@type"] === "VideoObject" || i["@type"] === "NewsArticle") || jsonLd[0];
+    const mainEntity = jsonLd.find((i) => i && (i["@type"] === "Article" || i["@type"] === "VideoObject" || i["@type"] === "NewsArticle")) || jsonLd[0];
     if (mainEntity) {
       if (mainEntity.author) {
         if (typeof mainEntity.author === "string") author = mainEntity.author;
@@ -62,7 +62,7 @@
         else if (Array.isArray(mainEntity.keywords)) tags = mainEntity.keywords;
       }
     }
-    const breadcrumbLd = jsonLd.find((i) => i["@type"] === "BreadcrumbList");
+    const breadcrumbLd = jsonLd.find((i) => i && i["@type"] === "BreadcrumbList");
     if (breadcrumbLd && Array.isArray(breadcrumbLd.itemListElement)) {
       const list = breadcrumbLd.itemListElement.sort((a, b) => a.position - b.position);
       list.forEach((item) => {
@@ -81,8 +81,13 @@
     scripts.forEach((s) => {
       try {
         const json = JSON.parse(s.textContent || "{}");
-        if (Array.isArray(json)) data.push(...json);
-        else data.push(json);
+        if (Array.isArray(json)) {
+          json.forEach((item) => {
+            if (item) data.push(item);
+          });
+        } else if (json) {
+          data.push(json);
+        }
       } catch (e) {
       }
     });
@@ -177,8 +182,19 @@
       platform: "YouTube"
     };
   };
-  var base = extractGeneric();
-  var yt = extractYouTube(base);
-  var result = { ...base, ...yt };
-  window.__EXTRACTED_CONTEXT__ = result;
+  try {
+    const base = extractGeneric();
+    const yt = extractYouTube(base);
+    const result = { ...base, ...yt };
+    window.__EXTRACTED_CONTEXT__ = result;
+  } catch (e) {
+    window.__EXTRACTED_CONTEXT__ = {
+      error: String(e),
+      // We can add more debugging info if needed
+      context: "Uncategorized",
+      // Minimal valid structure?
+      source: "Error"
+    };
+    console.error("TabSorter Extraction Error:", e);
+  }
 })();

@@ -52,7 +52,8 @@ export function extractJsonLdFields(jsonLd) {
     let tags = [];
     let breadcrumbs = [];
     // Find main entity
-    const mainEntity = jsonLd.find(i => i['@type'] === 'Article' || i['@type'] === 'VideoObject' || i['@type'] === 'NewsArticle') || jsonLd[0];
+    // Added safety check: i && i['@type']
+    const mainEntity = jsonLd.find(i => i && (i['@type'] === 'Article' || i['@type'] === 'VideoObject' || i['@type'] === 'NewsArticle')) || jsonLd[0];
     if (mainEntity) {
         if (mainEntity.author) {
             if (typeof mainEntity.author === 'string')
@@ -73,7 +74,8 @@ export function extractJsonLdFields(jsonLd) {
                 tags = mainEntity.keywords;
         }
     }
-    const breadcrumbLd = jsonLd.find(i => i['@type'] === 'BreadcrumbList');
+    // Added safety check: i && i['@type']
+    const breadcrumbLd = jsonLd.find(i => i && i['@type'] === 'BreadcrumbList');
     if (breadcrumbLd && Array.isArray(breadcrumbLd.itemListElement)) {
         const list = breadcrumbLd.itemListElement.sort((a, b) => a.position - b.position);
         list.forEach((item) => {
