@@ -1,7 +1,20 @@
-import { logDebug } from "../logger.js";
-export const extractPageContext = async (tabId) => {
+import { logDebug, logError } from "../logger.js";
+const RESTRICTED_SCHEMES = ['chrome:', 'edge:', 'about:', 'chrome-extension:', 'view-source:', 'devtools:'];
+export const extractPageContext = async (tabId, url) => {
+    // Check permissions/schemes
+    try {
+        const urlObj = new URL(url);
+        if (RESTRICTED_SCHEMES.some(s => urlObj.protocol.startsWith(s))) {
+            return { success: false, error: "Restricted URL", status: 'RESTRICTED' };
+        }
+    }
+    catch (e) {
+        // Invalid URL
+        return { success: false, error: "Invalid URL", status: 'NO_PERMISSION' };
+    }
     try {
         // 1. Inject the bundled script
+        logDebug(`Injecting extraction script for tab ${tabId}`);
         await chrome.scripting.executeScript({
             target: { tabId },
             files: ['dist/extraction/content.js']
@@ -15,12 +28,27 @@ export const extractPageContext = async (tabId) => {
                 return res;
             }
         });
-        if (results && results.length > 0 && results[0].result) {
-            return results[0].result;
+        if (results && results.length > 0) {
+            if (results[0].result) {
+                logDebug(`Extraction success for tab ${tabId}`);
+                return { success: true, data: results[0].result, status: 'OK' };
+            }
+            else {
+                logDebug(`Extraction returned no data for tab ${tabId}`);
+                return { success: false, error: "No response data", status: 'NO_RESPONSE' };
+            }
+        }
+        else {
+            logDebug(`Injection executed but returned empty results for tab ${tabId}`);
+            return { success: false, error: "Injection failed (no results)", status: 'INJECTION_FAILED' };
         }
     }
     catch (e) {
-        logDebug(`Extraction failed for tab ${tabId}`, { error: String(e) });
+        const errStr = String(e);
+        logError(`Extraction exception for tab ${tabId}`, { error: errStr });
+        if (errStr.includes("Cannot access contents of page")) {
+            return { success: false, error: "Restricted Page (Permission)", status: 'NO_PERMISSION' };
+        }
+        return { success: false, error: errStr, status: 'INJECTION_FAILED' };
     }
-    return null;
 };

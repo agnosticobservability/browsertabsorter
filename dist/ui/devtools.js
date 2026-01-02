@@ -141,13 +141,34 @@ function renderTable() {
         const row = document.createElement('tr');
         const parentTitle = tab.openerTabId ? (tabTitles.get(tab.openerTabId) || 'Unknown') : '-';
         const contextResult = tab.id ? currentContextMap.get(tab.id) : undefined;
-        const effectiveContext = contextResult ? contextResult.context : 'N/A';
-        let aiContext = 'N/A';
-        if (contextResult && contextResult.source === 'AI') {
-            aiContext = contextResult.context;
-        }
-        else if (contextResult && contextResult.source === 'Heuristic') {
-            aiContext = `Fallback (${contextResult.context})`;
+        let displayContext = 'N/A';
+        let tooltip = '';
+        if (contextResult) {
+            if (contextResult.source === 'Extraction') {
+                displayContext = `Extracted (${contextResult.context})`;
+            }
+            else if (contextResult.source === 'AI') {
+                displayContext = `AI (${contextResult.context})`;
+            }
+            else if (contextResult.source === 'Error') {
+                displayContext = `Error (${contextResult.context})`;
+            }
+            else if (contextResult.source === 'Heuristic') {
+                displayContext = `Fallback (${contextResult.context})`;
+            }
+            else {
+                displayContext = contextResult.context;
+            }
+            if (contextResult.data) {
+                tooltip = JSON.stringify(contextResult.data, null, 2);
+                displayContext += ' 📄';
+            }
+            if (contextResult.error) {
+                const errStr = `Error: ${contextResult.error}`;
+                tooltip = tooltip ? `${tooltip}\n\n${errStr}` : errStr;
+                if (!contextResult.data)
+                    displayContext += ' ⚠️';
+            }
         }
         row.innerHTML = `
       <td>${tab.id ?? 'N/A'}</td>
@@ -161,7 +182,7 @@ function renderTable() {
       <td>${tab.pinned ? 'Yes' : 'No'}</td>
       <td>${tab.openerTabId ?? '-'}</td>
       <td title="${escapeHtml(parentTitle)}">${escapeHtml(parentTitle)}</td>
-      <td>${escapeHtml(aiContext)}</td>
+      <td title="${escapeHtml(tooltip)}">${escapeHtml(displayContext)}</td>
       <td>${new Date(tab.lastAccessed || 0).toLocaleString()}</td>
     `;
         tbody.appendChild(row);

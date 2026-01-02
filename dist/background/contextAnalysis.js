@@ -15,8 +15,7 @@ export const analyzeTabContext = async (tabs) => {
         }
         catch (error) {
             logError(`Failed to analyze context for tab ${tab.id}`, { error: String(error) });
-            // Even if fetchContextForTab fails completely, we try a safe sync fallback
-            contextMap.set(tab.id, { context: "Uncategorized", source: 'Heuristic' });
+            contextMap.set(tab.id, { context: "Uncategorized", source: 'Heuristic', error: String(error) });
         }
     });
     await Promise.all(promises);
@@ -25,11 +24,18 @@ export const analyzeTabContext = async (tabs) => {
 const fetchContextForTab = async (tab) => {
     // 1. Run Generic Extraction (Always)
     let data = null;
-    try {
-        data = await extractPageContext(tab.id);
+    let extractionError;
+    const extractionRes = await extractPageContext(tab.id, tab.url);
+    if (extractionRes.success && extractionRes.data) {
+        data = extractionRes.data;
     }
-    catch (e) {
-        logDebug(`Extraction failed for tab ${tab.id}`, { error: String(e) });
+    else {
+        extractionError = extractionRes.error;
+        // If restricted, fail fast
+        if (extractionRes.status === 'RESTRICTED' || extractionRes.status === 'NO_PERMISSION') {
+            return { context: "Unextractable (restricted page)", source: 'Error', error: extractionRes.error };
+        }
+        // Other errors (INJECTION_FAILED, NO_RESPONSE) -> Continue to Heuristic Fallback
     }
     let context = "Uncategorized";
     let source = 'Heuristic';
@@ -47,7 +53,10 @@ const fetchContextForTab = async (tab) => {
             context = "Work";
             source = 'Extraction';
         }
-        // Add more specific mappings if needed based on platform
+        // If we have data but no specific category mapping, should we say 'Extraction'?
+        // If we leave it Uncategorized, fallback logic kicks in.
+        // If fallback logic (URL regex) finds something, it becomes 'Heuristic'.
+        // But we still HAVE the data.
     }
     // 3. Fallback to Local Heuristic (URL Regex)
     if (context === "Uncategorized") {
@@ -58,7 +67,6 @@ const fetchContextForTab = async (tab) => {
         }
     }
     // 4. Fallback to AI (LLM)
-    // Only if we have no clue from extraction or heuristics
     if (context === "Uncategorized") {
         const textToClassify = `${tab.title} ${tab.url}`;
         const payload = {
@@ -80,15 +88,15 @@ const fetchContextForTab = async (tab) => {
                     source = 'AI';
                 }
             }
-            else {
-                logDebug("LLM API failed", { status: response.status });
-            }
         }
         catch (e) {
             logDebug("LLM API error", { error: String(e) });
         }
     }
-    return { context, source, data: data || undefined };
+    // If still Uncategorized, and we had an extraction error, maybe mention it in context?
+    // User wants: "Only show Fallback (Category) if extraction failed AND include failure reason."
+    // If we have data, we just show category (even if Uncategorized).
+    return { context, source, data: data || undefined, error: extractionError };
 };
 const localHeuristic = async (tab) => {
     const url = tab.url.toLowerCase();
