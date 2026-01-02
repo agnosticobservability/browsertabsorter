@@ -57,7 +57,8 @@ export function extractJsonLdFields(jsonLd: any[]) {
     let breadcrumbs: string[] = [];
 
     // Find main entity
-    const mainEntity = jsonLd.find(i => i['@type'] === 'Article' || i['@type'] === 'VideoObject' || i['@type'] === 'NewsArticle') || jsonLd[0];
+    // Added safety check: i && i['@type']
+    const mainEntity = jsonLd.find(i => i && (i['@type'] === 'Article' || i['@type'] === 'VideoObject' || i['@type'] === 'NewsArticle')) || jsonLd[0];
 
     if (mainEntity) {
        if (mainEntity.author) {
@@ -73,7 +74,8 @@ export function extractJsonLdFields(jsonLd: any[]) {
        }
     }
 
-    const breadcrumbLd = jsonLd.find(i => i['@type'] === 'BreadcrumbList');
+    // Added safety check: i && i['@type']
+    const breadcrumbLd = jsonLd.find(i => i && i['@type'] === 'BreadcrumbList');
     if (breadcrumbLd && Array.isArray(breadcrumbLd.itemListElement)) {
        const list = breadcrumbLd.itemListElement.sort((a: any, b: any) => a.position - b.position);
        list.forEach((item: any) => {

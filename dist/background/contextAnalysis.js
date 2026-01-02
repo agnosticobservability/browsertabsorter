@@ -54,7 +54,24 @@ const fetchContextForTab = async (tab) => {
             context = "Work";
             source = 'Extraction';
         }
-        // Add more specific mappings if needed based on platform
+        else {
+            // If we have successful extraction data but no specific rule matched,
+            // use the Object Type or generic "General Web" to indicate extraction worked.
+            // We prefer specific categories, but "Article" or "Video" are better than "Uncategorized".
+            if (data.objectType && data.objectType !== 'unknown') {
+                // Map object types to categories if possible
+                if (data.objectType === 'video')
+                    context = 'Entertainment';
+                else if (data.objectType === 'article')
+                    context = 'News'; // Loose mapping, but better than nothing
+                else
+                    context = data.objectType.charAt(0).toUpperCase() + data.objectType.slice(1);
+            }
+            else {
+                context = "General Web";
+            }
+            source = 'Extraction';
+        }
     }
     // 3. Fallback to Local Heuristic (URL Regex)
     if (context === "Uncategorized") {

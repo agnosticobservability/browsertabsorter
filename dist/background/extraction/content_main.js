@@ -7,10 +7,16 @@ const getJsonLd = () => {
     scripts.forEach(s => {
         try {
             const json = JSON.parse(s.textContent || '{}');
-            if (Array.isArray(json))
-                data.push(...json);
-            else
+            if (Array.isArray(json)) {
+                // Filter out nulls/undefined and push
+                json.forEach(item => {
+                    if (item)
+                        data.push(item);
+                });
+            }
+            else if (json) {
                 data.push(json);
+            }
         }
         catch (e) { }
     });
@@ -125,7 +131,21 @@ const extractYouTube = (baseContext) => {
         platform: 'YouTube'
     };
 };
-const base = extractGeneric();
-const yt = extractYouTube(base);
-const result = { ...base, ...yt };
-window.__EXTRACTED_CONTEXT__ = result;
+try {
+    const base = extractGeneric();
+    const yt = extractYouTube(base);
+    const result = { ...base, ...yt };
+    window.__EXTRACTED_CONTEXT__ = result;
+}
+catch (e) {
+    // If something crashes, we assign a minimal object with the error
+    // so the background script knows it failed but executed.
+    window.__EXTRACTED_CONTEXT__ = {
+        error: String(e),
+        // We can add more debugging info if needed
+        context: 'Uncategorized', // Minimal valid structure?
+        source: 'Error'
+    };
+    // Also log it
+    console.error("TabSorter Extraction Error:", e);
+}
