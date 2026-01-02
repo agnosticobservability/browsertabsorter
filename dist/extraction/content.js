@@ -34,7 +34,7 @@
       const url = new URL(urlStr);
       const v = url.searchParams.get("v");
       const isShorts = url.pathname.includes("/shorts/");
-      const videoId = v || (isShorts ? url.pathname.split("/shorts/")[1] : null);
+      let videoId = v || (isShorts ? url.pathname.split("/shorts/")[1] : null) || (url.hostname === "youtu.be" ? url.pathname.replace("/", "") : null);
       const playlistId = url.searchParams.get("list");
       const playlistIndex = parseInt(url.searchParams.get("index") || "0", 10);
       return { videoId, isShorts, playlistId, playlistIndex };
@@ -182,19 +182,45 @@
       platform: "YouTube"
     };
   };
-  try {
+  var computeContext = () => {
     const base = extractGeneric();
     const yt = extractYouTube(base);
-    const result = { ...base, ...yt };
-    window.__EXTRACTED_CONTEXT__ = result;
-  } catch (e) {
-    window.__EXTRACTED_CONTEXT__ = {
-      error: String(e),
-      // We can add more debugging info if needed
-      context: "Uncategorized",
-      // Minimal valid structure?
-      source: "Error"
+    return { ...base, ...yt };
+  };
+  var setContext = () => {
+    try {
+      window.__EXTRACTED_CONTEXT__ = computeContext();
+    } catch (e) {
+      window.__EXTRACTED_CONTEXT__ = {
+        error: String(e),
+        // We can add more debugging info if needed
+        context: "Uncategorized",
+        // Minimal valid structure?
+        source: "Error"
+      };
+      console.error("TabSorter Extraction Error:", e);
+    }
+  };
+  var installSpaListeners = () => {
+    const win = window;
+    if (win.__TAB_SORTER_EXTRACTOR_INSTALLED__) return;
+    win.__TAB_SORTER_EXTRACTOR_INSTALLED__ = true;
+    const rerun = () => {
+      setContext();
     };
-    console.error("TabSorter Extraction Error:", e);
-  }
+    const wrapHistory = (method) => {
+      const original = history[method];
+      history[method] = function(...args) {
+        const result = original.apply(this, args);
+        queueMicrotask(rerun);
+        return result;
+      };
+    };
+    wrapHistory("pushState");
+    wrapHistory("replaceState");
+    window.addEventListener("popstate", rerun);
+    window.addEventListener("hashchange", rerun);
+  };
+  installSpaListeners();
+  setContext();
 })();

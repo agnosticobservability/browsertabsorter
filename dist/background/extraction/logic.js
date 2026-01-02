@@ -36,7 +36,9 @@ export function parseYouTubeUrl(urlStr) {
         const url = new URL(urlStr);
         const v = url.searchParams.get('v');
         const isShorts = url.pathname.includes('/shorts/');
-        const videoId = v || (isShorts ? url.pathname.split('/shorts/')[1] : null);
+        let videoId = v ||
+            (isShorts ? url.pathname.split('/shorts/')[1] : null) ||
+            (url.hostname === 'youtu.be' ? url.pathname.replace('/', '') : null);
         const playlistId = url.searchParams.get('list');
         const playlistIndex = parseInt(url.searchParams.get('index') || '0', 10);
         return { videoId, isShorts, playlistId, playlistIndex };

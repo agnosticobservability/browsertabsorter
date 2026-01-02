@@ -131,21 +131,48 @@ const extractYouTube = (baseContext) => {
         platform: 'YouTube'
     };
 };
-try {
+const computeContext = () => {
     const base = extractGeneric();
     const yt = extractYouTube(base);
-    const result = { ...base, ...yt };
-    window.__EXTRACTED_CONTEXT__ = result;
-}
-catch (e) {
-    // If something crashes, we assign a minimal object with the error
-    // so the background script knows it failed but executed.
-    window.__EXTRACTED_CONTEXT__ = {
-        error: String(e),
-        // We can add more debugging info if needed
-        context: 'Uncategorized', // Minimal valid structure?
-        source: 'Error'
+    return { ...base, ...yt };
+};
+const setContext = () => {
+    try {
+        window.__EXTRACTED_CONTEXT__ = computeContext();
+    }
+    catch (e) {
+        // If something crashes, we assign a minimal object with the error
+        // so the background script knows it failed but executed.
+        window.__EXTRACTED_CONTEXT__ = {
+            error: String(e),
+            // We can add more debugging info if needed
+            context: 'Uncategorized', // Minimal valid structure?
+            source: 'Error'
+        };
+        // Also log it
+        console.error("TabSorter Extraction Error:", e);
+    }
+};
+const installSpaListeners = () => {
+    const win = window;
+    if (win.__TAB_SORTER_EXTRACTOR_INSTALLED__)
+        return;
+    win.__TAB_SORTER_EXTRACTOR_INSTALLED__ = true;
+    const rerun = () => {
+        setContext();
     };
-    // Also log it
-    console.error("TabSorter Extraction Error:", e);
-}
+    const wrapHistory = (method) => {
+        const original = history[method];
+        history[method] = function (...args) {
+            const result = original.apply(this, args);
+            queueMicrotask(rerun);
+            return result;
+        };
+    };
+    wrapHistory('pushState');
+    wrapHistory('replaceState');
+    window.addEventListener('popstate', rerun);
+    window.addEventListener('hashchange', rerun);
+};
+installSpaListeners();
+setContext();

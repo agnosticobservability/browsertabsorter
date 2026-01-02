@@ -113,6 +113,10 @@ const fetchContextForTab = async (tab) => {
             logDebug("LLM API error", { error: String(e) });
         }
     }
+    if (context !== "Uncategorized" && source !== "Extraction") {
+        error = undefined;
+        status = undefined;
+    }
     return { context, source, data: data || undefined, error, status };
 };
 const localHeuristic = async (tab) => {
