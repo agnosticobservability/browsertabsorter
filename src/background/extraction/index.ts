@@ -14,7 +14,13 @@ export const extractPageContext = async (tabId: number): Promise<ExtractionRespo
         return { data: null, error: "Tab not found or no URL", status: 'NO_RESPONSE' };
     }
 
-    if (tab.url.startsWith('chrome://') || tab.url.startsWith('edge://') || tab.url.startsWith('about:') || tab.url.startsWith('chrome-extension://')) {
+    if (
+      tab.url.startsWith('chrome://') ||
+      tab.url.startsWith('edge://') ||
+      tab.url.startsWith('about:') ||
+      tab.url.startsWith('chrome-extension://') ||
+      tab.url.startsWith('chrome-error://')
+    ) {
         return { data: null, error: "Restricted URL scheme", status: 'RESTRICTED' };
     }
 

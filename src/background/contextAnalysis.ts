@@ -125,6 +125,11 @@ const fetchContextForTab = async (tab: TabMetadata): Promise<ContextResult> => {
       }
   }
 
+  if (context !== "Uncategorized" && source !== "Extraction") {
+    error = undefined;
+    status = undefined;
+  }
+
   return { context, source, data: data || undefined, error, status };
 };
 
