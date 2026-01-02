@@ -3,7 +3,7 @@ import { Preferences, TabMetadata } from "../shared/types.js";
 
 // State
 let currentTabs: chrome.tabs.Tab[] = [];
-let currentContextMap = new Map<number, string>();
+let currentContextMap = new Map<number, ContextResult>();
 let tabTitles = new Map<number, string>();
 let sortKey: string | null = null;
 let sortDirection: 'asc' | 'desc' = 'asc';
@@ -81,7 +81,6 @@ async function loadTabs() {
     }));
 
   // Analyze context
-  let contextMap = new Map<number, ContextResult>();
   try {
       currentContextMap = await analyzeTabContext(mappedTabs);
   } catch (error) {
@@ -117,7 +116,7 @@ function getSortValue(tab: chrome.tabs.Tab, key: string): any {
     case 'parentTitle':
       return tab.openerTabId ? (tabTitles.get(tab.openerTabId) || '') : '';
     case 'context':
-      return (tab.id && currentContextMap.get(tab.id)) || '';
+      return (tab.id && currentContextMap.get(tab.id)?.context) || '';
     case 'active':
     case 'pinned':
       return (tab as any)[key] ? 1 : 0;
@@ -144,42 +143,6 @@ function renderTable() {
 
   let tabsDisplay = [...currentTabs];
 
-  if (tbody) {
-    tbody.innerHTML = ''; // Clear existing rows
-
-    tabs.forEach(tab => {
-      const row = document.createElement('tr');
-
-      const parentTitle = tab.openerTabId ? (tabTitles.get(tab.openerTabId) || 'Unknown') : '-';
-
-      const contextResult = tab.id ? contextMap.get(tab.id) : undefined;
-      const effectiveContext = contextResult ? contextResult.context : 'N/A';
-
-      let aiContext = 'N/A';
-      if (contextResult && contextResult.source === 'AI') {
-          aiContext = contextResult.context;
-      } else if (contextResult && contextResult.source === 'Heuristic') {
-          aiContext = `Fallback (${contextResult.context})`;
-      }
-
-      row.innerHTML = `
-        <td>${tab.id ?? 'N/A'}</td>
-        <td>${tab.index}</td>
-        <td>${tab.windowId}</td>
-        <td>${tab.groupId}</td>
-        <td class="title-cell" title="${escapeHtml(tab.title || '')}">${escapeHtml(tab.title || '')}</td>
-        <td class="url-cell" title="${escapeHtml(tab.url || '')}">${escapeHtml(tab.url || '')}</td>
-        <td>${tab.status}</td>
-        <td>${tab.active ? 'Yes' : 'No'}</td>
-        <td>${tab.pinned ? 'Yes' : 'No'}</td>
-        <td>${tab.openerTabId ?? '-'}</td>
-        <td title="${escapeHtml(parentTitle)}">${escapeHtml(parentTitle)}</td>
-        <td>${escapeHtml(effectiveContext)}</td>
-        <td>${escapeHtml(aiContext)}</td>
-        <td>${new Date(tab.lastAccessed || 0).toLocaleString()}</td>
-      `;
-
-      tbody.appendChild(row);
   if (sortKey) {
     tabsDisplay.sort((a, b) => {
       let valA: any = getSortValue(a, sortKey!);
@@ -197,7 +160,16 @@ function renderTable() {
     const row = document.createElement('tr');
 
     const parentTitle = tab.openerTabId ? (tabTitles.get(tab.openerTabId) || 'Unknown') : '-';
-    const context = (tab.id && currentContextMap.get(tab.id)) || 'N/A';
+
+    const contextResult = tab.id ? currentContextMap.get(tab.id) : undefined;
+    const effectiveContext = contextResult ? contextResult.context : 'N/A';
+
+    let aiContext = 'N/A';
+    if (contextResult && contextResult.source === 'AI') {
+        aiContext = contextResult.context;
+    } else if (contextResult && contextResult.source === 'Heuristic') {
+        aiContext = `Fallback (${contextResult.context})`;
+    }
 
     row.innerHTML = `
       <td>${tab.id ?? 'N/A'}</td>
@@ -211,7 +183,8 @@ function renderTable() {
       <td>${tab.pinned ? 'Yes' : 'No'}</td>
       <td>${tab.openerTabId ?? '-'}</td>
       <td title="${escapeHtml(parentTitle)}">${escapeHtml(parentTitle)}</td>
-      <td>${escapeHtml(context)}</td>
+      <td>${escapeHtml(effectiveContext)}</td>
+      <td>${escapeHtml(aiContext)}</td>
       <td>${new Date(tab.lastAccessed || 0).toLocaleString()}</td>
     `;
 
