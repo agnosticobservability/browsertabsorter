@@ -14,6 +14,8 @@ export interface ContextResult {
   context: string;
   source: 'AI' | 'Heuristic' | 'Extraction';
   data?: PageContext;
+  error?: string;
+  status?: string;
 }
 
 export const analyzeTabContext = async (tabs: TabMetadata[]): Promise<Map<number, ContextResult>> => {
@@ -26,7 +28,7 @@ export const analyzeTabContext = async (tabs: TabMetadata[]): Promise<Map<number
     } catch (error) {
       logError(`Failed to analyze context for tab ${tab.id}`, { error: String(error) });
       // Even if fetchContextForTab fails completely, we try a safe sync fallback
-      contextMap.set(tab.id, { context: "Uncategorized", source: 'Heuristic' });
+      contextMap.set(tab.id, { context: "Uncategorized", source: 'Heuristic', error: String(error), status: 'ERROR' });
     }
   });
 
@@ -37,10 +39,18 @@ export const analyzeTabContext = async (tabs: TabMetadata[]): Promise<Map<number
 const fetchContextForTab = async (tab: TabMetadata): Promise<ContextResult> => {
   // 1. Run Generic Extraction (Always)
   let data: PageContext | null = null;
+  let error: string | undefined;
+  let status: string | undefined;
+
   try {
-      data = await extractPageContext(tab.id);
+      const extraction = await extractPageContext(tab.id);
+      data = extraction.data;
+      error = extraction.error;
+      status = extraction.status;
   } catch (e) {
       logDebug(`Extraction failed for tab ${tab.id}`, { error: String(e) });
+      error = String(e);
+      status = 'ERROR';
   }
 
   let context = "Uncategorized";
@@ -57,8 +67,20 @@ const fetchContextForTab = async (tab: TabMetadata): Promise<ContextResult> => {
       } else if (data.platform === 'Google' && (data.normalizedUrl.includes('docs') || data.normalizedUrl.includes('sheets') || data.normalizedUrl.includes('slides'))) {
           context = "Work";
           source = 'Extraction';
+      } else {
+        // If we have successful extraction data but no specific rule matched,
+        // use the Object Type or generic "General Web" to indicate extraction worked.
+        // We prefer specific categories, but "Article" or "Video" are better than "Uncategorized".
+        if (data.objectType && data.objectType !== 'unknown') {
+             // Map object types to categories if possible
+             if (data.objectType === 'video') context = 'Entertainment';
+             else if (data.objectType === 'article') context = 'News'; // Loose mapping, but better than nothing
+             else context = data.objectType.charAt(0).toUpperCase() + data.objectType.slice(1);
+        } else {
+             context = "General Web";
+        }
+        source = 'Extraction';
       }
-      // Add more specific mappings if needed based on platform
   }
 
   // 3. Fallback to Local Heuristic (URL Regex)
@@ -66,7 +88,8 @@ const fetchContextForTab = async (tab: TabMetadata): Promise<ContextResult> => {
       const h = await localHeuristic(tab);
       if (h.context !== "Uncategorized") {
           context = h.context;
-          // source remains 'Heuristic'
+          // source remains 'Heuristic' (or maybe we should say 'Heuristic' is the source?)
+          // The localHeuristic function returns { source: 'Heuristic' }
       }
   }
 
@@ -102,7 +125,7 @@ const fetchContextForTab = async (tab: TabMetadata): Promise<ContextResult> => {
       }
   }
 
-  return { context, source, data: data || undefined };
+  return { context, source, data: data || undefined, error, status };
 };
 
 const localHeuristic = async (tab: TabMetadata): Promise<ContextResult> => {

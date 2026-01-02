@@ -37,6 +37,13 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     });
+    // Listen for tab updates to refresh data (SPA support)
+    chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+        // We update if URL changes or status changes to complete
+        if (changeInfo.url || changeInfo.status === 'complete') {
+            loadTabs();
+        }
+    });
     loadTabs();
 });
 async function loadTabs() {
@@ -141,13 +148,37 @@ function renderTable() {
         const row = document.createElement('tr');
         const parentTitle = tab.openerTabId ? (tabTitles.get(tab.openerTabId) || 'Unknown') : '-';
         const contextResult = tab.id ? currentContextMap.get(tab.id) : undefined;
-        const effectiveContext = contextResult ? contextResult.context : 'N/A';
         let aiContext = 'N/A';
-        if (contextResult && contextResult.source === 'AI') {
-            aiContext = contextResult.context;
+        let cellStyle = '';
+        let cellTitle = '';
+        if (contextResult) {
+            if (contextResult.error) {
+                aiContext = `Error (${contextResult.error})`;
+                cellStyle = 'color: red;';
+                cellTitle = contextResult.error;
+            }
+            else if (contextResult.status === 'RESTRICTED') {
+                aiContext = 'Unextractable (restricted)';
+                cellStyle = 'color: gray; font-style: italic;';
+            }
+            else if (contextResult.status === 'INJECTION_FAILED') {
+                aiContext = 'Injection Failed';
+                cellStyle = 'color: orange;';
+            }
+            else if (contextResult.source === 'Extraction') {
+                aiContext = `${contextResult.context} (Extracted)`;
+                cellStyle = 'color: green; font-weight: bold;';
+            }
+            else if (contextResult.source === 'AI') {
+                aiContext = `${contextResult.context} (AI)`;
+            }
+            else if (contextResult.source === 'Heuristic') {
+                aiContext = `Fallback (${contextResult.context})`;
+            }
         }
-        else if (contextResult && contextResult.source === 'Heuristic') {
-            aiContext = `Fallback (${contextResult.context})`;
+        // Add data tooltip for debugging
+        if (contextResult && contextResult.data) {
+            cellTitle += '\n' + JSON.stringify(contextResult.data, null, 2);
         }
         row.innerHTML = `
       <td>${tab.id ?? 'N/A'}</td>
@@ -161,7 +192,7 @@ function renderTable() {
       <td>${tab.pinned ? 'Yes' : 'No'}</td>
       <td>${tab.openerTabId ?? '-'}</td>
       <td title="${escapeHtml(parentTitle)}">${escapeHtml(parentTitle)}</td>
-      <td>${escapeHtml(aiContext)}</td>
+      <td style="${cellStyle}" title="${escapeHtml(cellTitle)}">${escapeHtml(aiContext)}</td>
       <td>${new Date(tab.lastAccessed || 0).toLocaleString()}</td>
     `;
         tbody.appendChild(row);
