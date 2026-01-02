@@ -16,7 +16,7 @@ export const analyzeTabContext = async (tabs) => {
         catch (error) {
             logError(`Failed to analyze context for tab ${tab.id}`, { error: String(error) });
             // Even if fetchContextForTab fails completely, we try a safe sync fallback
-            contextMap.set(tab.id, { context: "Uncategorized", source: 'Heuristic' });
+            contextMap.set(tab.id, { context: "Uncategorized", source: 'Heuristic', error: String(error), status: 'ERROR' });
         }
     });
     await Promise.all(promises);
@@ -25,11 +25,18 @@ export const analyzeTabContext = async (tabs) => {
 const fetchContextForTab = async (tab) => {
     // 1. Run Generic Extraction (Always)
     let data = null;
+    let error;
+    let status;
     try {
-        data = await extractPageContext(tab.id);
+        const extraction = await extractPageContext(tab.id);
+        data = extraction.data;
+        error = extraction.error;
+        status = extraction.status;
     }
     catch (e) {
         logDebug(`Extraction failed for tab ${tab.id}`, { error: String(e) });
+        error = String(e);
+        status = 'ERROR';
     }
     let context = "Uncategorized";
     let source = 'Heuristic';
@@ -54,7 +61,8 @@ const fetchContextForTab = async (tab) => {
         const h = await localHeuristic(tab);
         if (h.context !== "Uncategorized") {
             context = h.context;
-            // source remains 'Heuristic'
+            // source remains 'Heuristic' (or maybe we should say 'Heuristic' is the source?)
+            // The localHeuristic function returns { source: 'Heuristic' }
         }
     }
     // 4. Fallback to AI (LLM)
@@ -88,7 +96,7 @@ const fetchContextForTab = async (tab) => {
             logDebug("LLM API error", { error: String(e) });
         }
     }
-    return { context, source, data: data || undefined };
+    return { context, source, data: data || undefined, error, status };
 };
 const localHeuristic = async (tab) => {
     const url = tab.url.toLowerCase();
