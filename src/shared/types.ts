@@ -8,6 +8,7 @@ export interface TabMetadata {
   openerTabId?: number;
   favIconUrl?: string;
   context?: string;
+  groupId?: number;
 }
 
 export interface TabGroup {
@@ -21,6 +22,30 @@ export interface TabGroup {
 
 export type GroupingStrategy = "domain" | "semantic" | "navigation";
 export type SortingStrategy = "recency" | "hierarchy" | "pinned" | "title" | "url" | "context";
+
+export interface StoredTabState {
+  id?: number;
+  url: string;
+  pinned: boolean;
+  groupId?: number;
+  groupTitle?: string;
+  groupColor?: string;
+}
+
+export interface WindowState {
+  tabs: StoredTabState[];
+}
+
+export interface SavedState {
+  name: string;
+  timestamp: number;
+  windows: WindowState[];
+}
+
+export interface UndoState {
+  timestamp: number;
+  windows: WindowState[];
+}
 
 export interface GroupingSelection {
   windowIds?: number[];
@@ -46,7 +71,12 @@ export interface RuntimeMessage<TPayload = unknown> {
     | "applyGrouping"
     | "applySorting"
     | "loadPreferences"
-    | "savePreferences";
+    | "savePreferences"
+    | "saveState"
+    | "restoreState"
+    | "undo"
+    | "getSavedStates"
+    | "deleteSavedState";
   payload?: TPayload;
 }
 

@@ -13,7 +13,8 @@ const mapChromeTab = (tab) => {
         pinned: Boolean(tab.pinned),
         lastAccessed: tab.lastAccessed,
         openerTabId: tab.openerTabId ?? undefined,
-        favIconUrl: tab.favIconUrl
+        favIconUrl: tab.favIconUrl,
+        groupId: tab.groupId
     };
 };
 export const fetchTabGroups = async (preferences, filter) => {
