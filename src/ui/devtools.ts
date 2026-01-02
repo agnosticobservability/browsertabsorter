@@ -183,7 +183,6 @@ function renderTable() {
       <td>${tab.pinned ? 'Yes' : 'No'}</td>
       <td>${tab.openerTabId ?? '-'}</td>
       <td title="${escapeHtml(parentTitle)}">${escapeHtml(parentTitle)}</td>
-      <td>${escapeHtml(effectiveContext)}</td>
       <td>${escapeHtml(aiContext)}</td>
       <td>${new Date(tab.lastAccessed || 0).toLocaleString()}</td>
     `;
