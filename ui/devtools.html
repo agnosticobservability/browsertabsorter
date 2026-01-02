@@ -9,7 +9,16 @@
   <body>
     <header>
       <h1>Tab Sorter Developer Tools</h1>
-      <button id="refreshBtn">Refresh Data</button>
+      <div style="display: flex; gap: 8px; align-items: center;">
+        <label>
+          Popup UI:
+          <select id="popupVariant">
+            <option value="default">Default</option>
+            <option value="redesigned">Redesigned (Modern)</option>
+          </select>
+        </label>
+        <button id="refreshBtn">Refresh Data</button>
+      </div>
     </header>
 
     <main>
