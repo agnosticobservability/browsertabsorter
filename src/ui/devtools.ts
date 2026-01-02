@@ -190,22 +190,18 @@ function renderTable() {
     let cellTitle = '';
 
     if (contextResult) {
-        const statusLabels: Record<string, string> = {
-          RESTRICTED: 'Restricted scheme',
-          INJECTION_FAILED: 'Injection failed',
-          NO_RESPONSE: 'No response from content script',
-          NO_HOST_PERMISSION: 'No host permission',
-          FRAME_ACCESS_DENIED: 'Frame access denied'
-        };
-
-        if (contextResult.status && statusLabels[contextResult.status]) {
-            const label = statusLabels[contextResult.status];
-            const baseContext = contextResult.context || 'General Web';
-            aiContext = `${baseContext} (Baseline - ${label})`;
-            cellStyle = contextResult.status === 'RESTRICTED'
-              ? 'color: gray; font-style: italic;'
-              : 'color: orange;';
-            cellTitle = contextResult.error || label;
+        if (contextResult.status === 'RESTRICTED') {
+            aiContext = 'Unextractable (restricted)';
+            cellStyle = 'color: gray; font-style: italic;';
+            cellTitle = contextResult.error || '';
+        } else if (contextResult.status === 'INJECTION_FAILED') {
+            aiContext = 'Injection Failed';
+            cellStyle = 'color: orange;';
+            cellTitle = contextResult.error || '';
+        } else if (contextResult.status === 'NO_RESPONSE') {
+            aiContext = 'No extractable data';
+            cellStyle = 'color: gray;';
+            cellTitle = contextResult.error || '';
         } else if (contextResult.error) {
             aiContext = `Error (${contextResult.error})`;
             cellStyle = 'color: red;';
