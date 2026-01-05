@@ -19,9 +19,9 @@ export const sendMessage = async <TData>(type: RuntimeMessage["type"], payload?:
 };
 
 export type TabWithGroup = TabMetadata & {
-  groupLabel: string;
-  groupColor: string;
-  reason: string;
+  groupLabel?: string;
+  groupColor?: string;
+  reason?: string;
 };
 
 export interface WindowView {
@@ -76,11 +76,12 @@ export const mapWindows = (groups: TabGroup[], windowTitles: Map<number, string>
   const windows = new Map<number, TabWithGroup[]>();
 
   groups.forEach((group) => {
+    const isUngrouped = group.reason === "Ungrouped";
     group.tabs.forEach((tab) => {
       const decorated: TabWithGroup = {
         ...tab,
-        groupLabel: group.label,
-        groupColor: group.color,
+        groupLabel: isUngrouped ? undefined : group.label,
+        groupColor: isUngrouped ? undefined : group.color,
         reason: group.reason
       };
       const existing = windows.get(tab.windowId) ?? [];
@@ -91,7 +92,7 @@ export const mapWindows = (groups: TabGroup[], windowTitles: Map<number, string>
 
   return Array.from(windows.entries())
     .map<WindowView>(([id, tabs]) => {
-      const groupCount = new Set(tabs.map((tab) => tab.groupLabel)).size;
+      const groupCount = new Set(tabs.map((tab) => tab.groupLabel).filter((l): l is string => !!l)).size;
       const pinnedCount = tabs.filter((tab) => tab.pinned).length;
       return {
         id,
