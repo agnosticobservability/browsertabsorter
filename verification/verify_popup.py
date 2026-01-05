@@ -1,82 +1,39 @@
-
 from playwright.sync_api import sync_playwright
 
-def verify_popup_resize_handle():
+def verify_popup_buttons():
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
-        # Create a mock extension environment
-        context = browser.new_context()
-        page = context.new_page()
+        page = browser.new_page()
 
-        # We need to serve the local files. Since we cannot easily spin up a full server in this snippet without blocking,
-        # we assume we can access files via file protocol or similar if configured,
-        # but Playwright handles file:// if we give absolute paths.
-        import os
-        cwd = os.getcwd()
-        popup_path = f"file://{cwd}/ui/popup.html"
+        # Navigate to the popup HTML
+        page.goto("http://localhost:8080/ui/popup.html")
 
-        # Inject mock chrome object
-        page.add_init_script("""
-            window.chrome = {
-                runtime: {
-                    getURL: (path) => path
-                },
-                tabs: {
-                    onUpdated: { addListener: () => {} },
-                    onRemoved: { addListener: () => {} },
-                    query: (q, cb) => cb([]),
-                },
-                windows: {
-                    getCurrent: () => Promise.resolve({ type: "normal", id: 1 }),
-                    getAll: () => Promise.resolve([]),
-                    onRemoved: { addListener: () => {} }
-                },
-                storage: {
-                    local: {
-                        get: (keys, cb) => cb({}),
-                        set: () => {}
-                    }
-                }
-            };
-        """)
+        # Wait for the action bar to be visible
+        page.wait_for_selector(".action-bar")
 
-        print(f"Navigating to {popup_path}")
-        page.goto(popup_path)
+        # Verify "Sort" button exists and has correct text
+        sort_btn = page.locator("#btnSort")
+        assert sort_btn.is_visible()
+        assert sort_btn.inner_text() == "Sort"
+        print("Verified 'Sort' button")
 
-        # Allow scripts to run
-        page.wait_for_timeout(1000)
+        # Verify "Group" button exists and has correct text
+        group_btn = page.locator("#btnGroup")
+        assert group_btn.is_visible()
+        assert group_btn.inner_text() == "Group"
+        print("Verified 'Group' button")
 
-        # Check for resize handle visibility
-        handle = page.locator("#resizeHandle")
+        # Verify "Ungroup" button exists and has correct text
+        ungroup_btn = page.locator("#btnUngroup")
+        assert ungroup_btn.is_visible()
+        assert ungroup_btn.inner_text() == "Ungroup"
+        print("Verified 'Ungroup' button")
 
-        # In "normal" (docked) mode (simulated above), handle should be hidden
-        # The script sets display: none
-
-        visible = handle.is_visible()
-        display = handle.evaluate("el => getComputedStyle(el).display")
-
-        print(f"Docked Mode - Handle Visible: {visible}, Display: {display}")
-
-        page.screenshot(path="verification/docked_mode.png")
-
-        # Now simulate Pinned mode
-        # We reload page with new mock
-        page.add_init_script("""
-            window.chrome.windows.getCurrent = () => Promise.resolve({ type: "popup", id: 2 });
-        """)
-        page.reload()
-        page.wait_for_timeout(1000)
-
-        handle_pinned = page.locator("#resizeHandle")
-        visible_pinned = handle_pinned.is_visible()
-        display_pinned = handle_pinned.evaluate("el => getComputedStyle(el).display")
-
-        print(f"Pinned Mode - Handle Visible: {visible_pinned}, Display: {display_pinned}")
-
-        page.screenshot(path="verification/pinned_mode.png")
+        # Take a screenshot
+        page.screenshot(path="verification/popup_buttons.png")
+        print("Screenshot saved to verification/popup_buttons.png")
 
         browser.close()
 
 if __name__ == "__main__":
-    verify_popup_resize_handle()
-
+    verify_popup_buttons()
