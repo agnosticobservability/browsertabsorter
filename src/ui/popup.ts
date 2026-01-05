@@ -51,7 +51,7 @@ const TREE_ICONS = {
 
 const updateStats = () => {
   const totalTabs = windowState.reduce((acc, win) => acc + win.tabCount, 0);
-  const totalGroups = new Set(windowState.flatMap(w => w.tabs.map(t => `${w.id}-${t.groupLabel}`))).size;
+  const totalGroups = new Set(windowState.flatMap(w => w.tabs.filter(t => t.groupLabel).map(t => `${w.id}-${t.groupLabel}`))).size;
 
   statTabs.textContent = `${totalTabs} Tabs`;
   statGroups.textContent = `${totalGroups} Groups`;
@@ -195,12 +195,77 @@ const renderTree = () => {
 
     // Group tabs
     const groups = new Map<string, { color: string; tabs: TabWithGroup[] }>();
+    const ungroupedTabs: TabWithGroup[] = [];
     visibleTabs.forEach(tab => {
-        const key = tab.groupLabel;
-        const entry = groups.get(key) ?? { color: tab.groupColor, tabs: [] };
-        entry.tabs.push(tab);
-        groups.set(key, entry);
+        if (tab.groupLabel) {
+            const key = tab.groupLabel;
+            const entry = groups.get(key) ?? { color: tab.groupColor!, tabs: [] };
+            entry.tabs.push(tab);
+            groups.set(key, entry);
+        } else {
+            ungroupedTabs.push(tab);
+        }
     });
+
+    const createTabNode = (tab: TabWithGroup) => {
+        const tabContent = document.createElement("div");
+        tabContent.style.display = "flex";
+        tabContent.style.alignItems = "center";
+        tabContent.style.flex = "1";
+        tabContent.style.overflow = "hidden";
+
+        // Tab Checkbox
+        const tabCheckbox = document.createElement("input");
+        tabCheckbox.type = "checkbox";
+        tabCheckbox.className = "tree-checkbox";
+        tabCheckbox.checked = selectedTabs.has(tab.id);
+        tabCheckbox.onclick = (e) => {
+            e.stopPropagation();
+            if (tabCheckbox.checked) selectedTabs.add(tab.id);
+            else selectedTabs.delete(tab.id);
+            renderTree();
+        };
+
+        const tabIcon = document.createElement("div");
+        tabIcon.className = "tree-icon";
+        if (tab.favIconUrl) {
+            const img = document.createElement("img");
+            img.src = tab.favIconUrl;
+            img.onerror = () => { tabIcon.innerHTML = ICONS.defaultFile; };
+            tabIcon.appendChild(img);
+        } else {
+            tabIcon.innerHTML = ICONS.defaultFile;
+        }
+
+        const tabTitle = document.createElement("div");
+        tabTitle.className = "tree-label";
+        tabTitle.textContent = tab.title;
+        tabTitle.title = tab.title;
+
+        const tabActions = document.createElement("div");
+        tabActions.className = "row-actions";
+        const closeBtn = document.createElement("button");
+        closeBtn.className = "action-btn delete";
+        closeBtn.innerHTML = ICONS.close;
+        closeBtn.title = "Close Tab";
+        closeBtn.onclick = async (e) => {
+            e.stopPropagation();
+            await chrome.tabs.remove(tab.id);
+            await loadState();
+        };
+        tabActions.appendChild(closeBtn);
+
+        tabContent.append(tabCheckbox, tabIcon, tabTitle, tabActions);
+
+        const { node: tabNode } = createNode(tabContent, null, 'tab');
+        tabNode.onclick = async (e) => {
+            // Clicking tab row activates tab (unless clicking checkbox/action)
+            if ((e.target as HTMLElement).closest('.tree-checkbox')) return;
+            await chrome.tabs.update(tab.id, { active: true });
+            await chrome.windows.update(tab.windowId, { focused: true });
+        };
+        return tabNode;
+    };
 
     Array.from(groups.entries()).sort().forEach(([groupLabel, groupData]) => {
         const groupKey = `${windowKey}-g-${groupLabel}`;
@@ -269,63 +334,7 @@ const renderTree = () => {
         // Tabs
         const tabsContainer = document.createElement("div");
         groupData.tabs.forEach(tab => {
-            const tabContent = document.createElement("div");
-            tabContent.style.display = "flex";
-            tabContent.style.alignItems = "center";
-            tabContent.style.flex = "1";
-            tabContent.style.overflow = "hidden";
-
-            // Tab Checkbox
-            const tabCheckbox = document.createElement("input");
-            tabCheckbox.type = "checkbox";
-            tabCheckbox.className = "tree-checkbox";
-            tabCheckbox.checked = selectedTabs.has(tab.id);
-            tabCheckbox.onclick = (e) => {
-                e.stopPropagation();
-                if (tabCheckbox.checked) selectedTabs.add(tab.id);
-                else selectedTabs.delete(tab.id);
-                renderTree();
-            };
-
-            const tabIcon = document.createElement("div");
-            tabIcon.className = "tree-icon";
-            if (tab.favIconUrl) {
-                const img = document.createElement("img");
-                img.src = tab.favIconUrl;
-                img.onerror = () => { tabIcon.innerHTML = ICONS.defaultFile; };
-                tabIcon.appendChild(img);
-            } else {
-                tabIcon.innerHTML = ICONS.defaultFile;
-            }
-
-            const tabTitle = document.createElement("div");
-            tabTitle.className = "tree-label";
-            tabTitle.textContent = tab.title;
-            tabTitle.title = tab.title;
-
-            const tabActions = document.createElement("div");
-            tabActions.className = "row-actions";
-            const closeBtn = document.createElement("button");
-            closeBtn.className = "action-btn delete";
-            closeBtn.innerHTML = ICONS.close;
-            closeBtn.title = "Close Tab";
-            closeBtn.onclick = async (e) => {
-                e.stopPropagation();
-                await chrome.tabs.remove(tab.id);
-                await loadState();
-            };
-            tabActions.appendChild(closeBtn);
-
-            tabContent.append(tabCheckbox, tabIcon, tabTitle, tabActions);
-
-            const { node: tabNode } = createNode(tabContent, null, 'tab');
-            tabNode.onclick = async (e) => {
-                // Clicking tab row activates tab (unless clicking checkbox/action)
-                if ((e.target as HTMLElement).closest('.tree-checkbox')) return;
-                await chrome.tabs.update(tab.id, { active: true });
-                await chrome.windows.update(tab.windowId, { focused: true });
-            };
-            tabsContainer.appendChild(tabNode);
+            tabsContainer.appendChild(createTabNode(tab));
         });
 
         const { node: groupNode, toggle: grpToggle, childrenContainer: grpChildren } = createNode(
@@ -343,6 +352,10 @@ const renderTree = () => {
             }
         );
         childrenContainer.appendChild(groupNode);
+    });
+
+    ungroupedTabs.forEach(tab => {
+        childrenContainer.appendChild(createTabNode(tab));
     });
 
     const { node: winNode, toggle: winToggle, childrenContainer: winChildren } = createNode(

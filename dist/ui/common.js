@@ -41,11 +41,12 @@ export const applySorting = async (payload) => {
 export const mapWindows = (groups, windowTitles) => {
     const windows = new Map();
     groups.forEach((group) => {
+        const isUngrouped = group.reason === "Ungrouped";
         group.tabs.forEach((tab) => {
             const decorated = {
                 ...tab,
-                groupLabel: group.label,
-                groupColor: group.color,
+                groupLabel: isUngrouped ? undefined : group.label,
+                groupColor: isUngrouped ? undefined : group.color,
                 reason: group.reason
             };
             const existing = windows.get(tab.windowId) ?? [];
@@ -55,7 +56,7 @@ export const mapWindows = (groups, windowTitles) => {
     });
     return Array.from(windows.entries())
         .map(([id, tabs]) => {
-        const groupCount = new Set(tabs.map((tab) => tab.groupLabel)).size;
+        const groupCount = new Set(tabs.map((tab) => tab.groupLabel).filter((l) => !!l)).size;
         const pinnedCount = tabs.filter((tab) => tab.pinned).length;
         return {
             id,
