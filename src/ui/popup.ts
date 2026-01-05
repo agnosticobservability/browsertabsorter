@@ -25,10 +25,9 @@ const sortTitle = document.getElementById("sortTitle") as HTMLInputElement;
 const sortUrl = document.getElementById("sortUrl") as HTMLInputElement;
 const sortContext = document.getElementById("sortContext") as HTMLInputElement;
 
+const selectAllCheckbox = document.getElementById("selectAll") as HTMLInputElement;
 const btnSortSelected = document.getElementById("btnSortSelected") as HTMLButtonElement;
 const btnGroupSelected = document.getElementById("btnGroupSelected") as HTMLButtonElement;
-const btnSortAll = document.getElementById("btnSortAll") as HTMLButtonElement;
-const btnGroupAll = document.getElementById("btnGroupAll") as HTMLButtonElement;
 
 // Stats
 const statTabs = document.getElementById("statTabs") as HTMLElement;
@@ -62,6 +61,21 @@ const updateStats = () => {
   btnGroupSelected.disabled = !hasSelection;
   btnSortSelected.style.opacity = hasSelection ? "1" : "0.5";
   btnGroupSelected.style.opacity = hasSelection ? "1" : "0.5";
+
+  // Update Select All Checkbox State
+  if (totalTabs === 0) {
+    selectAllCheckbox.checked = false;
+    selectAllCheckbox.indeterminate = false;
+  } else if (selectedTabs.size === totalTabs) {
+    selectAllCheckbox.checked = true;
+    selectAllCheckbox.indeterminate = false;
+  } else if (selectedTabs.size > 0) {
+    selectAllCheckbox.checked = false;
+    selectAllCheckbox.indeterminate = true;
+  } else {
+    selectAllCheckbox.checked = false;
+    selectAllCheckbox.indeterminate = false;
+  }
 };
 
 const createNode = (
@@ -415,8 +429,20 @@ const triggerGroup = async (selection?: GroupingSelection) => {
 };
 
 // Listeners
-btnSortAll.addEventListener("click", () => triggerSort());
-btnGroupAll.addEventListener("click", () => triggerGroup());
+selectAllCheckbox.addEventListener("change", (e) => {
+    const targetState = (e.target as HTMLInputElement).checked;
+    if (targetState) {
+        // Select All
+        windowState.forEach(win => {
+            win.tabs.forEach(tab => selectedTabs.add(tab.id));
+        });
+    } else {
+        // Deselect All
+        selectedTabs.clear();
+    }
+    renderTree();
+});
+
 btnSortSelected.addEventListener("click", () => triggerSort({ tabIds: Array.from(selectedTabs) }));
 btnGroupSelected.addEventListener("click", () => triggerGroup({ tabIds: Array.from(selectedTabs) }));
 

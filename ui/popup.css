@@ -356,3 +356,19 @@ body {
 #resizeHandle:hover {
   opacity: 0.8;
 }
+
+/* Selection Bar */
+.selection-bar {
+  padding: 0 4px 12px 4px;
+  display: flex;
+  align-items: center;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  user-select: none;
+}
