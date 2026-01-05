@@ -1,6 +1,7 @@
-127.0.0.1 - - [02/Jan/2026 20:14:11] "GET /ui/popup.html HTTP/1.1" 200 -
-127.0.0.1 - - [02/Jan/2026 20:14:11] "GET /ui/popup.css HTTP/1.1" 200 -
-127.0.0.1 - - [02/Jan/2026 20:14:11] "GET /dist/ui/popup.js HTTP/1.1" 200 -
-127.0.0.1 - - [02/Jan/2026 20:14:12] "GET /ui/popup_redesigned.html HTTP/1.1" 200 -
-127.0.0.1 - - [02/Jan/2026 20:14:12] "GET /dist/ui/popup_redesigned.js HTTP/1.1" 200 -
-127.0.0.1 - - [02/Jan/2026 20:14:12] "GET /ui/popup_redesigned.css HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jan/2026 12:10:45] "GET /ui/popup.html HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jan/2026 12:10:45] "GET /dist/ui/popup.js HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jan/2026 12:10:45] "GET /ui/popup.css HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jan/2026 12:10:45] "GET /dist/ui/common.js HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jan/2026 12:10:46] "GET /ui/popup_redesigned.html HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jan/2026 12:10:46] "GET /ui/popup_redesigned.css HTTP/1.1" 200 -
+127.0.0.1 - - [05/Jan/2026 12:10:46] "GET /dist/ui/popup_redesigned.js HTTP/1.1" 200 -
