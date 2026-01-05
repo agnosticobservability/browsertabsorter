@@ -9,8 +9,9 @@ const sortTitle = document.getElementById("sortTitle");
 const sortUrl = document.getElementById("sortUrl");
 const sortContext = document.getElementById("sortContext");
 const selectAllCheckbox = document.getElementById("selectAll");
-const btnSortSelected = document.getElementById("btnSortSelected");
-const btnGroupSelected = document.getElementById("btnGroupSelected");
+const btnSort = document.getElementById("btnSort");
+const btnGroup = document.getElementById("btnGroup");
+const btnUngroup = document.getElementById("btnUngroup");
 // Stats
 const statTabs = document.getElementById("statTabs");
 const statGroups = document.getElementById("statGroups");
@@ -34,10 +35,12 @@ const updateStats = () => {
     statWindows.textContent = `${windowState.length} Windows`;
     // Update selection buttons
     const hasSelection = selectedTabs.size > 0;
-    btnSortSelected.disabled = !hasSelection;
-    btnGroupSelected.disabled = !hasSelection;
-    btnSortSelected.style.opacity = hasSelection ? "1" : "0.5";
-    btnGroupSelected.style.opacity = hasSelection ? "1" : "0.5";
+    btnSort.disabled = !hasSelection;
+    btnGroup.disabled = !hasSelection;
+    btnUngroup.disabled = !hasSelection;
+    btnSort.style.opacity = hasSelection ? "1" : "0.5";
+    btnGroup.style.opacity = hasSelection ? "1" : "0.5";
+    btnUngroup.style.opacity = hasSelection ? "1" : "0.5";
     // Update Select All Checkbox State
     if (totalTabs === 0) {
         selectAllCheckbox.checked = false;
@@ -378,8 +381,14 @@ selectAllCheckbox.addEventListener("change", (e) => {
     }
     renderTree();
 });
-btnSortSelected.addEventListener("click", () => triggerSort({ tabIds: Array.from(selectedTabs) }));
-btnGroupSelected.addEventListener("click", () => triggerGroup({ tabIds: Array.from(selectedTabs) }));
+btnSort.addEventListener("click", () => triggerSort({ tabIds: Array.from(selectedTabs) }));
+btnGroup.addEventListener("click", () => triggerGroup({ tabIds: Array.from(selectedTabs) }));
+btnUngroup.addEventListener("click", async () => {
+    if (confirm(`Ungroup ${selectedTabs.size} tabs?`)) {
+        await chrome.tabs.ungroup(Array.from(selectedTabs));
+        await loadState();
+    }
+});
 document.getElementById("btnUndo")?.addEventListener("click", async () => {
     const res = await sendMessage("undo");
     if (!res.ok)
