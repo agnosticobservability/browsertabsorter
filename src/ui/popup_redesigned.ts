@@ -45,6 +45,13 @@ const selectedTabs = new Set<number>();
 let preferences: Preferences | null = null;
 let sortingInitialized = false;
 
+// Tree State
+const expandedNodes = new Set<string>();
+const TREE_ICONS = {
+  chevronRight: `<svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>`,
+  folder: `<svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>`
+};
+
 const updateStats = () => {
   const totalTabs = windowState.reduce((acc, win) => acc + win.tabCount, 0);
   const totalGroups = new Set(windowState.flatMap(w => w.tabs.map(t => `${w.id}-${t.groupLabel}`))).size;
@@ -54,95 +61,59 @@ const updateStats = () => {
   statWindows.textContent = `${windowState.length} Windows`;
 };
 
-const renderGroup = (label: string, color: string, tabs: TabWithGroup[]) => {
-  const section = document.createElement("div");
-  section.className = "group-section";
+const createNode = (
+    content: HTMLElement,
+    childrenContainer: HTMLElement | null,
+    level: 'window' | 'group' | 'tab',
+    isExpanded: boolean = true,
+    onToggle?: () => void
+) => {
+    const node = document.createElement("div");
+    node.className = "tree-node";
 
-  // Header
-  const header = document.createElement("div");
-  header.className = "group-header";
-  header.style.color = color;
+    const row = document.createElement("div");
+    row.className = `tree-row ${level}-row`;
 
-  const labelSpan = document.createElement("span");
-  labelSpan.textContent = label;
+    // Toggle
+    const toggle = document.createElement("div");
+    toggle.className = `tree-toggle ${isExpanded ? 'rotated' : ''}`;
+    if (childrenContainer) {
+        toggle.innerHTML = TREE_ICONS.chevronRight;
+        toggle.onclick = (e) => {
+            e.stopPropagation();
+            if (onToggle) onToggle();
+        };
+    } else {
+        toggle.classList.add('hidden');
+    }
 
-  const ungroupBtn = document.createElement("button");
-  ungroupBtn.className = "ungroup-btn";
-  ungroupBtn.innerHTML = ICONS.ungroup; // Note: ICONS.ungroup is slightly different in common.ts, adapting UI to match or accept change.
-  // The common ICONS.ungroup is 16x16, the redesigned one was 12x12. CSS can handle sizing.
-  ungroupBtn.title = "Ungroup";
-  ungroupBtn.addEventListener("click", async (e) => {
-      e.stopPropagation();
-      if (confirm(`Ungroup ${tabs.length} tabs?`)) {
-          await chrome.tabs.ungroup(tabs.map(t => t.id));
-          await loadState();
-      }
-  });
+    row.appendChild(toggle);
+    row.appendChild(content); // Content handles icon + text + actions
 
-  header.append(labelSpan, ungroupBtn);
+    node.appendChild(row);
 
-  // Tabs List
-  const list = document.createElement("div");
-  list.className = "tab-list";
+    if (childrenContainer) {
+        childrenContainer.className = `tree-children ${isExpanded ? 'expanded' : ''}`;
+        node.appendChild(childrenContainer);
+    }
 
-  tabs.forEach(tab => {
-      const item = document.createElement("div");
-      item.className = "tab-item";
+    // Toggle interaction on row click for Windows and Groups
+    if (childrenContainer && level !== 'tab') {
+        row.addEventListener('click', (e) => {
+            // Avoid toggling if clicking actions
+            if ((e.target as HTMLElement).closest('.action-btn')) return;
+            if (onToggle) onToggle();
+        });
+    }
 
-      const icon = document.createElement("div");
-      icon.className = "tab-icon";
-      if (tab.favIconUrl) {
-          const img = document.createElement("img");
-          img.src = tab.favIconUrl;
-          img.style.width = "100%";
-          img.style.height = "100%";
-          img.onerror = () => { icon.innerHTML = ICONS.defaultFile; };
-          icon.appendChild(img);
-      } else {
-          icon.innerHTML = ICONS.defaultFile;
-      }
-
-      const info = document.createElement("div");
-      info.className = "tab-info";
-
-      const title = document.createElement("div");
-      title.className = "tab-title";
-      title.textContent = tab.title;
-      title.title = tab.title;
-
-      const domain = document.createElement("div");
-      domain.className = "tab-domain";
-      domain.textContent = formatDomain(tab.url);
-
-      info.append(title, domain);
-
-      const closeBtn = document.createElement("button");
-      closeBtn.className = "tab-close";
-      closeBtn.innerHTML = ICONS.close;
-      closeBtn.addEventListener("click", async (e) => {
-          e.stopPropagation();
-          await chrome.tabs.remove(tab.id);
-          await loadState();
-      });
-
-      item.append(icon, info, closeBtn);
-
-      item.addEventListener("click", async () => {
-          await chrome.tabs.update(tab.id, { active: true });
-          await chrome.windows.update(tab.windowId, { focused: true });
-      });
-
-      list.appendChild(item);
-  });
-
-  section.append(header, list);
-  return section;
+    return { node, toggle, childrenContainer };
 };
 
-const renderWindows = () => {
+const renderTree = () => {
   const query = searchInput.value.trim().toLowerCase();
   windowsContainer.innerHTML = "";
 
+  // Filter Logic
   const filtered = windowState
     .map((window) => {
       if (!query) return { window, visibleTabs: window.tabs };
@@ -154,27 +125,30 @@ const renderWindows = () => {
     .filter(({ visibleTabs }) => visibleTabs.length > 0 || !query);
 
   filtered.forEach(({ window, visibleTabs }) => {
-    const card = document.createElement("article");
-    card.className = "window-card";
-    if (focusedWindowId === window.id) {
-        card.style.borderColor = "var(--primary-color)";
-    }
+    const windowKey = `w-${window.id}`;
+    // Default expand windows if searching or if previously expanded (default true)
+    if (!expandedNodes.has(windowKey) && !query) expandedNodes.add(windowKey);
+    const isExpanded = !!query || expandedNodes.has(windowKey);
 
-    const header = document.createElement("div");
-    header.className = "window-header";
+    // Window Content
+    const winContent = document.createElement("div");
+    winContent.style.display = "flex";
+    winContent.style.alignItems = "center";
+    winContent.style.flex = "1";
+    winContent.style.overflow = "hidden";
 
-    const title = document.createElement("div");
-    title.className = "window-title";
-    title.textContent = window.title;
+    const label = document.createElement("div");
+    label.className = "tree-label";
+    label.textContent = window.title;
 
-    const stats = document.createElement("div");
-    stats.className = "window-stats";
-    stats.textContent = `${visibleTabs.length} tabs`;
+    const count = document.createElement("div");
+    count.className = "tree-count";
+    count.textContent = `(${visibleTabs.length} Tabs)`;
 
-    header.append(title, stats);
+    winContent.append(label, count);
 
-    const content = document.createElement("div");
-    content.className = "window-content";
+    // Children (Groups)
+    const childrenContainer = document.createElement("div");
 
     // Group tabs
     const groups = new Map<string, { color: string; tabs: TabWithGroup[] }>();
@@ -185,12 +159,130 @@ const renderWindows = () => {
         groups.set(key, entry);
     });
 
-    Array.from(groups.entries()).sort().forEach(([label, data]) => {
-        content.appendChild(renderGroup(label, data.color, data.tabs));
+    Array.from(groups.entries()).sort().forEach(([groupLabel, groupData]) => {
+        const groupKey = `${windowKey}-g-${groupLabel}`;
+        if (!expandedNodes.has(groupKey) && !query) expandedNodes.add(groupKey);
+        const isGroupExpanded = !!query || expandedNodes.has(groupKey);
+
+        // Group Content
+        const grpContent = document.createElement("div");
+        grpContent.style.display = "flex";
+        grpContent.style.alignItems = "center";
+        grpContent.style.flex = "1";
+        grpContent.style.overflow = "hidden";
+        if (groupData.color) grpContent.style.color = groupData.color;
+
+        const icon = document.createElement("div");
+        icon.className = "tree-icon";
+        icon.innerHTML = TREE_ICONS.folder;
+
+        const grpLabel = document.createElement("div");
+        grpLabel.className = "tree-label";
+        grpLabel.textContent = groupLabel;
+
+        const grpCount = document.createElement("div");
+        grpCount.className = "tree-count";
+        grpCount.textContent = `(${groupData.tabs.length})`;
+
+        // Group Actions
+        const actions = document.createElement("div");
+        actions.className = "row-actions";
+        const ungroupBtn = document.createElement("button");
+        ungroupBtn.className = "action-btn";
+        ungroupBtn.innerHTML = ICONS.ungroup;
+        ungroupBtn.title = "Ungroup";
+        ungroupBtn.onclick = async (e) => {
+            e.stopPropagation();
+            if (confirm(`Ungroup ${groupData.tabs.length} tabs?`)) {
+                await chrome.tabs.ungroup(groupData.tabs.map(t => t.id));
+                await loadState();
+            }
+        };
+        actions.appendChild(ungroupBtn);
+
+        grpContent.append(icon, grpLabel, grpCount, actions);
+
+        // Tabs
+        const tabsContainer = document.createElement("div");
+        groupData.tabs.forEach(tab => {
+            const tabContent = document.createElement("div");
+            tabContent.style.display = "flex";
+            tabContent.style.alignItems = "center";
+            tabContent.style.flex = "1";
+            tabContent.style.overflow = "hidden";
+
+            const tabIcon = document.createElement("div");
+            tabIcon.className = "tree-icon";
+            if (tab.favIconUrl) {
+                const img = document.createElement("img");
+                img.src = tab.favIconUrl;
+                img.onerror = () => { tabIcon.innerHTML = ICONS.defaultFile; };
+                tabIcon.appendChild(img);
+            } else {
+                tabIcon.innerHTML = ICONS.defaultFile;
+            }
+
+            const tabTitle = document.createElement("div");
+            tabTitle.className = "tree-label";
+            tabTitle.textContent = tab.title;
+            tabTitle.title = tab.title;
+
+            const tabActions = document.createElement("div");
+            tabActions.className = "row-actions";
+            const closeBtn = document.createElement("button");
+            closeBtn.className = "action-btn delete";
+            closeBtn.innerHTML = ICONS.close;
+            closeBtn.title = "Close Tab";
+            closeBtn.onclick = async (e) => {
+                e.stopPropagation();
+                await chrome.tabs.remove(tab.id);
+                await loadState();
+            };
+            tabActions.appendChild(closeBtn);
+
+            tabContent.append(tabIcon, tabTitle, tabActions);
+
+            const { node: tabNode } = createNode(tabContent, null, 'tab');
+            tabNode.onclick = async () => {
+                await chrome.tabs.update(tab.id, { active: true });
+                await chrome.windows.update(tab.windowId, { focused: true });
+            };
+            tabsContainer.appendChild(tabNode);
+        });
+
+        const { node: groupNode, toggle: grpToggle, childrenContainer: grpChildren } = createNode(
+            grpContent,
+            tabsContainer,
+            'group',
+            isGroupExpanded,
+            () => {
+                if (expandedNodes.has(groupKey)) expandedNodes.delete(groupKey);
+                else expandedNodes.add(groupKey);
+
+                const expanded = expandedNodes.has(groupKey);
+                grpToggle.classList.toggle('rotated', expanded);
+                grpChildren!.classList.toggle('expanded', expanded);
+            }
+        );
+        childrenContainer.appendChild(groupNode);
     });
 
-    card.append(header, content);
-    windowsContainer.appendChild(card);
+    const { node: winNode, toggle: winToggle, childrenContainer: winChildren } = createNode(
+        winContent,
+        childrenContainer,
+        'window',
+        isExpanded,
+        () => {
+             if (expandedNodes.has(windowKey)) expandedNodes.delete(windowKey);
+             else expandedNodes.add(windowKey);
+
+             const expanded = expandedNodes.has(windowKey);
+             winToggle.classList.toggle('rotated', expanded);
+             winChildren!.classList.toggle('expanded', expanded);
+        }
+    );
+
+    windowsContainer.appendChild(winNode);
   });
 
   updateStats();
@@ -227,7 +319,13 @@ const loadState = async () => {
   });
 
   windowState = mapWindows(state.data.groups, windowTitles);
-  renderWindows();
+
+  // Initialize expanded state for new windows
+  windowState.forEach(w => {
+      if (!expandedNodes.has(`w-${w.id}`)) expandedNodes.add(`w-${w.id}`);
+  });
+
+  renderTree();
 };
 
 const getSelectedSorting = (): SortingStrategy[] => {
@@ -256,15 +354,7 @@ const triggerGroup = async (selection?: GroupingSelection) => {
 // Listeners
 btnSortAll.addEventListener("click", () => triggerSort());
 btnGroupAll.addEventListener("click", () => triggerGroup());
-btnSortSelected.addEventListener("click", () => {
-    // For now, selecting "Selected" without selection logic in this UI acts as All or could warn
-    // Since I removed selection checkboxes in this minimal UI, I'll just trigger for all or current window
-    // But to respect the button, I'll just trigger sort (API handles empty selection as all or none?)
-    // Actually existing popup has logic. For this redesign, I simplified.
-    // Let's just make it trigger sort for current window if possible, or all.
-    // Simpler: Just trigger sort.
-    triggerSort();
-});
+btnSortSelected.addEventListener("click", () => triggerSort());
 btnGroupSelected.addEventListener("click", () => triggerGroup());
 
 document.getElementById("btnUndo")?.addEventListener("click", async () => {
@@ -302,7 +392,7 @@ document.getElementById("btnLoadState")?.addEventListener("click", async () => {
           const r = await sendMessage("restoreState", { state });
           if (r.ok) {
               loadStateDialog.close();
-              window.close(); // Close popup to let background work
+              window.close();
           } else {
               alert("Restore failed: " + r.error);
           }
@@ -348,7 +438,7 @@ document.querySelectorAll('.chip input').forEach(input => {
     });
 });
 
-searchInput.addEventListener("input", renderWindows);
+searchInput.addEventListener("input", renderTree);
 
 // Auto-refresh
 chrome.tabs.onUpdated.addListener(() => loadState());
