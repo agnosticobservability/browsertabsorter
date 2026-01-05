@@ -7,164 +7,92 @@
     <title>Tab Sorter</title>
   </head>
   <body>
-    <!-- Header -->
     <header class="header">
       <div class="search-box">
-        <svg class="icon search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <circle cx="11" cy="11" r="8"></circle>
           <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
         </svg>
-        <input
-          id="tabSearch"
-          type="search"
-          placeholder="Search tabs by title or URL"
-          aria-label="Search tabs"
-        />
+        <input id="tabSearch" type="text" placeholder="Search..." />
       </div>
-      <button id="btnPin" class="preferences-btn" title="Pin to window" style="margin-right: 8px; cursor: pointer;">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-           <line x1="12" y1="17" x2="12" y2="22"></line>
-           <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"></path>
+      <button id="btnTheme" class="icon-btn" title="Toggle Theme">
+        <svg id="iconMoon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+        </svg>
+        <svg id="iconSun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none;">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
         </svg>
       </button>
-      <a class="preferences-btn" href="devtools.html" target="_blank" rel="noreferrer">DevTools</a>
+      <button id="btnPin" class="icon-btn" title="Pin to window">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="12" y1="17" x2="12" y2="22"></line>
+          <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"></path>
+        </svg>
+      </button>
+      <a href="devtools.html" target="_blank" class="icon-btn" title="DevTools">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="16 18 22 12 16 6"></polyline>
+          <polyline points="8 6 2 12 8 18"></polyline>
+        </svg>
+      </a>
     </header>
 
-    <!-- Sort Controls -->
-    <section class="sort-section card">
-      <div class="sort-label">Sort</div>
-
-      <div class="sort-toggles">
-        <div class="sort-toggle-item">
-          <label class="toggle-control" title="Sort by pinned state first">
-            <input type="checkbox" id="sortPinnedFlyout" />
-            <svg class="toggle-icon-side" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="12" y1="17" x2="12" y2="22"></line>
-              <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"></path>
-            </svg>
-            <div class="toggle-track">
-              <div class="toggle-knob"></div>
-            </div>
-          </label>
-          <span class="toggle-label">Pin State</span>
-        </div>
-
-        <div class="sort-toggle-item">
-          <label class="toggle-control" title="Sort by most recently used">
-            <input type="checkbox" id="sortRecencyFlyout" />
-            <svg class="toggle-icon-side" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="10"></circle>
-              <polyline points="12 6 12 12 16 14"></polyline>
-            </svg>
-            <div class="toggle-track">
-              <div class="toggle-knob"></div>
-            </div>
-          </label>
-          <span class="toggle-label">Recent Activity</span>
-        </div>
-
-        <div class="sort-toggle-item">
-          <label class="toggle-control" title="Sort by creation/opener relationship">
-            <input type="checkbox" id="sortHierarchyFlyout" />
-            <svg class="toggle-icon-side" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
-            </svg>
-            <div class="toggle-track">
-              <div class="toggle-knob"></div>
-            </div>
-          </label>
-          <span class="toggle-label">Hierarchy</span>
-        </div>
-
-        <div class="sort-toggle-item">
-          <label class="toggle-control" title="Sort alphabetically by tab title">
-            <input type="checkbox" id="sortTitleFlyout" />
-            <svg class="toggle-icon-side" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M4 7V4h16v3M9 20h6M12 4v16"></path>
-            </svg>
-            <div class="toggle-track">
-              <div class="toggle-knob"></div>
-            </div>
-          </label>
-          <span class="toggle-label">Title</span>
-        </div>
-
-        <div class="sort-toggle-item">
-          <label class="toggle-control" title="Sort by URL domain and path">
-            <input type="checkbox" id="sortUrlFlyout" />
-            <svg class="toggle-icon-side" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="10"></circle>
-              <line x1="2" y1="12" x2="22" y2="12"></line>
-              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
-            </svg>
-            <div class="toggle-track">
-              <div class="toggle-knob"></div>
-            </div>
-          </label>
-          <span class="toggle-label">URL</span>
-        </div>
-
-        <div class="sort-toggle-item">
-          <label class="toggle-control" title="Sort by AI-determined context">
-            <input type="checkbox" id="sortContextFlyout" />
-            <svg class="toggle-icon-side" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
-              <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
-              <line x1="12" y1="22.08" x2="12" y2="12"></line>
-            </svg>
-            <div class="toggle-track">
-              <div class="toggle-knob"></div>
-            </div>
-          </label>
-          <span class="toggle-label">Context (AI)</span>
-        </div>
+    <div class="sort-section">
+      <div class="sort-chips">
+        <label class="chip">
+          <input type="checkbox" id="sortPinned"> Pinned
+        </label>
+        <label class="chip">
+          <input type="checkbox" id="sortRecency"> Recent
+        </label>
+        <label class="chip">
+          <input type="checkbox" id="sortHierarchy"> Hierarchy
+        </label>
+        <label class="chip">
+          <input type="checkbox" id="sortTitle"> Title
+        </label>
+        <label class="chip">
+          <input type="checkbox" id="sortUrl"> URL
+        </label>
+        <label class="chip">
+          <input type="checkbox" id="sortContext"> AI Context
+        </label>
       </div>
-
-      <button class="icon-button outline" title="More sorting options">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="6 9 12 15 18 9"></polyline>
-        </svg>
-      </button>
-
-      <div class="action-buttons" style="display: flex; gap: 8px; margin-top: 16px;">
-        <button id="btnSortSelected" class="primary-button" style="flex: 1; padding: 8px;">Sort Selected</button>
-        <button id="btnGroupSelected" class="primary-button" style="flex: 1; padding: 8px;">Group Selected</button>
-        <button id="btnSortAll" class="primary-button" style="flex: 1; padding: 8px;">Sort All</button>
-        <button id="btnGroupAll" class="primary-button" style="flex: 1; padding: 8px;">Group All</button>
+      <div class="action-bar">
+        <button id="btnSortAll" class="btn primary">Sort All</button>
+        <button id="btnGroupAll" class="btn">Group All</button>
+        <button id="btnSortSelected" class="btn">Sort Selected</button>
+        <button id="btnGroupSelected" class="btn">Group Selected</button>
       </div>
-
-      <div class="state-actions" style="display: flex; gap: 8px; margin-top: 16px; border-top: 1px solid var(--border-color); padding-top: 16px;">
-        <button id="btnUndo" class="secondary-button" style="flex: 1; padding: 8px;">Undo</button>
-        <button id="btnSaveState" class="secondary-button" style="flex: 1; padding: 8px;">Save State</button>
-        <button id="btnLoadState" class="secondary-button" style="flex: 1; padding: 8px;">Load State</button>
+      <div class="action-bar" style="margin-top: 8px; justify-content: flex-end;">
+        <button id="btnUndo" class="btn" title="Undo Last Action">Undo</button>
+        <button id="btnSaveState" class="btn" title="Save Current State">Save</button>
+        <button id="btnLoadState" class="btn" title="Load Saved State">Load</button>
       </div>
-    </section>
+    </div>
 
-    <dialog id="loadStateDialog" style="border: 1px solid var(--border-color); border-radius: 8px; padding: 16px; min-width: 300px;">
+    <dialog id="loadStateDialog" style="border: 1px solid var(--border-color); border-radius: 8px; padding: 16px; min-width: 300px; background: var(--bg-color); color: var(--text-color);">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
         <h3>Saved States</h3>
-        <button id="btnCloseLoadState" style="background: none; border: none; cursor: pointer;">✕</button>
+        <button id="btnCloseLoadState" style="background: none; border: none; cursor: pointer; color: var(--text-color);">✕</button>
       </div>
       <ul id="savedStateList" style="list-style: none; padding: 0; margin: 0; max-height: 300px; overflow-y: auto;"></ul>
     </dialog>
 
-    <!-- Windows List -->
-    <section id="windows" class="window-list" aria-live="polite"></section>
+    <main id="windows"></main>
 
-    <!-- Footer -->
     <footer class="footer">
-      <div class="stat-item">
-        <span class="stat-value" id="footerTotalTabs">0</span>
-      </div>
-      <div class="stat-item">
-        <span class="stat-value" id="footerTotalGroups">0 groups</span>
-      </div>
-      <div class="stat-item">
-        <span class="stat-value" id="footerExtraStat"></span>
-      </div>
-      <div class="stat-item">
-        <span class="stat-value" id="footerPinned">0 pinned</span>
-      </div>
+      <span id="statTabs">0 Tabs</span>
+      <span id="statGroups">0 Groups</span>
+      <span id="statWindows">0 Windows</span>
     </footer>
 
     <div id="resizeHandle"></div>

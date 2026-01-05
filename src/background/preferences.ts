@@ -9,7 +9,7 @@ export const defaultPreferences: Preferences = {
   secondaryGrouping: "semantic",
   sorting: ["pinned", "recency"],
   debug: false,
-  popupVariant: "default"
+  theme: "dark"
 };
 
 export const loadPreferences = async (): Promise<Preferences> => {

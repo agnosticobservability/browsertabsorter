@@ -2,40 +2,9 @@ import { applyTabGroups, applyTabSorting, fetchTabGroups } from "./tabManager.js
 import { loadPreferences, savePreferences } from "./preferences.js";
 import { logDebug, logInfo } from "./logger.js";
 import { pushUndoState, saveState, undo, getSavedStates, deleteSavedState, restoreState } from "./stateManager.js";
-const setPopup = (variant) => {
-    let popup = "ui/popup.html";
-    switch (variant) {
-        case "redesigned":
-            popup = "ui/popup_redesigned.html";
-            break;
-        case "compact":
-            popup = "ui/popup_compact.html";
-            break;
-        case "midnight":
-            popup = "ui/popup_midnight.html";
-            break;
-        case "warm":
-            popup = "ui/popup_warm.html";
-            break;
-        case "terminal":
-            popup = "ui/popup_terminal.html";
-            break;
-        case "glass":
-            popup = "ui/popup_glass.html";
-            break;
-        default:
-            popup = "ui/popup.html";
-    }
-    chrome.action.setPopup({ popup });
-};
 chrome.runtime.onInstalled.addListener(async () => {
     const prefs = await loadPreferences();
     logInfo("Extension installed", { prefs });
-    setPopup(prefs.popupVariant);
-});
-chrome.runtime.onStartup.addListener(async () => {
-    const prefs = await loadPreferences();
-    setPopup(prefs.popupVariant);
 });
 const handleMessage = async (message, sender) => {
     logDebug("Received message", { type: message.type, from: sender.id });
@@ -104,7 +73,6 @@ const handleMessage = async (message, sender) => {
         }
         case "savePreferences": {
             const prefs = await savePreferences(message.payload);
-            setPopup(prefs.popupVariant);
             return { ok: true, data: prefs };
         }
         default:
