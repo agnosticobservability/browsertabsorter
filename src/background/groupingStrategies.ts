@@ -13,6 +13,10 @@ const domainFromUrl = (url: string): string => {
   }
 };
 
+const stripTld = (domain: string): string => {
+  return domain.replace(/\.(com|org|gov|net|edu|io)$/i, "");
+};
+
 const semanticBucket = (title: string, url: string): string => {
   const key = `${title} ${url}`.toLowerCase();
   if (key.includes("doc") || key.includes("readme") || key.includes("guide")) return "Docs";
@@ -51,10 +55,10 @@ const getLabelComponent = (strategy: GroupingStrategy, tabs: TabMetadata[], allT
       // Try to find a common siteName
       const siteNames = new Set(tabs.map(t => t.contextData?.siteName).filter(Boolean));
       if (siteNames.size === 1) {
-        return Array.from(siteNames)[0] as string;
+        return stripTld(Array.from(siteNames)[0] as string);
       }
       // If mixed or missing, fall back to domain
-      return domainFromUrl(firstTab.url);
+      return stripTld(domainFromUrl(firstTab.url));
     }
     case "semantic":
       return semanticBucket(firstTab.title, firstTab.url);
