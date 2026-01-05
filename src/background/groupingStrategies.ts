@@ -73,6 +73,9 @@ const getLabelComponent = (strategy: GroupingStrategy, tabs: TabMetadata[], allT
         return `From: Tab ${firstTab.openerTabId}`;
       }
       return `Window ${firstTab.windowId}`;
+    case "context":
+      // Using context directly as label
+      return firstTab.context || "Uncategorized";
     default:
       return "Unknown";
   }
@@ -147,6 +150,8 @@ const groupingKey = (tab: TabMetadata, strategy: GroupingStrategy): string => {
       return semanticBucket(tab.title, tab.url);
     case "navigation":
       return navigationKey(tab);
+    case "context":
+      return tab.context || "Uncategorized";
     default:
       return "Unknown";
   }

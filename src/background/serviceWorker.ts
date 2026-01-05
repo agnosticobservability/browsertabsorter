@@ -5,11 +5,23 @@ import { pushUndoState, saveState, undo, getSavedStates, deleteSavedState, resto
 import {
   ApplyGroupingPayload,
   GroupingSelection,
+  GroupingStrategy,
   Preferences,
   RuntimeMessage,
   RuntimeResponse,
+  SortingStrategy,
   TabGroup
 } from "../shared/types.js";
+
+const deriveGroupingStrategy = (sorting: SortingStrategy[]): GroupingStrategy | undefined => {
+  // Map sorting strategies to grouping strategies in priority order
+  if (sorting.includes("context")) return "context";
+  if (sorting.includes("hierarchy")) return "navigation";
+  if (sorting.includes("url")) return "domain";
+  if (sorting.includes("title")) return "semantic";
+  // "pinned" and "recency" do not map to grouping strategies
+  return undefined;
+};
 
 chrome.runtime.onInstalled.addListener(async () => {
   const prefs = await loadPreferences();
@@ -34,7 +46,22 @@ const handleMessage = async <TData>(
       const payload = (message.payload as ApplyGroupingPayload | undefined) ?? {};
       const selection = payload.selection ?? {};
       const sorting = payload.sorting?.length ? payload.sorting : undefined;
-      const preferences = sorting ? { ...prefs, sorting } : prefs;
+
+      let preferences = sorting ? { ...prefs, sorting } : prefs;
+
+      // If sorting strategies are provided, try to derive a matching grouping strategy
+      // This ensures the "Group" button respects the user's selection in the UI
+      if (sorting) {
+        const derivedGrouping = deriveGroupingStrategy(sorting);
+        if (derivedGrouping) {
+          preferences = {
+            ...preferences,
+            primaryGrouping: derivedGrouping,
+            secondaryGrouping: derivedGrouping // Reset secondary to match primary to avoid confusion
+          };
+        }
+      }
+
       // Use calculateTabGroups to determine the target grouping
       const groups = await calculateTabGroups(preferences, selection);
       await applyTabGroups(groups);
