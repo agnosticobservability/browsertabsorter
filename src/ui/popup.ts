@@ -534,7 +534,7 @@ chrome.tabs.onUpdated.addListener(() => loadState());
 chrome.tabs.onRemoved.addListener(() => loadState());
 chrome.windows.onRemoved.addListener(() => loadState());
 
-// --- Pin & Resize Logic ---
+// --- Pin Logic ---
 const btnPin = document.getElementById("btnPin");
 btnPin?.addEventListener("click", async () => {
   const url = chrome.runtime.getURL("ui/popup.html");
@@ -547,60 +547,14 @@ btnPin?.addEventListener("click", async () => {
   window.close();
 });
 
-const resizeHandle = document.getElementById("resizeHandle");
-if (resizeHandle) {
-  const saveSize = (w: number, h: number) => {
-      localStorage.setItem("popupSize", JSON.stringify({ width: w, height: h }));
-  };
-
-  resizeHandle.addEventListener("mousedown", (e) => {
-      e.preventDefault();
-      const startX = e.clientX;
-      const startY = e.clientY;
-      const startWidth = document.body.offsetWidth;
-      const startHeight = document.body.offsetHeight;
-
-      const onMouseMove = (ev: MouseEvent) => {
-          const newWidth = Math.max(400, startWidth + (ev.clientX - startX));
-          const newHeight = Math.max(400, startHeight + (ev.clientY - startY));
-          document.body.style.width = `${newWidth}px`;
-          document.body.style.height = `${newHeight}px`;
-      };
-
-      const onMouseUp = (ev: MouseEvent) => {
-           const newWidth = Math.max(400, startWidth + (ev.clientX - startX));
-           const newHeight = Math.max(400, startHeight + (ev.clientY - startY));
-           saveSize(newWidth, newHeight);
-           document.removeEventListener("mousemove", onMouseMove);
-           document.removeEventListener("mouseup", onMouseUp);
-      };
-
-      document.addEventListener("mousemove", onMouseMove);
-      document.addEventListener("mouseup", onMouseUp);
-  });
-}
-
 const adjustForWindowType = async () => {
   try {
     const win = await chrome.windows.getCurrent();
     if (win.type === "popup") {
       // Pinned window mode: use full window size, hide resize handle and pin button
-      if (resizeHandle) resizeHandle.style.display = "none";
       if (btnPin) btnPin.style.display = "none";
       document.body.style.width = "100%";
       document.body.style.height = "100%";
-    } else {
-      // Bubble mode: restore saved size
-      const savedSize = localStorage.getItem("popupSize");
-      if (savedSize) {
-        try {
-          const { width, height } = JSON.parse(savedSize);
-          if (width && height) {
-            document.body.style.width = `${Math.max(400, width)}px`;
-            document.body.style.height = `${Math.max(400, height)}px`;
-          }
-        } catch {}
-      }
     }
   } catch (e) {
     console.error("Error checking window type:", e);
