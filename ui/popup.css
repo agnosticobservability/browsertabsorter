@@ -359,9 +359,11 @@ body {
 
 /* Selection Bar */
 .selection-bar {
-  padding: 0 4px 12px 4px;
+  padding: 8px 12px;
   display: flex;
   align-items: center;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 4px;
 }
 
 .checkbox-label {
