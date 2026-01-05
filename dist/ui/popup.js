@@ -515,25 +515,21 @@ const adjustForWindowType = async () => {
     try {
         const win = await chrome.windows.getCurrent();
         if (win.type === "popup") {
-            if (resizeHandle)
-                resizeHandle.style.display = "none";
             if (btnPin)
                 btnPin.style.display = "none";
+            // Enable resize handle in pinned mode if it was hidden
+            if (resizeHandle)
+                resizeHandle.style.display = "block";
             document.body.style.width = "100%";
             document.body.style.height = "100%";
         }
         else {
-            const savedSize = localStorage.getItem("popupSize");
-            if (savedSize) {
-                try {
-                    const { width, height } = JSON.parse(savedSize);
-                    if (width && height) {
-                        document.body.style.width = `${Math.max(500, width)}px`;
-                        document.body.style.height = `${Math.max(500, height)}px`;
-                    }
-                }
-                catch { }
-            }
+            // Disable resize handle in docked mode
+            if (resizeHandle)
+                resizeHandle.style.display = "none";
+            // Clear any previous size overrides
+            document.body.style.width = "";
+            document.body.style.height = "";
         }
     }
     catch (e) {
