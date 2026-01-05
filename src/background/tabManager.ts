@@ -20,7 +20,76 @@ const mapChromeTab = (tab: chrome.tabs.Tab): TabMetadata | null => {
   };
 };
 
-export const fetchTabGroups = async (
+export const fetchCurrentTabGroups = async (
+  preferences: Preferences
+): Promise<TabGroup[]> => {
+  const tabs = await chrome.tabs.query({});
+  const groups = await chrome.tabGroups.query({});
+  const groupMap = new Map(groups.map(g => [g.id, g]));
+
+  // Map tabs to metadata
+  const mapped = tabs.map(mapChromeTab).filter((t): t is TabMetadata => Boolean(t));
+
+  if (preferences.sorting.includes("context")) {
+      const contextMap = await analyzeTabContext(mapped);
+      mapped.forEach(tab => {
+        const res = contextMap.get(tab.id);
+        tab.context = res?.context;
+        tab.contextData = res?.data;
+      });
+  }
+
+  const resultGroups: TabGroup[] = [];
+  const tabsByGroupId = new Map<number, TabMetadata[]>();
+  const tabsByWindowUngrouped = new Map<number, TabMetadata[]>();
+
+  mapped.forEach(tab => {
+      const groupId = tab.groupId ?? -1;
+      if (groupId !== -1) {
+          if (!tabsByGroupId.has(groupId)) tabsByGroupId.set(groupId, []);
+          tabsByGroupId.get(groupId)!.push(tab);
+      } else {
+           if (!tabsByWindowUngrouped.has(tab.windowId)) tabsByWindowUngrouped.set(tab.windowId, []);
+           tabsByWindowUngrouped.get(tab.windowId)!.push(tab);
+      }
+  });
+
+  // Create TabGroup objects for actual groups
+  for (const [groupId, groupTabs] of tabsByGroupId) {
+      const browserGroup = groupMap.get(groupId);
+      if (browserGroup) {
+          resultGroups.push({
+              id: `group-${groupId}`,
+              windowId: browserGroup.windowId,
+              label: browserGroup.title || "Untitled Group",
+              color: browserGroup.color,
+              tabs: sortTabs(groupTabs, preferences.sorting),
+              reason: "Manual"
+          });
+      }
+  }
+
+  // Handle ungrouped tabs
+  for (const [windowId, tabs] of tabsByWindowUngrouped) {
+      resultGroups.push({
+          id: `ungrouped-${windowId}`,
+          windowId: windowId,
+          label: "Ungrouped",
+          color: "grey",
+          tabs: sortTabs(tabs, preferences.sorting),
+          reason: "Ungrouped"
+      });
+  }
+
+  // Sort groups might be nice, but TabGroup[] doesn't strictly dictate order in UI (UI sorts by label currently? Or keeps order?)
+  // popup.ts sorts groups by label in renderTree: Array.from(groups.entries()).sort()...
+  // So order here doesn't matter much.
+
+  logInfo("Fetched current tab groups", { groups: resultGroups.length, tabs: mapped.length });
+  return resultGroups;
+};
+
+export const calculateTabGroups = async (
   preferences: Preferences,
   filter?: GroupingSelection
 ): Promise<TabGroup[]> => {
@@ -49,7 +118,7 @@ export const fetchTabGroups = async (
   grouped.forEach((group) => {
     group.tabs = sortTabs(group.tabs, preferences.sorting);
   });
-  logInfo("Grouped tabs", { groups: grouped.length, tabs: mapped.length });
+  logInfo("Calculated tab groups", { groups: grouped.length, tabs: mapped.length });
   return grouped;
 };
 
