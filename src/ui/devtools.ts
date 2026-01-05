@@ -1,5 +1,7 @@
 import { analyzeTabContext, ContextResult } from "../background/contextAnalysis.js";
-import { Preferences, TabMetadata } from "../shared/types.js";
+import { groupTabs } from "../background/groupingStrategies.js";
+import { sortTabs } from "../background/sortingStrategies.js";
+import { GroupingStrategy, Preferences, SortingStrategy, TabMetadata, TabGroup } from "../shared/types.js";
 
 // State
 let currentTabs: chrome.tabs.Tab[] = [];
@@ -14,6 +16,34 @@ document.addEventListener('DOMContentLoaded', () => {
     refreshBtn.addEventListener('click', loadTabs);
   }
 
+  // Tab Switching Logic
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      // Remove active class from all buttons and sections
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.view-section').forEach(s => s.classList.remove('active'));
+
+      // Add active class to clicked button
+      btn.classList.add('active');
+
+      // Show target section
+      const targetId = (btn as HTMLElement).dataset.target;
+      if (targetId) {
+        document.getElementById(targetId)?.classList.add('active');
+      }
+
+      // If switching to algorithms, populate reference if empty
+      if (targetId === 'view-algorithms') {
+         renderAlgorithmsView();
+      }
+    });
+  });
+
+  // Simulation Logic
+  const runSimBtn = document.getElementById('runSimBtn');
+  if (runSimBtn) {
+    runSimBtn.addEventListener('click', runSimulation);
+  }
 
   // Add sort listeners
   document.querySelectorAll('th.sortable').forEach(th => {
@@ -83,6 +113,8 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   loadTabs();
+  // Pre-render static content
+  renderAlgorithmsView();
 });
 
 async function loadTabs() {
@@ -103,20 +135,7 @@ async function loadTabs() {
   });
 
   // Convert to TabMetadata for context analysis
-  const mappedTabs: TabMetadata[] = tabs
-    .filter((tab): tab is chrome.tabs.Tab & { id: number; windowId: number; url: string; title: string } =>
-      !!tab.id && !!tab.windowId && !!tab.url && !!tab.title
-    )
-    .map(tab => ({
-      id: tab.id,
-      windowId: tab.windowId,
-      title: tab.title,
-      url: tab.url,
-      pinned: !!tab.pinned,
-      lastAccessed: tab.lastAccessed,
-      openerTabId: tab.openerTabId,
-      favIconUrl: tab.favIconUrl || undefined
-    }));
+  const mappedTabs: TabMetadata[] = getMappedTabs();
 
   // Analyze context
   try {
@@ -127,6 +146,28 @@ async function loadTabs() {
   }
 
   renderTable();
+}
+
+function getMappedTabs(): TabMetadata[] {
+  return currentTabs
+    .filter((tab): tab is chrome.tabs.Tab & { id: number; windowId: number; url: string; title: string } =>
+      !!tab.id && !!tab.windowId && !!tab.url && !!tab.title
+    )
+    .map(tab => {
+      const contextResult = currentContextMap.get(tab.id);
+      return {
+        id: tab.id,
+        windowId: tab.windowId,
+        title: tab.title,
+        url: tab.url,
+        pinned: !!tab.pinned,
+        lastAccessed: tab.lastAccessed,
+        openerTabId: tab.openerTabId,
+        favIconUrl: tab.favIconUrl || undefined,
+        context: contextResult?.context,
+        contextData: contextResult?.data
+      };
+    });
 }
 
 function handleSort(key: string) {
@@ -262,6 +303,96 @@ function renderTable() {
     tbody.appendChild(row);
   });
 }
+
+function renderAlgorithmsView() {
+  const groupingRef = document.getElementById('grouping-ref');
+  const sortingRef = document.getElementById('sorting-ref');
+
+  if (groupingRef && groupingRef.innerHTML.trim() === '') {
+    const groupings = [
+      { name: 'domain', desc: 'Groups tabs by their domain name (e.g. google.com). Subdomains are stripped.' },
+      { name: 'semantic', desc: 'Groups based on keywords in the title (e.g. Docs, Mail, Chat, Tasks).' },
+      { name: 'navigation', desc: 'Groups tabs based on how they were opened (parent/child relationships).' },
+      { name: 'context', desc: 'Groups by high-level category (e.g. Work, Entertainment) determined by extraction.' }
+    ];
+
+    groupingRef.innerHTML = groupings.map(g => `
+      <div class="strategy-item">
+        <div class="strategy-name">${g.name}</div>
+        <div class="strategy-desc">${g.desc}</div>
+      </div>
+    `).join('');
+  }
+
+  if (sortingRef && sortingRef.innerHTML.trim() === '') {
+    const sortings = [
+       { name: 'recency', desc: 'Sorts by last accessed time (most recent first).' },
+       { name: 'hierarchy', desc: 'Keeps child tabs adjacent to their parents.' },
+       { name: 'pinned', desc: 'Keeps pinned tabs at the beginning of the list.' },
+       { name: 'title', desc: 'Alphabetical sort by tab title.' },
+       { name: 'url', desc: 'Alphabetical sort by tab URL.' },
+       { name: 'context', desc: 'Sorts alphabetically by context category.' }
+    ];
+
+    sortingRef.innerHTML = sortings.map(s => `
+      <div class="strategy-item">
+        <div class="strategy-name">${s.name}</div>
+        <div class="strategy-desc">${s.desc}</div>
+      </div>
+    `).join('');
+  }
+}
+
+function runSimulation() {
+  const primaryEl = document.getElementById('sim-primary') as HTMLSelectElement;
+  const secondaryEl = document.getElementById('sim-secondary') as HTMLSelectElement;
+  const sortingEl = document.getElementById('sim-sorting') as HTMLInputElement;
+  const resultContainer = document.getElementById('simResults');
+
+  if (!primaryEl || !secondaryEl || !sortingEl || !resultContainer) return;
+
+  const primary = primaryEl.value as GroupingStrategy;
+  const secondary = secondaryEl.value as GroupingStrategy;
+  const sortingInput = sortingEl.value;
+
+  const sorting = sortingInput.split(',')
+    .map(s => s.trim())
+    .filter(s => s) as SortingStrategy[];
+
+  // Prepare data
+  let tabs = getMappedTabs();
+
+  // 1. Sort
+  tabs = sortTabs(tabs, sorting);
+
+  // 2. Group
+  const groups = groupTabs(tabs, primary, secondary);
+
+  // 3. Render
+  if (groups.length === 0) {
+      resultContainer.innerHTML = '<p>No groups created (are there any tabs?).</p>';
+      return;
+  }
+
+  resultContainer.innerHTML = groups.map(group => `
+    <div class="group-result">
+      <div class="group-header" style="border-left: 5px solid ${group.color}">
+        <span>${escapeHtml(group.label || 'Ungrouped')}</span>
+        <span class="group-meta">${group.tabs.length} tabs &bull; Reason: ${escapeHtml(group.reason)}</span>
+      </div>
+      <ul class="group-tabs">
+        ${group.tabs.map(tab => `
+          <li class="group-tab-item">
+            ${tab.favIconUrl ? `<img src="${tab.favIconUrl}" class="tab-icon" onerror="this.style.display='none'">` : '<div class="tab-icon"></div>'}
+            <span class="title-cell" title="${escapeHtml(tab.title)}">${escapeHtml(tab.title)}</span>
+            <span style="color: #999; font-size: 0.8em; margin-left: auto;">${escapeHtml(new URL(tab.url).hostname)}</span>
+          </li>
+        `).join('')}
+      </ul>
+    </div>
+  `).join('');
+}
+
 
 function escapeHtml(text: string): string {
   if (!text) return '';

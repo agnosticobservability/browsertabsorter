@@ -14,35 +14,102 @@
       </div>
     </header>
 
+    <nav class="tabs-nav">
+      <button class="tab-btn active" data-target="view-tabs">Tab Data</button>
+      <button class="tab-btn" data-target="view-algorithms">Algorithms & Simulation</button>
+    </nav>
+
     <main>
-      <div id="stats">
-        <span>Total Tabs: <span id="totalTabs">0</span></span>
-      </div>
-      <div class="table-container">
-        <table id="tabsTable">
-          <thead>
-            <tr>
-              <th class="sortable" data-key="id">ID</th>
-              <th class="sortable" data-key="index">Index</th>
-              <th class="sortable" data-key="windowId">Window</th>
-              <th class="sortable" data-key="groupId">Group</th>
-              <th class="sortable" data-key="title">Title</th>
-              <th class="sortable" data-key="url">URL</th>
-              <th class="sortable" data-key="status">Status</th>
-              <th class="sortable" data-key="active">Active</th>
-              <th class="sortable" data-key="pinned">Pinned</th>
-              <th class="sortable" data-key="openerTabId">Opener ID</th>
-              <th class="sortable" data-key="parentTitle">Parent Title</th>
-              <th class="sortable" data-key="context">Context</th>
-              <th class="sortable" data-key="lastAccessed">Last Accessed</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <!-- Rows will be populated here -->
-          </tbody>
-        </table>
-      </div>
+      <section id="view-tabs" class="view-section active">
+        <div id="stats">
+          <span>Total Tabs: <span id="totalTabs">0</span></span>
+        </div>
+        <div class="table-container">
+          <table id="tabsTable">
+            <thead>
+              <tr>
+                <th class="sortable" data-key="id">ID</th>
+                <th class="sortable" data-key="index">Index</th>
+                <th class="sortable" data-key="windowId">Window</th>
+                <th class="sortable" data-key="groupId">Group</th>
+                <th class="sortable" data-key="title">Title</th>
+                <th class="sortable" data-key="url">URL</th>
+                <th class="sortable" data-key="status">Status</th>
+                <th class="sortable" data-key="active">Active</th>
+                <th class="sortable" data-key="pinned">Pinned</th>
+                <th class="sortable" data-key="openerTabId">Opener ID</th>
+                <th class="sortable" data-key="parentTitle">Parent Title</th>
+                <th class="sortable" data-key="context">Context</th>
+                <th class="sortable" data-key="lastAccessed">Last Accessed</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- Rows will be populated here -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="view-algorithms" class="view-section">
+        <div class="algo-container">
+
+          <div class="algo-card">
+            <h2>Grouping & Sorting Simulation</h2>
+            <p>Simulate how the current tabs would be organized using different strategies.</p>
+
+            <div class="controls-grid">
+              <div class="control-group">
+                <label for="sim-primary">Primary Grouping</label>
+                <select id="sim-primary">
+                  <option value="domain">Domain</option>
+                  <option value="semantic">Semantic (Title)</option>
+                  <option value="navigation">Navigation (Tree)</option>
+                  <option value="context">Context (AI/Extracted)</option>
+                </select>
+              </div>
+
+              <div class="control-group">
+                <label for="sim-secondary">Secondary Grouping</label>
+                <select id="sim-secondary">
+                  <option value="domain">Domain</option>
+                  <option value="semantic">Semantic (Title)</option>
+                  <option value="navigation">Navigation (Tree)</option>
+                  <option value="context">Context (AI/Extracted)</option>
+                </select>
+              </div>
+
+              <div class="control-group">
+                 <label for="sim-sorting">Sorting Strategies (comma separated)</label>
+                 <input type="text" id="sim-sorting" value="pinned, recency" placeholder="e.g. pinned, recency, title">
+                 <small style="color: #666; font-size: 0.8em;">Available: recency, hierarchy, pinned, title, url, context</small>
+              </div>
+            </div>
+
+            <button id="runSimBtn">Run Simulation</button>
+
+            <div id="simResults" class="simulation-results">
+              <!-- Results will be injected here -->
+              <p style="color: #666; font-style: italic;">Click "Run Simulation" to see results.</p>
+            </div>
+          </div>
+
+          <div class="algo-card">
+            <h2>Strategy Reference</h2>
+
+            <h3>Grouping Strategies</h3>
+            <div class="strategy-list" id="grouping-ref">
+               <!-- Populated by JS -->
+            </div>
+
+            <h3 style="margin-top: 20px;">Sorting Strategies</h3>
+            <div class="strategy-list" id="sorting-ref">
+               <!-- Populated by JS -->
+            </div>
+          </div>
+
+        </div>
+      </section>
     </main>
 
     <script type="module" src="../dist/ui/devtools.js"></script>
