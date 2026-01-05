@@ -221,3 +221,44 @@ export const closeGroup = async (group: TabGroup) => {
   await chrome.tabs.remove(ids);
   logDebug("Closed group", { label: group.label, count: ids.length });
 };
+
+export const mergeTabs = async (tabIds: number[]) => {
+  if (!tabIds.length) return;
+  const tabs = await Promise.all(tabIds.map(id => chrome.tabs.get(id).catch(() => null)));
+  const validTabs = tabs.filter((t): t is chrome.tabs.Tab => t !== null && t.id !== undefined && t.windowId !== undefined);
+
+  if (validTabs.length === 0) return;
+
+  // Target Window: The one with the most selected tabs, or the first one.
+  // Using the first tab's window as the target.
+  const targetWindowId = validTabs[0].windowId;
+
+  // 1. Move tabs to target window
+  const tabsToMove = validTabs.filter(t => t.windowId !== targetWindowId);
+  if (tabsToMove.length > 0) {
+    const moveIds = tabsToMove.map(t => t.id!);
+    await chrome.tabs.move(moveIds, { windowId: targetWindowId, index: -1 });
+  }
+
+  // 2. Group them
+  // Check if there is an existing group in the target window that was part of the selection.
+  // We prioritize the group of the first tab if it has one.
+  const firstTabGroupId = validTabs[0].groupId;
+  let targetGroupId: number | undefined;
+
+  if (firstTabGroupId && firstTabGroupId !== -1) {
+      // Verify the group is in the target window (it should be, as we picked targetWindowId from validTabs[0])
+      // But if validTabs[0] was moved (it wasn't, as it defined the target), it's fine.
+      targetGroupId = firstTabGroupId;
+  } else {
+      // Look for any other group in the selection that is in the target window
+      const otherGroup = validTabs.find(t => t.windowId === targetWindowId && t.groupId !== -1);
+      if (otherGroup) {
+          targetGroupId = otherGroup.groupId;
+      }
+  }
+
+  const ids = validTabs.map(t => t.id!);
+  await chrome.tabs.group({ tabIds: ids, groupId: targetGroupId });
+  logInfo("Merged tabs", { count: ids.length, targetWindowId, targetGroupId });
+};

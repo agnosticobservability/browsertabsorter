@@ -29,6 +29,7 @@ const selectAllCheckbox = document.getElementById("selectAll") as HTMLInputEleme
 const btnSort = document.getElementById("btnSort") as HTMLButtonElement;
 const btnGroup = document.getElementById("btnGroup") as HTMLButtonElement;
 const btnUngroup = document.getElementById("btnUngroup") as HTMLButtonElement;
+const btnMerge = document.getElementById("btnMerge") as HTMLButtonElement;
 
 // Stats
 const statTabs = document.getElementById("statTabs") as HTMLElement;
@@ -61,9 +62,11 @@ const updateStats = () => {
   btnSort.disabled = !hasSelection;
   btnGroup.disabled = !hasSelection;
   btnUngroup.disabled = !hasSelection;
+  btnMerge.disabled = !hasSelection;
   btnSort.style.opacity = hasSelection ? "1" : "0.5";
   btnGroup.style.opacity = hasSelection ? "1" : "0.5";
   btnUngroup.style.opacity = hasSelection ? "1" : "0.5";
+  btnMerge.style.opacity = hasSelection ? "1" : "0.5";
 
   // Update Select All Checkbox State
   if (totalTabs === 0) {
@@ -452,6 +455,13 @@ btnUngroup.addEventListener("click", async () => {
   if (confirm(`Ungroup ${selectedTabs.size} tabs?`)) {
       await chrome.tabs.ungroup(Array.from(selectedTabs));
       await loadState();
+  }
+});
+btnMerge.addEventListener("click", async () => {
+  if (confirm(`Merge ${selectedTabs.size} tabs into one group?`)) {
+      const res = await sendMessage("mergeSelection", { tabIds: Array.from(selectedTabs) });
+      if (!res.ok) alert("Merge failed: " + res.error);
+      else await loadState();
   }
 });
 

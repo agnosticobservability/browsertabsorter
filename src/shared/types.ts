@@ -126,7 +126,8 @@ export interface RuntimeMessage<TPayload = unknown> {
     | "restoreState"
     | "undo"
     | "getSavedStates"
-    | "deleteSavedState";
+    | "deleteSavedState"
+    | "mergeSelection";
   payload?: TPayload;
 }
 
