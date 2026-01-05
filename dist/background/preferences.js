@@ -6,7 +6,7 @@ export const defaultPreferences = {
     secondaryGrouping: "semantic",
     sorting: ["pinned", "recency"],
     debug: false,
-    popupVariant: "default"
+    theme: "dark"
 };
 export const loadPreferences = async () => {
     const stored = await getStoredValue(PREFERENCES_KEY);
