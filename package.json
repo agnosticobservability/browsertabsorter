@@ -5,7 +5,7 @@
   "license": "MIT",
   "scripts": {
     "prebuild": "node scripts/generate-icons.mjs",
-    "build": "esbuild src/background/extraction/content_main.ts --bundle --outfile=dist/extraction/content.js --target=es2020 && tsc --pretty",
+    "build": "tsc --pretty",
     "clean": "rm -rf dist"
   },
   "devDependencies": {

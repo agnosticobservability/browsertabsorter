@@ -33,43 +33,11 @@ export const extractPageContext = async (tabId: number): Promise<ExtractionRespo
 
     const baseline = buildBaselineContext(tab);
 
-    // 1. Inject the bundled script
-    try {
-        await chrome.scripting.executeScript({
-            target: { tabId },
-            files: ['dist/extraction/content.js']
-        });
-    } catch (injectError: any) {
-        const message = injectError?.message || String(injectError);
-        return {
-          data: baseline,
-          error: message,
-          status: classifyInjectionError(message, tab.url)
-        };
-    }
-
-    // 2. Read the result from global variable
-    const results = await chrome.scripting.executeScript({
-      target: { tabId },
-      func: () => {
-         const res = (window as any).__EXTRACTED_CONTEXT__;
-         // We don't delete it immediately to allow inspection or re-reads if needed,
-         // but cleaning up is good. Let's keep it for now as per original or delete?
-         // Original deleted it. Let's delete it.
-         delete (window as any).__EXTRACTED_CONTEXT__;
-         return res;
-      }
-    });
-
-    if (results && results.length > 0 && results[0].result) {
-      const merged = mergeBaselineContext(results[0].result as PageContext, baseline);
-      return { data: merged, status: 'OK' };
-    }
-
+    // We no longer inject a content script. We rely solely on the baseline context
+    // derived from the URL and Tab Title.
     return {
       data: baseline,
-      error: "Script executed but returned no data",
-      status: 'NO_RESPONSE'
+      status: 'OK'
     };
 
   } catch (e: any) {
@@ -124,56 +92,3 @@ const buildBaselineContext = (tab: chrome.tabs.Tab): PageContext => {
   };
 };
 
-const mergeBaselineContext = (data: PageContext, baseline: PageContext): PageContext => {
-  const sources = { ...(data.sources || {}) };
-
-  if (!data.title && baseline.title) {
-    data.title = baseline.title;
-    sources.title = baseline.sources.title;
-  }
-  if (!data.siteName && baseline.siteName) {
-    data.siteName = baseline.siteName;
-    sources.siteName = baseline.sources.siteName;
-  }
-  if (!data.canonicalUrl && baseline.canonicalUrl) {
-    data.canonicalUrl = baseline.canonicalUrl;
-    sources.canonicalUrl = baseline.sources.canonicalUrl;
-  }
-  if (!data.normalizedUrl && baseline.normalizedUrl) {
-    data.normalizedUrl = baseline.normalizedUrl;
-    sources.normalizedUrl = baseline.sources.normalizedUrl;
-  }
-  if (!data.platform && baseline.platform) {
-    data.platform = baseline.platform;
-    sources.platform = baseline.sources.platform;
-  }
-  if (!data.objectType && baseline.objectType) {
-    data.objectType = baseline.objectType;
-    sources.objectType = baseline.sources.objectType;
-  }
-  if (!data.objectId && baseline.objectId) {
-    data.objectId = baseline.objectId;
-  }
-
-  data.sources = sources;
-  return data;
-};
-
-const classifyInjectionError = (message: string, url: string): ExtractionResponse['status'] => {
-  if (
-    url.startsWith('chrome://') ||
-    url.startsWith('edge://') ||
-    url.startsWith('about:') ||
-    url.startsWith('chrome-extension://') ||
-    url.startsWith('chrome-error://')
-  ) {
-    return 'RESTRICTED';
-  }
-  if (message.includes('Extension manifest must request permission') || message.includes('Cannot access contents of url')) {
-    return 'NO_HOST_PERMISSION';
-  }
-  if (message.includes('Frame with ID') || message.includes('frame is showing error page')) {
-    return 'FRAME_ACCESS_DENIED';
-  }
-  return 'INJECTION_FAILED';
-};
