@@ -344,15 +344,11 @@ function renderAlgorithmsView() {
 }
 
 function runSimulation() {
-  const primaryEl = document.getElementById('sim-primary') as HTMLSelectElement;
-  const secondaryEl = document.getElementById('sim-secondary') as HTMLSelectElement;
   const sortingEl = document.getElementById('sim-sorting') as HTMLInputElement;
   const resultContainer = document.getElementById('simResults');
 
-  if (!primaryEl || !secondaryEl || !sortingEl || !resultContainer) return;
+  if (!sortingEl || !resultContainer) return;
 
-  const primary = primaryEl.value as GroupingStrategy;
-  const secondary = secondaryEl.value as GroupingStrategy;
   const sortingInput = sortingEl.value;
 
   const sorting = sortingInput.split(',')
@@ -366,7 +362,7 @@ function runSimulation() {
   tabs = sortTabs(tabs, sorting);
 
   // 2. Group
-  const groups = groupTabs(tabs, primary, secondary);
+  const groups = groupTabs(tabs, sorting);
 
   // 3. Render
   if (groups.length === 0) {

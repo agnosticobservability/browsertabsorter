@@ -5,8 +5,6 @@ import { setLoggerPreferences } from "./logger.js";
 const PREFERENCES_KEY = "preferences";
 
 export const defaultPreferences: Preferences = {
-  primaryGrouping: "url",
-  secondaryGrouping: "title",
   sorting: ["pinned", "recency"],
   debug: false,
   theme: "dark"
