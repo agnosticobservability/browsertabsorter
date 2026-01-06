@@ -114,7 +114,7 @@ export const calculateTabGroups = async (
     });
   }
 
-  const grouped = groupTabs(mapped, preferences.primaryGrouping, preferences.secondaryGrouping);
+  const grouped = groupTabs(mapped, preferences.sorting);
   grouped.forEach((group) => {
     group.tabs = sortTabs(group.tabs, preferences.sorting);
   });

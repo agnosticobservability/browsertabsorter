@@ -13,16 +13,6 @@ import {
   TabGroup
 } from "../shared/types.js";
 
-const deriveGroupingStrategy = (sorting: SortingStrategy[]): GroupingStrategy | undefined => {
-  // Map sorting strategies to grouping strategies in priority order
-  if (sorting.includes("context")) return "context";
-  if (sorting.includes("hierarchy")) return "hierarchy";
-  if (sorting.includes("url")) return "url";
-  if (sorting.includes("title")) return "title";
-  // "pinned" and "recency" do not map to grouping strategies
-  return undefined;
-};
-
 chrome.runtime.onInstalled.addListener(async () => {
   const prefs = await loadPreferences();
   logInfo("Extension installed", { prefs });
@@ -47,20 +37,7 @@ const handleMessage = async <TData>(
       const selection = payload.selection ?? {};
       const sorting = payload.sorting?.length ? payload.sorting : undefined;
 
-      let preferences = sorting ? { ...prefs, sorting } : prefs;
-
-      // If sorting strategies are provided, try to derive a matching grouping strategy
-      // This ensures the "Group" button respects the user's selection in the UI
-      if (sorting) {
-        const derivedGrouping = deriveGroupingStrategy(sorting);
-        if (derivedGrouping) {
-          preferences = {
-            ...preferences,
-            primaryGrouping: derivedGrouping,
-            secondaryGrouping: derivedGrouping // Reset secondary to match primary to avoid confusion
-          };
-        }
-      }
+      const preferences = sorting ? { ...prefs, sorting } : prefs;
 
       // Use calculateTabGroups to determine the target grouping
       const groups = await calculateTabGroups(preferences, selection);

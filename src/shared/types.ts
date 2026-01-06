@@ -70,8 +70,8 @@ export interface TabGroup {
   reason: string;
 }
 
-export type GroupingStrategy = "url" | "title" | "hierarchy" | "context";
 export type SortingStrategy = "recency" | "hierarchy" | "pinned" | "title" | "url" | "context";
+export type GroupingStrategy = SortingStrategy;
 
 export interface StoredTabState {
   id?: number;
@@ -108,8 +108,6 @@ export interface ApplyGroupingPayload {
 }
 
 export interface Preferences {
-  primaryGrouping: GroupingStrategy;
-  secondaryGrouping: GroupingStrategy;
   sorting: SortingStrategy[];
   debug: boolean;
   theme?: "light" | "dark";

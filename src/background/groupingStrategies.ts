@@ -1,4 +1,4 @@
-import { GroupingStrategy, TabGroup, TabMetadata } from "../shared/types.js";
+import { GroupingStrategy, SortingStrategy, TabGroup, TabMetadata } from "../shared/types.js";
 import { logDebug } from "./logger.js";
 
 const COLORS = ["blue", "cyan", "green", "orange", "purple", "red", "yellow"];
@@ -32,6 +32,16 @@ export const navigationKey = (tab: TabMetadata): string => {
     return `child-of-${tab.openerTabId}`;
   }
   return `window-${tab.windowId}`;
+};
+
+const getRecencyLabel = (lastAccessed: number): string => {
+  const now = Date.now();
+  const diff = now - lastAccessed;
+  if (diff < 3600000) return "Just now"; // 1h
+  if (diff < 86400000) return "Today"; // 24h
+  if (diff < 172800000) return "Yesterday"; // 48h
+  if (diff < 604800000) return "This Week"; // 7d
+  return "Older";
 };
 
 const colorForKey = (key: string, offset: number): string => COLORS[(Math.abs(hashCode(key)) + offset) % COLORS.length];
@@ -76,36 +86,31 @@ const getLabelComponent = (strategy: GroupingStrategy, tabs: TabMetadata[], allT
     case "context":
       // Using context directly as label
       return firstTab.context || "Uncategorized";
+    case "pinned":
+      return firstTab.pinned ? "Pinned" : "Unpinned";
+    case "recency":
+      return getRecencyLabel(firstTab.lastAccessed ?? 0);
     default:
       return "Unknown";
   }
 };
 
 const generateLabel = (
-  primary: GroupingStrategy,
-  secondary: GroupingStrategy,
+  strategies: GroupingStrategy[],
   tabs: TabMetadata[],
   allTabsMap: Map<number, TabMetadata>
 ): string => {
-  const primaryLabel = getLabelComponent(primary, tabs, allTabsMap);
+  const labels = strategies
+    .map(s => getLabelComponent(s, tabs, allTabsMap))
+    .filter(l => l && l !== "Unknown");
 
-  if (primary === secondary) {
-    return primaryLabel;
-  }
-
-  const secondaryLabel = getLabelComponent(secondary, tabs, allTabsMap);
-
-  // If labels are identical, just return one
-  if (primaryLabel === secondaryLabel) return primaryLabel;
-
-  // Formatting logic: "Primary (Secondary)" looks cleaner than "Primary · Secondary"
-  return `${primaryLabel} (${secondaryLabel})`;
+  if (labels.length === 0) return "Group";
+  return Array.from(new Set(labels)).join(" - ");
 };
 
 export const groupTabs = (
   tabs: TabMetadata[],
-  primary: GroupingStrategy,
-  secondary: GroupingStrategy
+  strategies: SortingStrategy[]
 ): TabGroup[] => {
   const buckets = new Map<string, TabGroup>();
 
@@ -114,9 +119,8 @@ export const groupTabs = (
   tabs.forEach(t => allTabsMap.set(t.id, t));
 
   tabs.forEach((tab) => {
-    const primaryKey = groupingKey(tab, primary);
-    const secondaryKey = groupingKey(tab, secondary);
-    const bucketKey = `window-${tab.windowId}::${primaryKey}::${secondaryKey}`;
+    const keys = strategies.map(s => groupingKey(tab, s));
+    const bucketKey = `window-${tab.windowId}::` + keys.join("::");
 
     let group = buckets.get(bucketKey);
     if (!group) {
@@ -126,7 +130,7 @@ export const groupTabs = (
         label: "", // Will be set later
         color: colorForKey(bucketKey, buckets.size),
         tabs: [],
-        reason: `${primary} + ${secondary}`
+        reason: strategies.join(" + ")
       };
       buckets.set(bucketKey, group);
     }
@@ -136,7 +140,7 @@ export const groupTabs = (
   // After populating buckets, generate labels
   const groups = Array.from(buckets.values());
   groups.forEach(group => {
-    group.label = generateLabel(primary, secondary, group.tabs, allTabsMap);
+    group.label = generateLabel(strategies, group.tabs, allTabsMap);
   });
 
   return groups;
@@ -152,6 +156,10 @@ export const groupingKey = (tab: TabMetadata, strategy: GroupingStrategy): strin
       return navigationKey(tab);
     case "context":
       return tab.context || "Uncategorized";
+    case "pinned":
+      return tab.pinned ? "pinned" : "unpinned";
+    case "recency":
+      return getRecencyLabel(tab.lastAccessed ?? 0);
     default:
       return "Unknown";
   }
