@@ -1,8 +1,8 @@
 import { SortingStrategy, TabMetadata } from "../shared/types.js";
 
-const recencyScore = (tab: TabMetadata) => tab.lastAccessed ?? 0;
-const hierarchyScore = (tab: TabMetadata) => (tab.openerTabId !== undefined ? 1 : 0);
-const pinnedScore = (tab: TabMetadata) => (tab.pinned ? 0 : 1);
+export const recencyScore = (tab: TabMetadata) => tab.lastAccessed ?? 0;
+export const hierarchyScore = (tab: TabMetadata) => (tab.openerTabId !== undefined ? 1 : 0);
+export const pinnedScore = (tab: TabMetadata) => (tab.pinned ? 0 : 1);
 
 export const sortTabs = (tabs: TabMetadata[], strategies: SortingStrategy[]): TabMetadata[] => {
   const scoring: SortingStrategy[] = strategies.length ? strategies : ["pinned", "recency"];
@@ -15,7 +15,7 @@ export const sortTabs = (tabs: TabMetadata[], strategies: SortingStrategy[]): Ta
   });
 };
 
-const compareBy = (strategy: SortingStrategy, a: TabMetadata, b: TabMetadata): number => {
+export const compareBy = (strategy: SortingStrategy, a: TabMetadata, b: TabMetadata): number => {
   switch (strategy) {
     case "recency":
       return (b.lastAccessed ?? 0) - (a.lastAccessed ?? 0);

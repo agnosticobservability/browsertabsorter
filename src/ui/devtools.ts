@@ -1,6 +1,18 @@
 import { analyzeTabContext, ContextResult } from "../background/contextAnalysis.js";
-import { groupTabs } from "../background/groupingStrategies.js";
-import { sortTabs } from "../background/sortingStrategies.js";
+import {
+  groupTabs,
+  domainFromUrl,
+  semanticBucket,
+  navigationKey,
+  groupingKey
+} from "../background/groupingStrategies.js";
+import {
+  sortTabs,
+  recencyScore,
+  hierarchyScore,
+  pinnedScore,
+  compareBy
+} from "../background/sortingStrategies.js";
 import { GroupingStrategy, Preferences, SortingStrategy, TabMetadata, TabGroup } from "../shared/types.js";
 
 // State
@@ -109,6 +121,12 @@ document.addEventListener('DOMContentLoaded', () => {
       if (tabId) {
         chrome.tabs.remove(tabId);
       }
+    } else if (target.matches('.strategy-view-btn')) {
+        const type = target.dataset.type;
+        const name = target.dataset.name;
+        if (type && name) {
+            showStrategyDetails(type, name);
+        }
     }
   });
 
@@ -308,7 +326,7 @@ function renderAlgorithmsView() {
   const groupingRef = document.getElementById('grouping-ref');
   const sortingRef = document.getElementById('sorting-ref');
 
-  if (groupingRef && groupingRef.innerHTML.trim() === '') {
+  if (groupingRef && groupingRef.children.length === 0) {
     const groupings = [
       { name: 'url', desc: 'Groups tabs by their domain name (e.g. google.com). Subdomains are stripped.' },
       { name: 'title', desc: 'Groups based on keywords in the title (e.g. Docs, Mail, Chat, Tasks).' },
@@ -320,11 +338,12 @@ function renderAlgorithmsView() {
       <div class="strategy-item">
         <div class="strategy-name">${g.name}</div>
         <div class="strategy-desc">${g.desc}</div>
+        <button class="strategy-view-btn" data-type="grouping" data-name="${g.name}">View Logic</button>
       </div>
     `).join('');
   }
 
-  if (sortingRef && sortingRef.innerHTML.trim() === '') {
+  if (sortingRef && sortingRef.children.length === 0) {
     const sortings = [
        { name: 'recency', desc: 'Sorts by last accessed time (most recent first).' },
        { name: 'hierarchy', desc: 'Keeps child tabs adjacent to their parents.' },
@@ -338,9 +357,85 @@ function renderAlgorithmsView() {
       <div class="strategy-item">
         <div class="strategy-name">${s.name}</div>
         <div class="strategy-desc">${s.desc}</div>
+        <button class="strategy-view-btn" data-type="sorting" data-name="${s.name}">View Logic</button>
       </div>
     `).join('');
   }
+}
+
+function showStrategyDetails(type: string, name: string) {
+    let content = "";
+    let title = `${name} (${type})`;
+
+    if (type === 'grouping') {
+        if (name === 'url') {
+            content = `
+<h3>Logic: Domain Extraction</h3>
+<pre><code>${escapeHtml(domainFromUrl.toString())}</code></pre>
+<h3>Logic: Grouping Key</h3>
+<pre><code>${escapeHtml(groupingKey.toString())}</code></pre>
+            `;
+        } else if (name === 'title') {
+            content = `
+<h3>Logic: Semantic Bucketing</h3>
+<pre><code>${escapeHtml(semanticBucket.toString())}</code></pre>
+<h3>Logic: Grouping Key</h3>
+<pre><code>${escapeHtml(groupingKey.toString())}</code></pre>
+            `;
+        } else if (name === 'hierarchy') {
+            content = `
+<h3>Logic: Navigation Key</h3>
+<pre><code>${escapeHtml(navigationKey.toString())}</code></pre>
+<h3>Logic: Grouping Key</h3>
+<pre><code>${escapeHtml(groupingKey.toString())}</code></pre>
+            `;
+        } else {
+            content = `
+<h3>Logic: Grouping Key</h3>
+<pre><code>${escapeHtml(groupingKey.toString())}</code></pre>
+            `;
+        }
+    } else if (type === 'sorting') {
+        content = `
+<h3>Logic: Comparison Function</h3>
+<pre><code>${escapeHtml(compareBy.toString())}</code></pre>
+        `;
+
+        if (name === 'recency') {
+             content += `<h3>Logic: Recency Score</h3><pre><code>${escapeHtml(recencyScore.toString())}</code></pre>`;
+        } else if (name === 'hierarchy') {
+             content += `<h3>Logic: Hierarchy Score</h3><pre><code>${escapeHtml(hierarchyScore.toString())}</code></pre>`;
+        } else if (name === 'pinned') {
+             content += `<h3>Logic: Pinned Score</h3><pre><code>${escapeHtml(pinnedScore.toString())}</code></pre>`;
+        }
+    }
+
+    const modalOverlay = document.createElement('div');
+    modalOverlay.className = 'modal-overlay';
+    modalOverlay.innerHTML = `
+        <div class="modal">
+            <div class="modal-header">
+                <h3>${title}</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-content">
+                ${content}
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modalOverlay);
+
+    const closeBtn = modalOverlay.querySelector('.modal-close');
+    closeBtn?.addEventListener('click', () => {
+        document.body.removeChild(modalOverlay);
+    });
+
+    modalOverlay.addEventListener('click', (e) => {
+        if (e.target === modalOverlay) {
+             document.body.removeChild(modalOverlay);
+        }
+    });
 }
 
 function runSimulation() {

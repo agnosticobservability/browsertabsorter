@@ -3,7 +3,7 @@ import { logDebug } from "./logger.js";
 
 const COLORS = ["blue", "cyan", "green", "orange", "purple", "red", "yellow"];
 
-const domainFromUrl = (url: string): string => {
+export const domainFromUrl = (url: string): string => {
   try {
     const parsed = new URL(url);
     return parsed.hostname.replace(/^www\./, "");
@@ -17,7 +17,7 @@ const stripTld = (domain: string): string => {
   return domain.replace(/\.(com|org|gov|net|edu|io)$/i, "");
 };
 
-const semanticBucket = (title: string, url: string): string => {
+export const semanticBucket = (title: string, url: string): string => {
   const key = `${title} ${url}`.toLowerCase();
   if (key.includes("doc") || key.includes("readme") || key.includes("guide")) return "Docs";
   if (key.includes("mail") || key.includes("inbox")) return "Chat";
@@ -27,7 +27,7 @@ const semanticBucket = (title: string, url: string): string => {
   return "Misc";
 };
 
-const navigationKey = (tab: TabMetadata): string => {
+export const navigationKey = (tab: TabMetadata): string => {
   if (tab.openerTabId !== undefined) {
     return `child-of-${tab.openerTabId}`;
   }
@@ -142,7 +142,7 @@ export const groupTabs = (
   return groups;
 };
 
-const groupingKey = (tab: TabMetadata, strategy: GroupingStrategy): string => {
+export const groupingKey = (tab: TabMetadata, strategy: GroupingStrategy): string => {
   switch (strategy) {
     case "url":
       return domainFromUrl(tab.url);

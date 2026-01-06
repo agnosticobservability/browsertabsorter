@@ -233,6 +233,7 @@ select, input[type="text"] {
   border-radius: 2px;
 }
 
+/* Strategy Reference */
 .strategy-list {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
@@ -242,16 +243,113 @@ select, input[type="text"] {
 .strategy-item {
   border: 1px solid #eee;
   border-radius: 4px;
-  padding: 10px;
+  padding: 15px;
+  transition: box-shadow 0.2s;
+  background-color: #fafafa;
+  position: relative;
+}
+
+.strategy-item:hover {
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+  background-color: #fff;
 }
 
 .strategy-name {
   font-weight: bold;
   color: #007bff;
   margin-bottom: 5px;
+  font-size: 1.1em;
 }
 
 .strategy-desc {
   font-size: 0.9em;
   color: #555;
+  margin-bottom: 10px;
+}
+
+.strategy-view-btn {
+  background-color: transparent;
+  color: #007bff;
+  border: 1px solid #007bff;
+  padding: 4px 8px;
+  font-size: 12px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.strategy-view-btn:hover {
+  background-color: #007bff;
+  color: white;
+}
+
+/* Modal */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal {
+  background: white;
+  width: 90%;
+  max-width: 800px;
+  max-height: 90vh;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-header {
+  padding: 15px 20px;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-header h3 {
+  margin: 0;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #aaa;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+
+.modal-close:hover {
+  color: #333;
+}
+
+.modal-content {
+  padding: 20px;
+  overflow-y: auto;
+}
+
+pre {
+  background: #f4f4f4;
+  padding: 15px;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+  overflow-x: auto;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 13px;
+  margin: 0;
+}
+
+code {
+  color: #d63384;
 }
