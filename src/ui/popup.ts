@@ -24,6 +24,7 @@ const sortHierarchy = document.getElementById("sortHierarchy") as HTMLInputEleme
 const sortTitle = document.getElementById("sortTitle") as HTMLInputElement;
 const sortUrl = document.getElementById("sortUrl") as HTMLInputElement;
 const sortContext = document.getElementById("sortContext") as HTMLInputElement;
+const sortSection = document.querySelector(".sort-chips") as HTMLDivElement;
 
 const selectAllCheckbox = document.getElementById("selectAll") as HTMLInputElement;
 const btnSort = document.getElementById("btnSort") as HTMLButtonElement;
@@ -379,6 +380,37 @@ const renderTree = () => {
   updateStats();
 };
 
+const renderSortOptions = () => {
+    if (!preferences) return;
+
+    // Remove existing custom chips first
+    document.querySelectorAll(".chip[data-custom='true']").forEach(el => el.remove());
+
+    preferences.customGroupingStrategies.forEach(strategy => {
+        const label = document.createElement("label");
+        label.className = "chip";
+        label.dataset.custom = "true";
+        if (preferences?.sorting.includes(strategy.id)) {
+            label.classList.add("active");
+        }
+
+        const input = document.createElement("input");
+        input.type = "checkbox";
+        input.id = `sort-${strategy.id}`;
+        input.checked = preferences?.sorting.includes(strategy.id) ?? false;
+
+        input.addEventListener("change", (e) => {
+             const target = e.target as HTMLInputElement;
+             if (target.checked) target.parentElement?.classList.add('active');
+             else target.parentElement?.classList.remove('active');
+        });
+
+        label.appendChild(input);
+        label.appendChild(document.createTextNode(` ${strategy.name}`));
+        sortSection.appendChild(label);
+    });
+};
+
 const loadState = async () => {
   const [state, currentWindow, chromeWindows] = await Promise.all([
     fetchState(),
@@ -397,7 +429,15 @@ const loadState = async () => {
     sortTitle.checked = s.includes("title");
     sortUrl.checked = s.includes("url");
     sortContext.checked = s.includes("context");
+
+    // Render custom options
+    renderSortOptions();
     sortingInitialized = true;
+  }
+
+  // Re-render sort options if preferences updated (e.g. new strategy added)
+  if (preferences && sortingInitialized) {
+      renderSortOptions();
   }
 
   if (preferences && preferences.theme) {
@@ -432,6 +472,15 @@ const getSelectedSorting = (): SortingStrategy[] => {
   if (sortTitle.checked) selected.push("title");
   if (sortUrl.checked) selected.push("url");
   if (sortContext.checked) selected.push("context");
+
+  // Add custom strategies
+  if (preferences) {
+      preferences.customGroupingStrategies.forEach(s => {
+          const input = document.getElementById(`sort-${s.id}`) as HTMLInputElement;
+          if (input && input.checked) selected.push(s.id);
+      });
+  }
+
   return selected.length ? selected : (preferences?.sorting ?? ["pinned", "recency"]);
 };
 
@@ -493,6 +542,10 @@ document.getElementById("btnSaveState")?.addEventListener("click", async () => {
 
 const loadStateDialog = document.getElementById("loadStateDialog") as HTMLDialogElement;
 const savedStateList = document.getElementById("savedStateList") as HTMLElement;
+
+document.getElementById("btnOptions")?.addEventListener("click", () => {
+  chrome.runtime.openOptionsPage();
+});
 
 document.getElementById("btnLoadState")?.addEventListener("click", async () => {
   const res = await sendMessage<SavedState[]>("getSavedStates");

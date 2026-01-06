@@ -9,7 +9,8 @@ export const defaultPreferences: Preferences = {
   secondaryGrouping: "title",
   sorting: ["pinned", "recency"],
   debug: false,
-  theme: "dark"
+  theme: "dark",
+  customGroupingStrategies: []
 };
 
 export const loadPreferences = async (): Promise<Preferences> => {

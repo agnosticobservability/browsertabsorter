@@ -70,8 +70,9 @@ export interface TabGroup {
   reason: string;
 }
 
-export type GroupingStrategy = "url" | "title" | "hierarchy" | "context";
-export type SortingStrategy = "recency" | "hierarchy" | "pinned" | "title" | "url" | "context";
+// GroupingStrategy and SortingStrategy can now be built-in literals or a custom strategy ID string
+export type GroupingStrategy = "url" | "title" | "hierarchy" | "context" | (string & {});
+export type SortingStrategy = "recency" | "hierarchy" | "pinned" | "title" | "url" | "context" | (string & {});
 
 export interface StoredTabState {
   id?: number;
@@ -107,12 +108,27 @@ export interface ApplyGroupingPayload {
   sorting?: SortingStrategy[];
 }
 
+export type MatchType = 'domain' | 'url-contains' | 'title-contains' | 'regex';
+
+export interface CustomGroupingRule {
+  type: MatchType;
+  pattern: string;
+  target: string; // The group name
+}
+
+export interface CustomGroupingStrategy {
+  id: string;
+  name: string;
+  rules: CustomGroupingRule[];
+}
+
 export interface Preferences {
   primaryGrouping: GroupingStrategy;
   secondaryGrouping: GroupingStrategy;
   sorting: SortingStrategy[];
   debug: boolean;
   theme?: "light" | "dark";
+  customGroupingStrategies: CustomGroupingStrategy[];
 }
 
 export interface RuntimeMessage<TPayload = unknown> {

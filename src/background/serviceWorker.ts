@@ -13,12 +13,20 @@ import {
   TabGroup
 } from "../shared/types.js";
 
-const deriveGroupingStrategy = (sorting: SortingStrategy[]): GroupingStrategy | undefined => {
+const deriveGroupingStrategy = (sorting: SortingStrategy[], prefs: Preferences): GroupingStrategy | undefined => {
   // Map sorting strategies to grouping strategies in priority order
   if (sorting.includes("context")) return "context";
   if (sorting.includes("hierarchy")) return "hierarchy";
   if (sorting.includes("url")) return "url";
   if (sorting.includes("title")) return "title";
+
+  // Check if any sorting strategy matches a custom strategy ID
+  for (const sort of sorting) {
+    if (prefs.customGroupingStrategies.some(s => s.id === sort)) {
+        return sort as GroupingStrategy; // Cast because sorting types are string literals but custom are dynamic
+    }
+  }
+
   // "pinned" and "recency" do not map to grouping strategies
   return undefined;
 };
@@ -52,7 +60,7 @@ const handleMessage = async <TData>(
       // If sorting strategies are provided, try to derive a matching grouping strategy
       // This ensures the "Group" button respects the user's selection in the UI
       if (sorting) {
-        const derivedGrouping = deriveGroupingStrategy(sorting);
+        const derivedGrouping = deriveGroupingStrategy(sorting, prefs);
         if (derivedGrouping) {
           preferences = {
             ...preferences,

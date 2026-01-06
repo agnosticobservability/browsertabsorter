@@ -10,6 +10,10 @@
     "default_title": "Tab Sorter",
     "default_popup": "ui/popup.html"
   },
+  "options_ui": {
+    "page": "ui/options.html",
+    "open_in_tab": true
+  },
   "background": {
     "service_worker": "dist/background/serviceWorker.js",
     "type": "module"

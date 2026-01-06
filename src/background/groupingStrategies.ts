@@ -1,4 +1,4 @@
-import { GroupingStrategy, TabGroup, TabMetadata } from "../shared/types.js";
+import { CustomGroupingStrategy, GroupingStrategy, TabGroup, TabMetadata } from "../shared/types.js";
 import { logDebug } from "./logger.js";
 
 const COLORS = ["blue", "cyan", "green", "orange", "purple", "red", "yellow"];
@@ -34,6 +34,44 @@ const navigationKey = (tab: TabMetadata): string => {
   return `window-${tab.windowId}`;
 };
 
+const evaluateCustomStrategy = (tab: TabMetadata, strategyId: string, customStrategies: CustomGroupingStrategy[]): string => {
+  const strategy = customStrategies.find(s => s.id === strategyId);
+  if (!strategy) return "Unknown";
+
+  for (const rule of strategy.rules) {
+    let match = false;
+    switch (rule.type) {
+      case "domain":
+        try {
+          const domain = new URL(tab.url).hostname;
+          if (domain.includes(rule.pattern)) match = true;
+        } catch { /* ignore */ }
+        break;
+      case "url-contains":
+        if (tab.url.includes(rule.pattern)) match = true;
+        break;
+      case "title-contains":
+        if (tab.title.includes(rule.pattern)) match = true;
+        break;
+      case "regex":
+        try {
+          // Rule pattern string might look like "/pattern/flags" or just "pattern"
+          // For simplicity, let's assume it's just the regex body, case insensitive by default, or the user provides flags?
+          // Since it's user provided string, we should use a simplified approach or parse it.
+          // Let's assume just a standard regex constructor for now.
+          const re = new RegExp(rule.pattern, "i");
+          if (re.test(tab.url) || re.test(tab.title)) match = true;
+        } catch (e) {
+          logDebug("Invalid regex in rule", { pattern: rule.pattern, error: String(e) });
+        }
+        break;
+    }
+
+    if (match) return rule.target;
+  }
+  return "Unmatched";
+};
+
 const colorForKey = (key: string, offset: number): string => COLORS[(Math.abs(hashCode(key)) + offset) % COLORS.length];
 
 const hashCode = (value: string): number => {
@@ -45,8 +83,29 @@ const hashCode = (value: string): number => {
   return hash;
 };
 
+const groupingKey = (tab: TabMetadata, strategy: GroupingStrategy, customStrategies: CustomGroupingStrategy[]): string => {
+  switch (strategy) {
+    case "url":
+      return domainFromUrl(tab.url);
+    case "title":
+      return semanticBucket(tab.title, tab.url);
+    case "hierarchy":
+      return navigationKey(tab);
+    case "context":
+      return tab.context || "Uncategorized";
+    default:
+      // Check custom strategies
+      return evaluateCustomStrategy(tab, strategy, customStrategies);
+  }
+};
+
 // Helper to get a human-readable label component from a strategy and a set of tabs
-const getLabelComponent = (strategy: GroupingStrategy, tabs: TabMetadata[], allTabsMap: Map<number, TabMetadata>): string => {
+const getLabelComponent = (
+  strategy: GroupingStrategy,
+  tabs: TabMetadata[],
+  allTabsMap: Map<number, TabMetadata>,
+  customStrategies: CustomGroupingStrategy[]
+): string => {
   const firstTab = tabs[0];
   if (!firstTab) return "Unknown";
 
@@ -77,7 +136,9 @@ const getLabelComponent = (strategy: GroupingStrategy, tabs: TabMetadata[], allT
       // Using context directly as label
       return firstTab.context || "Uncategorized";
     default:
-      return "Unknown";
+      // For custom strategies, the groupingKey already returns the target group name.
+      // So we can re-evaluate the key or just use what we have.
+      return evaluateCustomStrategy(firstTab, strategy, customStrategies);
   }
 };
 
@@ -85,15 +146,16 @@ const generateLabel = (
   primary: GroupingStrategy,
   secondary: GroupingStrategy,
   tabs: TabMetadata[],
-  allTabsMap: Map<number, TabMetadata>
+  allTabsMap: Map<number, TabMetadata>,
+  customStrategies: CustomGroupingStrategy[]
 ): string => {
-  const primaryLabel = getLabelComponent(primary, tabs, allTabsMap);
+  const primaryLabel = getLabelComponent(primary, tabs, allTabsMap, customStrategies);
 
   if (primary === secondary) {
     return primaryLabel;
   }
 
-  const secondaryLabel = getLabelComponent(secondary, tabs, allTabsMap);
+  const secondaryLabel = getLabelComponent(secondary, tabs, allTabsMap, customStrategies);
 
   // If labels are identical, just return one
   if (primaryLabel === secondaryLabel) return primaryLabel;
@@ -105,7 +167,8 @@ const generateLabel = (
 export const groupTabs = (
   tabs: TabMetadata[],
   primary: GroupingStrategy,
-  secondary: GroupingStrategy
+  secondary: GroupingStrategy,
+  customStrategies: CustomGroupingStrategy[] = []
 ): TabGroup[] => {
   const buckets = new Map<string, TabGroup>();
 
@@ -114,8 +177,8 @@ export const groupTabs = (
   tabs.forEach(t => allTabsMap.set(t.id, t));
 
   tabs.forEach((tab) => {
-    const primaryKey = groupingKey(tab, primary);
-    const secondaryKey = groupingKey(tab, secondary);
+    const primaryKey = groupingKey(tab, primary, customStrategies);
+    const secondaryKey = groupingKey(tab, secondary, customStrategies);
     const bucketKey = `window-${tab.windowId}::${primaryKey}::${secondaryKey}`;
 
     let group = buckets.get(bucketKey);
@@ -136,23 +199,8 @@ export const groupTabs = (
   // After populating buckets, generate labels
   const groups = Array.from(buckets.values());
   groups.forEach(group => {
-    group.label = generateLabel(primary, secondary, group.tabs, allTabsMap);
+    group.label = generateLabel(primary, secondary, group.tabs, allTabsMap, customStrategies);
   });
 
   return groups;
-};
-
-const groupingKey = (tab: TabMetadata, strategy: GroupingStrategy): string => {
-  switch (strategy) {
-    case "url":
-      return domainFromUrl(tab.url);
-    case "title":
-      return semanticBucket(tab.title, tab.url);
-    case "hierarchy":
-      return navigationKey(tab);
-    case "context":
-      return tab.context || "Uncategorized";
-    default:
-      return "Unknown";
-  }
 };

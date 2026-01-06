@@ -114,7 +114,14 @@ export const calculateTabGroups = async (
     });
   }
 
-  const grouped = groupTabs(mapped, preferences.primaryGrouping, preferences.secondaryGrouping);
+  // Pass custom strategies to groupTabs
+  const grouped = groupTabs(
+    mapped,
+    preferences.primaryGrouping,
+    preferences.secondaryGrouping,
+    preferences.customGroupingStrategies
+  );
+
   grouped.forEach((group) => {
     group.tabs = sortTabs(group.tabs, preferences.sorting);
   });
