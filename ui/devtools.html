@@ -59,31 +59,19 @@
             <h2>Grouping & Sorting Simulation</h2>
             <p>Simulate how the current tabs would be organized using different strategies.</p>
 
-            <div class="controls-grid">
-              <div class="control-group">
-                <label for="sim-primary">Primary Grouping</label>
-                <select id="sim-primary">
-                  <option value="url">URL (Domain)</option>
-                  <option value="title">Title (Topic)</option>
-                  <option value="hierarchy">Hierarchy (Tree)</option>
-                  <option value="context">Context</option>
-                </select>
+            <div class="simulation-config">
+              <div class="config-section">
+                <h3>Grouping Strategies</h3>
+                <div class="strategy-list-container" id="sim-grouping-list">
+                  <!-- Injected by JS -->
+                </div>
               </div>
 
-              <div class="control-group">
-                <label for="sim-secondary">Secondary Grouping</label>
-                <select id="sim-secondary">
-                  <option value="url">URL (Domain)</option>
-                  <option value="title">Title (Topic)</option>
-                  <option value="hierarchy">Hierarchy (Tree)</option>
-                  <option value="context">Context</option>
-                </select>
-              </div>
-
-              <div class="control-group">
-                 <label for="sim-sorting">Sorting Strategies (comma separated)</label>
-                 <input type="text" id="sim-sorting" value="pinned, recency" placeholder="e.g. pinned, recency, title">
-                 <small style="color: #666; font-size: 0.8em;">Available: recency, hierarchy, pinned, title, url, context</small>
+              <div class="config-section">
+                <h3>Sorting Strategies</h3>
+                <div class="strategy-list-container" id="sim-sorting-list">
+                   <!-- Injected by JS -->
+                </div>
               </div>
             </div>
 
