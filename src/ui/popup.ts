@@ -395,7 +395,7 @@ function renderStrategyList(container: HTMLElement, strategies: StrategyDefiniti
         const row = document.createElement('div');
         row.className = `strategy-row ${isChecked ? 'active' : ''}`;
         row.dataset.id = strategy.id;
-        // row.draggable = true; // TODO: Implement DnD for popup if needed
+        row.draggable = true;
 
         row.innerHTML = `
             <div class="strategy-drag-handle">☰</div>
@@ -426,8 +426,65 @@ function renderStrategyList(container: HTMLElement, strategies: StrategyDefiniti
             }
         });
 
+        addDnDListeners(row);
+
         container.appendChild(row);
     });
+}
+
+function addDnDListeners(row: HTMLElement) {
+  row.addEventListener('dragstart', (e) => {
+    row.classList.add('dragging');
+    if (e.dataTransfer) {
+        e.dataTransfer.effectAllowed = 'move';
+    }
+  });
+
+  row.addEventListener('dragend', async () => {
+    row.classList.remove('dragging');
+    // Save order on drag end
+    if (preferences) {
+        const currentSorting = getSelectedSorting();
+        preferences.sorting = currentSorting;
+        await sendMessage("savePreferences", { sorting: currentSorting });
+    }
+  });
+}
+
+function setupContainerDnD(container: HTMLElement) {
+    container.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        const afterElement = getDragAfterElement(container, e.clientY);
+
+        // Scope draggable to be a strategy-row
+        const draggableRow = document.querySelector('.strategy-row.dragging');
+        // Ensure we only drag within the same container (prevent cross-list dragging)
+        if (draggableRow && draggableRow.parentElement === container) {
+             if (afterElement == null) {
+                container.appendChild(draggableRow);
+             } else {
+                container.insertBefore(draggableRow, afterElement);
+             }
+        }
+    });
+}
+
+// Initialize DnD on containers once
+setupContainerDnD(groupingListContainer);
+setupContainerDnD(sortingListContainer);
+
+function getDragAfterElement(container: HTMLElement, y: number) {
+  const draggableElements = Array.from(container.querySelectorAll('.strategy-row:not(.dragging)'));
+
+  return draggableElements.reduce((closest, child) => {
+    const box = child.getBoundingClientRect();
+    const offset = y - box.top - box.height / 2;
+    if (offset < 0 && offset > closest.offset) {
+      return { offset: offset, element: child };
+    } else {
+      return closest;
+    }
+  }, { offset: Number.NEGATIVE_INFINITY, element: null as Element | null }).element;
 }
 
 const loadState = async () => {
