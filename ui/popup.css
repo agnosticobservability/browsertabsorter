@@ -110,9 +110,9 @@ body {
 /* Sort Controls */
 .sort-section {
   background: var(--bg-card);
-  padding: 12px;
+  padding: 8px;
   border-radius: var(--radius-md);
-  margin-bottom: 20px;
+  margin-bottom: 12px;
   border: 1px solid var(--border-color);
 }
 
@@ -120,7 +120,7 @@ body {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 }
 
 .chip {
@@ -378,8 +378,8 @@ body {
 /* Strategy Lists (New) */
 .strategies-container {
   display: flex;
-  gap: 12px;
-  margin-bottom: 12px;
+  gap: 8px;
+  margin-bottom: 8px;
 }
 
 .strategy-group {
@@ -387,10 +387,10 @@ body {
 }
 
 .strategy-section-title {
-  font-size: 11px;
+  font-size: 10px;
   text-transform: uppercase;
   color: var(--text-muted);
-  margin-bottom: 6px;
+  margin-bottom: 4px;
   font-weight: 700;
   letter-spacing: 0.5px;
 }
@@ -404,7 +404,7 @@ body {
 .strategy-row {
   display: flex;
   align-items: center;
-  padding: 4px 6px;
+  padding: 2px 4px;
   border-radius: 4px;
   cursor: pointer;
   user-select: none;
@@ -436,9 +436,17 @@ body {
   opacity: 0.5;
   cursor: grab;
   font-size: 10px;
-  display: none; /* Hidden by default until DnD is fully implemented */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
 }
 
 .strategy-row:hover .strategy-drag-handle {
   opacity: 1;
+}
+
+.strategy-row.dragging {
+  opacity: 0.5;
+  background: var(--hover-bg);
 }
