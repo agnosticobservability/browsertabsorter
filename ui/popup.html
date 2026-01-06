@@ -65,44 +65,15 @@
     </header>
 
     <div class="sort-section">
-      <div class="sort-chips">
-        <!-- Shared/General -->
-        <label class="chip">
-          <input type="checkbox" id="sortPinned"> Pinned
-        </label>
-        <label class="chip">
-          <input type="checkbox" id="sortContext"> Context
-        </label>
-
-        <!-- Time -->
-        <label class="chip">
-          <input type="checkbox" id="sortAge"> Age
-        </label>
-        <label class="chip">
-          <input type="checkbox" id="sortRecency"> Recency
-        </label>
-
-        <!-- Structure -->
-        <label class="chip">
-          <input type="checkbox" id="sortLineage"> Lineage
-        </label>
-        <label class="chip">
-          <input type="checkbox" id="sortNesting"> Nesting
-        </label>
-
-        <!-- Content -->
-        <label class="chip">
-          <input type="checkbox" id="sortDomain"> Domain
-        </label>
-        <label class="chip">
-          <input type="checkbox" id="sortUrl"> URL
-        </label>
-        <label class="chip">
-          <input type="checkbox" id="sortTopic"> Topic
-        </label>
-        <label class="chip">
-          <input type="checkbox" id="sortTitle"> Title
-        </label>
+      <div class="strategies-container">
+        <div class="strategy-group">
+          <div class="strategy-section-title">Grouping</div>
+          <div id="grouping-strategies" class="strategy-list"></div>
+        </div>
+        <div class="strategy-group">
+          <div class="strategy-section-title">Sorting</div>
+          <div id="sorting-strategies" class="strategy-list"></div>
+        </div>
       </div>
       <div class="action-bar">
         <button id="btnSort" class="btn">Sort</button>
