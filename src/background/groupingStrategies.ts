@@ -1,4 +1,5 @@
 import { GroupingStrategy, SortingStrategy, TabGroup, TabMetadata } from "../shared/types.js";
+import { getStrategy } from "../shared/strategyRegistry.js";
 import { logDebug } from "./logger.js";
 
 const COLORS = ["blue", "cyan", "green", "orange", "purple", "red", "yellow"];
@@ -121,6 +122,7 @@ export const groupTabs = (
   tabs: TabMetadata[],
   strategies: SortingStrategy[]
 ): TabGroup[] => {
+  const effectiveStrategies = strategies.filter(s => getStrategy(s)?.isGrouping);
   const buckets = new Map<string, TabGroup>();
 
   // Create a map of all tabs for easy lookup (needed for navigation parent title resolution)
@@ -128,7 +130,7 @@ export const groupTabs = (
   tabs.forEach(t => allTabsMap.set(t.id, t));
 
   tabs.forEach((tab) => {
-    const keys = strategies.map(s => groupingKey(tab, s));
+    const keys = effectiveStrategies.map(s => groupingKey(tab, s));
     const bucketKey = `window-${tab.windowId}::` + keys.join("::");
 
     let group = buckets.get(bucketKey);
@@ -139,7 +141,7 @@ export const groupTabs = (
         label: "", // Will be set later
         color: colorForKey(bucketKey, buckets.size),
         tabs: [],
-        reason: strategies.join(" + ")
+        reason: effectiveStrategies.join(" + ")
       };
       buckets.set(bucketKey, group);
     }
@@ -149,7 +151,7 @@ export const groupTabs = (
   // After populating buckets, generate labels
   const groups = Array.from(buckets.values());
   groups.forEach(group => {
-    group.label = generateLabel(strategies, group.tabs, allTabsMap);
+    group.label = generateLabel(effectiveStrategies, group.tabs, allTabsMap);
   });
 
   return groups;
