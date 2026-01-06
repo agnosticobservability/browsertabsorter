@@ -70,7 +70,7 @@ export interface TabGroup {
   reason: string;
 }
 
-export type SortingStrategy = "recency" | "hierarchy" | "pinned" | "title" | "url" | "context";
+export type SortingStrategy = "domain" | "url" | "topic" | "title" | "lineage" | "nesting" | "context" | "pinned" | "age" | "recency";
 export type GroupingStrategy = SortingStrategy;
 
 export interface StoredTabState {
