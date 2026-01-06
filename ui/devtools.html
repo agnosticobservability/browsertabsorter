@@ -112,6 +112,18 @@
             <div class="strategy-list" id="registry-ref">
                <!-- Populated by JS -->
             </div>
+
+            <div id="custom-genera-container" style="margin-top: 20px; border-top: 1px solid #eee; padding-top: 15px;">
+              <h3>Custom Genera</h3>
+              <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                <input type="text" id="new-genera-domain" placeholder="Domain (e.g. example.com)" style="flex: 1; padding: 5px;">
+                <input type="text" id="new-genera-category" placeholder="Category (e.g. Work)" style="flex: 1; padding: 5px;">
+                <button id="add-genera-btn" style="padding: 5px 15px;">Add</button>
+              </div>
+              <div id="custom-genera-list" style="max-height: 200px; overflow-y: auto;">
+                <!-- Custom entries populated by JS -->
+              </div>
+            </div>
           </div>
 
         </div>

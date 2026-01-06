@@ -114,6 +114,7 @@ export interface Preferences {
   sorting: SortingStrategy[];
   debug: boolean;
   theme?: "light" | "dark";
+  customGenera?: Record<string, string>;
 }
 
 export interface RuntimeMessage<TPayload = unknown> {

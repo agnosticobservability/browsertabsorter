@@ -7,7 +7,8 @@ const PREFERENCES_KEY = "preferences";
 export const defaultPreferences: Preferences = {
   sorting: ["pinned", "recency"],
   debug: false,
-  theme: "dark"
+  theme: "dark",
+  customGenera: {}
 };
 
 export const loadPreferences = async (): Promise<Preferences> => {
