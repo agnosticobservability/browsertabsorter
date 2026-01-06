@@ -15,6 +15,7 @@ import {
   compareBy
 } from "../background/sortingStrategies.js";
 import { GroupingStrategy, Preferences, SortingStrategy, TabMetadata, TabGroup } from "../shared/types.js";
+import { STRATEGIES, StrategyDefinition } from "../shared/strategyRegistry.js";
 
 // State
 let currentTabs: chrome.tabs.Tab[] = [];
@@ -180,7 +181,7 @@ function getMappedTabs(): TabMetadata[] {
         title: tab.title,
         url: tab.url,
         pinned: !!tab.pinned,
-        lastAccessed: tab.lastAccessed,
+        lastAccessed: (tab as any).lastAccessed,
         openerTabId: tab.openerTabId,
         favIconUrl: tab.favIconUrl || undefined,
         context: contextResult?.context,
@@ -308,7 +309,7 @@ function renderTable() {
         ${escapeHtml(aiContext)}
         ${contextResult?.data ? ` <button class="context-json-btn" data-tab-id="${tab.id}">View JSON</button>` : ''}
       </td>
-      <td>${new Date(tab.lastAccessed || 0).toLocaleString()}</td>
+      <td>${new Date((tab as any).lastAccessed || 0).toLocaleString()}</td>
       <td>
         <button class="goto-tab-btn" data-tab-id="${tab.id}" data-window-id="${tab.windowId}">Go to Tab</button>
         <button class="close-tab-btn" data-tab-id="${tab.id}" style="background-color: #dc3545; margin-left: 5px;">Close</button>
@@ -320,26 +321,10 @@ function renderTable() {
 }
 
 function renderAlgorithmsView() {
+  renderStrategyConfig();
+
   const groupingRef = document.getElementById('grouping-ref');
   const sortingRef = document.getElementById('sorting-ref');
-
-  // Update dropdown options
-  const simPrimary = document.getElementById('sim-primary') as HTMLSelectElement;
-  const simSecondary = document.getElementById('sim-secondary') as HTMLSelectElement;
-
-  if (simPrimary && simPrimary.options.length < 5) {
-      const options = [
-          { value: 'domain', text: 'Domain (Content)' },
-          { value: 'topic', text: 'Topic (Content)' },
-          { value: 'lineage', text: 'Lineage (Structure)' },
-          { value: 'context', text: 'Context (AI)' },
-          { value: 'age', text: 'Age (Time)' }
-      ];
-
-      [simPrimary, simSecondary].forEach(select => {
-          select.innerHTML = options.map(o => `<option value="${o.value}">${o.text}</option>`).join('');
-      });
-  }
 
   if (groupingRef && groupingRef.children.length === 0) {
     const groupings = [
@@ -392,6 +377,77 @@ function renderAlgorithmsView() {
         </div>
       `;
   }
+}
+
+function renderStrategyConfig() {
+  const groupingList = document.getElementById('sim-grouping-list');
+  const sortingList = document.getElementById('sim-sorting-list');
+
+  if (groupingList && groupingList.children.length === 0) {
+      const groupingStrategies = STRATEGIES.filter(s => s.isGrouping);
+      renderStrategyList(groupingList, groupingStrategies, ['domain', 'topic']); // Default enabled
+  }
+
+  if (sortingList && sortingList.children.length === 0) {
+      const sortingStrategies = STRATEGIES.filter(s => s.isSorting);
+      renderStrategyList(sortingList, sortingStrategies, ['pinned', 'recency']); // Default enabled
+  }
+}
+
+function renderStrategyList(container: HTMLElement, strategies: StrategyDefinition[], defaultEnabled: string[]) {
+    container.innerHTML = '';
+
+    // Sort enabled by their index in defaultEnabled
+    const enabled = strategies.filter(s => defaultEnabled.includes(s.id));
+    enabled.sort((a, b) => defaultEnabled.indexOf(a.id) - defaultEnabled.indexOf(b.id));
+
+    const disabled = strategies.filter(s => !defaultEnabled.includes(s.id));
+
+    // Initial render order: Enabled (ordered) then Disabled
+    const ordered = [...enabled, ...disabled];
+
+    ordered.forEach(strategy => {
+        const isChecked = defaultEnabled.includes(strategy.id);
+        const row = document.createElement('div');
+        row.className = `strategy-row ${isChecked ? '' : 'disabled'}`;
+        row.dataset.id = strategy.id;
+
+        row.innerHTML = `
+            <input type="checkbox" ${isChecked ? 'checked' : ''}>
+            <span class="strategy-label">${strategy.label}</span>
+            <div class="strategy-reorder">
+                <button class="reorder-btn up">▲</button>
+                <button class="reorder-btn down">▼</button>
+            </div>
+        `;
+
+        // Add listeners
+        const checkbox = row.querySelector('input[type="checkbox"]');
+        checkbox?.addEventListener('change', (e) => {
+            const checked = (e.target as HTMLInputElement).checked;
+            row.classList.toggle('disabled', !checked);
+        });
+
+        row.querySelector('.reorder-btn.up')?.addEventListener('click', () => moveStrategy(row, -1));
+        row.querySelector('.reorder-btn.down')?.addEventListener('click', () => moveStrategy(row, 1));
+
+        container.appendChild(row);
+    });
+}
+
+function moveStrategy(row: HTMLElement, direction: number) {
+    const container = row.parentElement;
+    if (!container) return;
+
+    if (direction === -1) {
+        if (row.previousElementSibling) {
+            container.insertBefore(row, row.previousElementSibling);
+        }
+    } else {
+        if (row.nextElementSibling) {
+            container.insertBefore(row.nextElementSibling, row);
+        }
+    }
 }
 
 function showStrategyDetails(type: string, name: string) {
@@ -477,25 +533,32 @@ function showStrategyDetails(type: string, name: string) {
 }
 
 function runSimulation() {
-  const sortingEl = document.getElementById('sim-sorting') as HTMLInputElement;
+  const groupingList = document.getElementById('sim-grouping-list');
+  const sortingList = document.getElementById('sim-sorting-list');
   const resultContainer = document.getElementById('simResults');
 
-  if (!sortingEl || !resultContainer) return;
+  if (!groupingList || !sortingList || !resultContainer) return;
 
-  const sortingInput = sortingEl.value;
+  // Helper to get enabled strategies in order
+  const getStrategies = (container: HTMLElement): SortingStrategy[] => {
+      return Array.from(container.children)
+          .filter(row => (row.querySelector('input[type="checkbox"]') as HTMLInputElement).checked)
+          .map(row => (row as HTMLElement).dataset.id as SortingStrategy);
+  };
 
-  const sorting = sortingInput.split(',')
-    .map(s => s.trim())
-    .filter(s => s) as SortingStrategy[];
+  const groupingStrats = getStrategies(groupingList);
+  const sortingStrats = getStrategies(sortingList);
 
   // Prepare data
   let tabs = getMappedTabs();
 
   // 1. Sort
-  tabs = sortTabs(tabs, sorting);
+  if (sortingStrats.length > 0) {
+    tabs = sortTabs(tabs, sortingStrats);
+  }
 
   // 2. Group
-  const groups = groupTabs(tabs, sorting);
+  const groups = groupTabs(tabs, groupingStrats);
 
   // 3. Render
   if (groups.length === 0) {
