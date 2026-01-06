@@ -17,6 +17,9 @@ export interface PageContext {
   tags: string[];
   breadcrumbs: string[];
 
+  // Classification
+  genre?: string;
+
   // Session/state (privacy-safe)
   isAudible: boolean;
   isMuted: boolean;

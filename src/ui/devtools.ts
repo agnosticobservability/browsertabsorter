@@ -212,6 +212,8 @@ function getSortValue(tab: chrome.tabs.Tab, key: string): any {
   switch (key) {
     case 'parentTitle':
       return tab.openerTabId ? (tabTitles.get(tab.openerTabId) || '') : '';
+    case 'genre':
+      return (tab.id && currentContextMap.get(tab.id)?.data?.genre) || '';
     case 'context':
       return (tab.id && currentContextMap.get(tab.id)?.context) || '';
     case 'active':
@@ -259,6 +261,7 @@ function renderTable() {
     const parentTitle = tab.openerTabId ? (tabTitles.get(tab.openerTabId) || 'Unknown') : '-';
 
     const contextResult = tab.id ? currentContextMap.get(tab.id) : undefined;
+    const genre = contextResult?.data?.genre || '-';
     let aiContext = 'N/A';
     let cellStyle = '';
     let cellTitle = '';
@@ -299,6 +302,7 @@ function renderTable() {
       <td>${tab.pinned ? 'Yes' : 'No'}</td>
       <td>${tab.openerTabId ?? '-'}</td>
       <td title="${escapeHtml(parentTitle)}">${escapeHtml(parentTitle)}</td>
+      <td>${escapeHtml(genre)}</td>
       <td style="${cellStyle}" title="${escapeHtml(cellTitle)}">
         ${escapeHtml(aiContext)}
         ${contextResult?.data ? ` <button class="context-json-btn" data-tab-id="${tab.id}">View JSON</button>` : ''}
