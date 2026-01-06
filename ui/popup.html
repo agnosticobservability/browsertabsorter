@@ -65,7 +65,11 @@
     </header>
 
     <div class="sort-section">
-      <div class="strategies-container">
+      <div class="section-header" id="toggleStrategies" style="cursor: pointer; display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-weight: 500;">
+          <span class="toggle-icon">▼</span>
+          <span>Strategies</span>
+      </div>
+      <div class="strategies-container" id="strategiesList">
         <div class="strategy-group">
           <div class="strategy-section-title">Grouping</div>
           <div id="grouping-strategies" class="strategy-list"></div>
@@ -80,6 +84,7 @@
         <button id="btnGroup" class="btn">Group</button>
         <button id="btnUngroup" class="btn">Ungroup</button>
         <button id="btnMerge" class="btn">Merge</button>
+        <button id="btnSplit" class="btn">Split</button>
       </div>
     </div>
 

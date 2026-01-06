@@ -262,3 +262,25 @@ export const mergeTabs = async (tabIds: number[]) => {
   await chrome.tabs.group({ tabIds: ids, groupId: targetGroupId });
   logInfo("Merged tabs", { count: ids.length, targetWindowId, targetGroupId });
 };
+
+export const splitTabs = async (tabIds: number[]) => {
+  if (tabIds.length === 0) return;
+
+  // 1. Validate tabs
+  const tabs = await Promise.all(tabIds.map(id => chrome.tabs.get(id).catch(() => null)));
+  const validTabs = tabs.filter((t): t is chrome.tabs.Tab => t !== null && t.id !== undefined && t.windowId !== undefined);
+
+  if (validTabs.length === 0) return;
+
+  // 2. Create new window with the first tab
+  const firstTab = validTabs[0];
+  const newWindow = await chrome.windows.create({ tabId: firstTab.id });
+
+  // 3. Move remaining tabs to new window
+  if (validTabs.length > 1) {
+    const remainingTabIds = validTabs.slice(1).map(t => t.id!);
+    await chrome.tabs.move(remainingTabIds, { windowId: newWindow.id!, index: -1 });
+  }
+
+  logInfo("Split tabs to new window", { count: validTabs.length, newWindowId: newWindow.id });
+};

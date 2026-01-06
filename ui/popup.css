@@ -380,7 +380,24 @@ body {
   display: flex;
   gap: 8px;
   margin-bottom: 8px;
+  overflow: hidden;
+  transition: max-height 0.3s ease-in-out;
+  max-height: 500px; /* Arbitrary large height for transition */
 }
+
+.strategies-container.collapsed {
+  max-height: 0;
+  margin-bottom: 0;
+}
+
+.section-header .toggle-icon {
+    transition: transform 0.3s;
+}
+
+.section-header.collapsed .toggle-icon {
+    transform: rotate(-90deg);
+}
+
 
 .strategy-group {
   flex: 1;

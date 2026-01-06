@@ -1,4 +1,4 @@
-import { applyTabGroups, applyTabSorting, calculateTabGroups, fetchCurrentTabGroups, mergeTabs } from "./tabManager.js";
+import { applyTabGroups, applyTabSorting, calculateTabGroups, fetchCurrentTabGroups, mergeTabs, splitTabs } from "./tabManager.js";
 import { loadPreferences, savePreferences } from "./preferences.js";
 import { logDebug, logInfo } from "./logger.js";
 import { pushUndoState, saveState, undo, getSavedStates, deleteSavedState, restoreState } from "./stateManager.js";
@@ -59,6 +59,15 @@ const handleMessage = async <TData>(
       const payload = message.payload as { tabIds: number[] };
       if (payload?.tabIds?.length) {
         await mergeTabs(payload.tabIds);
+        return { ok: true };
+      }
+      return { ok: false, error: "No tabs selected" };
+    }
+    case "splitSelection": {
+      await pushUndoState();
+      const payload = message.payload as { tabIds: number[] };
+      if (payload?.tabIds?.length) {
+        await splitTabs(payload.tabIds);
         return { ok: true };
       }
       return { ok: false, error: "No tabs selected" };

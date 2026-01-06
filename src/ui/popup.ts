@@ -25,7 +25,10 @@ const btnSort = document.getElementById("btnSort") as HTMLButtonElement;
 const btnGroup = document.getElementById("btnGroup") as HTMLButtonElement;
 const btnUngroup = document.getElementById("btnUngroup") as HTMLButtonElement;
 const btnMerge = document.getElementById("btnMerge") as HTMLButtonElement;
+const btnSplit = document.getElementById("btnSplit") as HTMLButtonElement;
 
+const strategiesList = document.getElementById("strategiesList") as HTMLDivElement;
+const toggleStrategies = document.getElementById("toggleStrategies") as HTMLDivElement;
 const groupingListContainer = document.getElementById("grouping-strategies") as HTMLDivElement;
 const sortingListContainer = document.getElementById("sorting-strategies") as HTMLDivElement;
 
@@ -61,10 +64,13 @@ const updateStats = () => {
   btnGroup.disabled = !hasSelection;
   btnUngroup.disabled = !hasSelection;
   btnMerge.disabled = !hasSelection;
+  btnSplit.disabled = !hasSelection;
+
   btnSort.style.opacity = hasSelection ? "1" : "0.5";
   btnGroup.style.opacity = hasSelection ? "1" : "0.5";
   btnUngroup.style.opacity = hasSelection ? "1" : "0.5";
   btnMerge.style.opacity = hasSelection ? "1" : "0.5";
+  btnSplit.style.opacity = hasSelection ? "1" : "0.5";
 
   // Update Select All Checkbox State
   if (totalTabs === 0) {
@@ -589,6 +595,18 @@ btnMerge.addEventListener("click", async () => {
       if (!res.ok) alert("Merge failed: " + res.error);
       else await loadState();
   }
+});
+btnSplit.addEventListener("click", async () => {
+  if (confirm(`Split ${selectedTabs.size} tabs into a new window?`)) {
+      const res = await sendMessage("splitSelection", { tabIds: Array.from(selectedTabs) });
+      if (!res.ok) alert("Split failed: " + res.error);
+      else await loadState();
+  }
+});
+
+toggleStrategies.addEventListener("click", () => {
+    const isCollapsed = strategiesList.classList.toggle("collapsed");
+    toggleStrategies.classList.toggle("collapsed", isCollapsed);
 });
 
 document.getElementById("btnUndo")?.addEventListener("click", async () => {
