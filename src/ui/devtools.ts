@@ -59,6 +59,11 @@ document.addEventListener('DOMContentLoaded', () => {
     runSimBtn.addEventListener('click', runSimulation);
   }
 
+  const applyBtn = document.getElementById('applyBtn');
+  if (applyBtn) {
+    applyBtn.addEventListener('click', applyToBrowser);
+  }
+
   // Add sort listeners
   document.querySelectorAll('th.sortable').forEach(th => {
     th.addEventListener('click', () => {
@@ -518,14 +523,12 @@ function renderStrategyList(container: HTMLElement, strategies: StrategyDefiniti
         const row = document.createElement('div');
         row.className = `strategy-row ${isChecked ? '' : 'disabled'}`;
         row.dataset.id = strategy.id;
+        row.draggable = true;
 
         row.innerHTML = `
+            <div class="drag-handle">☰</div>
             <input type="checkbox" ${isChecked ? 'checked' : ''}>
             <span class="strategy-label">${strategy.label}</span>
-            <div class="strategy-reorder">
-                <button class="reorder-btn up">▲</button>
-                <button class="reorder-btn down">▼</button>
-            </div>
         `;
 
         // Add listeners
@@ -535,26 +538,52 @@ function renderStrategyList(container: HTMLElement, strategies: StrategyDefiniti
             row.classList.toggle('disabled', !checked);
         });
 
-        row.querySelector('.reorder-btn.up')?.addEventListener('click', () => moveStrategy(row, -1));
-        row.querySelector('.reorder-btn.down')?.addEventListener('click', () => moveStrategy(row, 1));
+        addDnDListeners(row, container);
 
         container.appendChild(row);
     });
 }
 
-function moveStrategy(row: HTMLElement, direction: number) {
-    const container = row.parentElement;
-    if (!container) return;
-
-    if (direction === -1) {
-        if (row.previousElementSibling) {
-            container.insertBefore(row, row.previousElementSibling);
-        }
-    } else {
-        if (row.nextElementSibling) {
-            container.insertBefore(row.nextElementSibling, row);
-        }
+function addDnDListeners(row: HTMLElement, container: HTMLElement) {
+  row.addEventListener('dragstart', (e) => {
+    row.classList.add('dragging');
+    if (e.dataTransfer) {
+        e.dataTransfer.effectAllowed = 'move';
+        // Set a transparent image or similar if desired, but default is usually fine
     }
+  });
+
+  row.addEventListener('dragend', () => {
+    row.classList.remove('dragging');
+  });
+
+  // The container handles the drop zone logic via dragover
+  container.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    const afterElement = getDragAfterElement(container, e.clientY);
+    const draggable = container.querySelector('.dragging');
+    if (draggable) {
+      if (afterElement == null) {
+        container.appendChild(draggable);
+      } else {
+        container.insertBefore(draggable, afterElement);
+      }
+    }
+  });
+}
+
+function getDragAfterElement(container: HTMLElement, y: number) {
+  const draggableElements = Array.from(container.querySelectorAll('.strategy-row:not(.dragging)'));
+
+  return draggableElements.reduce((closest, child) => {
+    const box = child.getBoundingClientRect();
+    const offset = y - box.top - box.height / 2;
+    if (offset < 0 && offset > closest.offset) {
+      return { offset: offset, element: child };
+    } else {
+      return closest;
+    }
+  }, { offset: Number.NEGATIVE_INFINITY, element: null as Element | null }).element;
 }
 
 function showStrategyDetails(type: string, name: string) {
@@ -639,19 +668,18 @@ function showStrategyDetails(type: string, name: string) {
     });
 }
 
+function getStrategies(container: HTMLElement): SortingStrategy[] {
+    return Array.from(container.children)
+        .filter(row => (row.querySelector('input[type="checkbox"]') as HTMLInputElement).checked)
+        .map(row => (row as HTMLElement).dataset.id as SortingStrategy);
+}
+
 function runSimulation() {
   const groupingList = document.getElementById('sim-grouping-list');
   const sortingList = document.getElementById('sim-sorting-list');
   const resultContainer = document.getElementById('simResults');
 
   if (!groupingList || !sortingList || !resultContainer) return;
-
-  // Helper to get enabled strategies in order
-  const getStrategies = (container: HTMLElement): SortingStrategy[] => {
-      return Array.from(container.children)
-          .filter(row => (row.querySelector('input[type="checkbox"]') as HTMLInputElement).checked)
-          .map(row => (row as HTMLElement).dataset.id as SortingStrategy);
-  };
 
   const groupingStrats = getStrategies(groupingList);
   const sortingStrats = getStrategies(sortingList);
@@ -690,6 +718,47 @@ function runSimulation() {
       </ul>
     </div>
   `).join('');
+}
+
+async function applyToBrowser() {
+    const groupingList = document.getElementById('sim-grouping-list');
+    const sortingList = document.getElementById('sim-sorting-list');
+
+    if (!groupingList || !sortingList) return;
+
+    const groupingStrats = getStrategies(groupingList);
+    const sortingStrats = getStrategies(sortingList);
+
+    // Combine strategies.
+    // We prioritize grouping strategies first, then sorting strategies,
+    // as the backend filters them when performing actions.
+    const allStrategies = [...groupingStrats, ...sortingStrats];
+
+    try {
+        // 1. Save Preferences
+        await chrome.runtime.sendMessage({
+            type: 'savePreferences',
+            payload: { sorting: allStrategies }
+        });
+
+        // 2. Trigger Apply Grouping (which uses the new preferences)
+        const response = await chrome.runtime.sendMessage({
+            type: 'applyGrouping',
+            payload: {
+                sorting: allStrategies // Pass explicitly to ensure immediate effect
+            }
+        });
+
+        if (response && response.ok) {
+            alert("Applied successfully!");
+            loadTabs(); // Refresh data
+        } else {
+            alert("Failed to apply: " + (response.error || 'Unknown error'));
+        }
+    } catch (e) {
+        console.error("Apply failed", e);
+        alert("Apply failed: " + e);
+    }
 }
 
 
