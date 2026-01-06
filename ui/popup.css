@@ -374,3 +374,71 @@ body {
   font-weight: 500;
   user-select: none;
 }
+
+/* Strategy Lists (New) */
+.strategies-container {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.strategy-group {
+  flex: 1;
+}
+
+.strategy-section-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.strategy-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.strategy-row {
+  display: flex;
+  align-items: center;
+  padding: 4px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 12px;
+  border: 1px solid transparent;
+  color: var(--text-muted);
+}
+
+.strategy-row:hover {
+  background: var(--hover-bg);
+  color: var(--text-main);
+}
+
+.strategy-row.active {
+  background: var(--selected-bg);
+  border-color: var(--selected-border);
+  color: var(--primary-color);
+  font-weight: 500;
+}
+
+.strategy-row input {
+  margin-right: 6px;
+  cursor: pointer;
+}
+
+.strategy-drag-handle {
+  color: var(--text-muted);
+  margin-right: 4px;
+  opacity: 0.5;
+  cursor: grab;
+  font-size: 10px;
+  display: none; /* Hidden by default until DnD is fully implemented */
+}
+
+.strategy-row:hover .strategy-drag-handle {
+  opacity: 1;
+}

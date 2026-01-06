@@ -14,27 +14,20 @@ import {
   TabWithGroup,
   WindowView
 } from "./common.js";
+import { STRATEGIES, StrategyDefinition } from "../shared/strategyRegistry.js";
 
 // Elements
 const searchInput = document.getElementById("tabSearch") as HTMLInputElement;
 const windowsContainer = document.getElementById("windows") as HTMLDivElement;
-
-const sortPinned = document.getElementById("sortPinned") as HTMLInputElement;
-const sortContext = document.getElementById("sortContext") as HTMLInputElement;
-const sortAge = document.getElementById("sortAge") as HTMLInputElement;
-const sortRecency = document.getElementById("sortRecency") as HTMLInputElement;
-const sortLineage = document.getElementById("sortLineage") as HTMLInputElement;
-const sortNesting = document.getElementById("sortNesting") as HTMLInputElement;
-const sortDomain = document.getElementById("sortDomain") as HTMLInputElement;
-const sortUrl = document.getElementById("sortUrl") as HTMLInputElement;
-const sortTopic = document.getElementById("sortTopic") as HTMLInputElement;
-const sortTitle = document.getElementById("sortTitle") as HTMLInputElement;
 
 const selectAllCheckbox = document.getElementById("selectAll") as HTMLInputElement;
 const btnSort = document.getElementById("btnSort") as HTMLButtonElement;
 const btnGroup = document.getElementById("btnGroup") as HTMLButtonElement;
 const btnUngroup = document.getElementById("btnUngroup") as HTMLButtonElement;
 const btnMerge = document.getElementById("btnMerge") as HTMLButtonElement;
+
+const groupingListContainer = document.getElementById("grouping-strategies") as HTMLDivElement;
+const sortingListContainer = document.getElementById("sorting-strategies") as HTMLDivElement;
 
 // Stats
 const statTabs = document.getElementById("statTabs") as HTMLElement;
@@ -384,6 +377,59 @@ const renderTree = () => {
   updateStats();
 };
 
+// Strategy Rendering
+function renderStrategyList(container: HTMLElement, strategies: StrategyDefinition[], defaultEnabled: string[]) {
+    container.innerHTML = '';
+
+    // Sort enabled by their index in defaultEnabled to maintain priority
+    const enabled = strategies.filter(s => defaultEnabled.includes(s.id));
+    enabled.sort((a, b) => defaultEnabled.indexOf(a.id) - defaultEnabled.indexOf(b.id));
+
+    const disabled = strategies.filter(s => !defaultEnabled.includes(s.id));
+
+    // Initial render order: Enabled (ordered) then Disabled
+    const ordered = [...enabled, ...disabled];
+
+    ordered.forEach(strategy => {
+        const isChecked = defaultEnabled.includes(strategy.id);
+        const row = document.createElement('div');
+        row.className = `strategy-row ${isChecked ? 'active' : ''}`;
+        row.dataset.id = strategy.id;
+        // row.draggable = true; // TODO: Implement DnD for popup if needed
+
+        row.innerHTML = `
+            <div class="strategy-drag-handle">☰</div>
+            <input type="checkbox" ${isChecked ? 'checked' : ''}>
+            <span class="strategy-label">${strategy.label}</span>
+        `;
+
+        // Add listeners
+        const checkbox = row.querySelector('input[type="checkbox"]');
+        checkbox?.addEventListener('change', async (e) => {
+            const checked = (e.target as HTMLInputElement).checked;
+            row.classList.toggle('active', checked);
+
+            // Immediate save on interaction
+            if (preferences) {
+                // Update local preference state
+                const currentSorting = getSelectedSorting();
+                preferences.sorting = currentSorting;
+                // We should also persist this to storage, so if user reloads they see it
+                await sendMessage("savePreferences", { sorting: currentSorting });
+            }
+        });
+
+        // Basic Click to toggle (for better UX)
+        row.addEventListener('click', (e) => {
+            if (e.target !== checkbox) {
+                (checkbox as HTMLElement).click();
+            }
+        });
+
+        container.appendChild(row);
+    });
+}
+
 const loadState = async () => {
   const [state, currentWindow, chromeWindows] = await Promise.all([
     fetchState(),
@@ -394,25 +440,21 @@ const loadState = async () => {
   if (!state.ok || !state.data) return;
 
   preferences = state.data.preferences;
-  if (!sortingInitialized && preferences) {
-    const s = preferences.sorting;
-    // Map preferences to UI checkboxes
-    if (sortPinned) sortPinned.checked = s.includes("pinned");
-    if (sortContext) sortContext.checked = s.includes("context");
-    if (sortAge) sortAge.checked = s.includes("age");
-    if (sortRecency) sortRecency.checked = s.includes("recency");
-    if (sortLineage) sortLineage.checked = s.includes("lineage");
-    if (sortNesting) sortNesting.checked = s.includes("nesting");
-    if (sortDomain) sortDomain.checked = s.includes("domain");
-    if (sortUrl) sortUrl.checked = s.includes("url");
-    if (sortTopic) sortTopic.checked = s.includes("topic");
-    if (sortTitle) sortTitle.checked = s.includes("title");
-    sortingInitialized = true;
-  }
 
-  if (preferences && preferences.theme) {
-      // Load theme from prefs, no save needed
-      applyTheme(preferences.theme, false);
+  if (preferences) {
+    const s = preferences.sorting || [];
+
+    // Render Strategy Lists
+    const groupingStrategies = STRATEGIES.filter(st => st.isGrouping);
+    renderStrategyList(groupingListContainer, groupingStrategies, s);
+
+    const sortingStrategies = STRATEGIES.filter(st => st.isSorting);
+    renderStrategyList(sortingListContainer, sortingStrategies, s);
+
+    // Initial theme load
+    if (preferences.theme) {
+        applyTheme(preferences.theme, false);
+    }
   }
 
   focusedWindowId = currentWindow?.id ?? null;
@@ -434,20 +476,19 @@ const loadState = async () => {
   renderTree();
 };
 
-const getSelectedSorting = (): SortingStrategy[] => {
-  const selected: SortingStrategy[] = [];
-  if (sortPinned?.checked) selected.push("pinned");
-  if (sortContext?.checked) selected.push("context");
-  if (sortAge?.checked) selected.push("age");
-  if (sortRecency?.checked) selected.push("recency");
-  if (sortLineage?.checked) selected.push("lineage");
-  if (sortNesting?.checked) selected.push("nesting");
-  if (sortDomain?.checked) selected.push("domain");
-  if (sortUrl?.checked) selected.push("url");
-  if (sortTopic?.checked) selected.push("topic");
-  if (sortTitle?.checked) selected.push("title");
+const getStrategyIds = (container: HTMLElement): SortingStrategy[] => {
+    return Array.from(container.children)
+        .filter(row => (row.querySelector('input[type="checkbox"]') as HTMLInputElement).checked)
+        .map(row => (row as HTMLElement).dataset.id as SortingStrategy);
+};
 
-  return selected.length ? selected : (preferences?.sorting ?? ["pinned", "recency"]);
+const getSelectedSorting = (): SortingStrategy[] => {
+  const groupingStrats = getStrategyIds(groupingListContainer);
+  const sortingStrats = getStrategyIds(sortingListContainer);
+
+  // Combine: Grouping first, then Sorting (duplicates allowed/handled by backend logic, but let's just concat)
+  // Replicating DevTools logic:
+  return [...groupingStrats, ...sortingStrats];
 };
 
 const triggerSort = async (selection?: GroupingSelection) => {
@@ -563,15 +604,6 @@ document.getElementById("btnLoadState")?.addEventListener("click", async () => {
 
 document.getElementById("btnCloseLoadState")?.addEventListener("click", () => {
     loadStateDialog.close();
-});
-
-// Add toggle active class for chips
-document.querySelectorAll('.chip input').forEach(input => {
-    input.addEventListener('change', (e) => {
-        const target = e.target as HTMLInputElement;
-        if (target.checked) target.parentElement?.classList.add('active');
-        else target.parentElement?.classList.remove('active');
-    });
 });
 
 searchInput.addEventListener("input", renderTree);
