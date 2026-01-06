@@ -262,3 +262,84 @@ export const mergeTabs = async (tabIds: number[]) => {
   await chrome.tabs.group({ tabIds: ids, groupId: targetGroupId });
   logInfo("Merged tabs", { count: ids.length, targetWindowId, targetGroupId });
 };
+
+async function moveTabsToNewWindow(tabs: chrome.tabs.Tab[], groupInfo: chrome.tabGroups.TabGroup | null) {
+    if (!tabs.length) return;
+    const first = tabs[0];
+    // Create window with first tab
+    // We cannot pass tabId to create if the tab is in another window? Actually we can, it moves it.
+    const win = await chrome.windows.create({ tabId: first.id });
+    const newWindowId = win.id!;
+
+    // Move rest
+    const rest = tabs.slice(1).map(t => t.id!);
+    if (rest.length) {
+        await chrome.tabs.move(rest, { windowId: newWindowId, index: -1 });
+    }
+
+    if (groupInfo) {
+        const allIds = tabs.map(t => t.id!);
+        const groupId = await chrome.tabs.group({ tabIds: allIds });
+        await chrome.tabGroups.update(groupId, {
+            title: groupInfo.title,
+            color: groupInfo.color
+        });
+    }
+}
+
+async function moveTabsToNewGroup(tabs: chrome.tabs.Tab[]) {
+    const ids = tabs.map(t => t.id!);
+    await chrome.tabs.group({ tabIds: ids }); // New group
+}
+
+export const unmergeTabs = async (tabIds: number[]) => {
+  if (!tabIds.length) return;
+  const allTabs = await chrome.tabs.query({});
+  const selectedTabs = allTabs.filter(t => t.id !== undefined && tabIds.includes(t.id));
+
+  // Group tabs by groupId.
+  const allTabsByGroup = new Map<number, chrome.tabs.Tab[]>();
+  allTabs.forEach(t => {
+      if (t.groupId !== -1) {
+          const g = allTabsByGroup.get(t.groupId) || [];
+          g.push(t);
+          allTabsByGroup.set(t.groupId, g);
+      }
+  });
+
+  // Group *selected* tabs by their source (Group ID or Window ID if ungrouped).
+  const selectedBySource = new Map<string, chrome.tabs.Tab[]>();
+
+  selectedTabs.forEach(t => {
+      let key = "";
+      if (t.groupId !== -1) key = `grp-${t.groupId}`;
+      else key = `win-${t.windowId}`;
+
+      const list = selectedBySource.get(key) || [];
+      list.push(t);
+      selectedBySource.set(key, list);
+  });
+
+  for (const [key, tabs] of selectedBySource) {
+      if (key.startsWith('grp-')) {
+          const groupId = parseInt(key.split('-')[1]);
+          const groupTabs = allTabsByGroup.get(groupId) || [];
+
+          // Check if we selected ALL tabs in this group
+          const allSelected = groupTabs.every(t => tabIds.includes(t.id!));
+
+          if (allSelected) {
+              // Move Group to New Window
+              const groupInfo = await chrome.tabGroups.get(groupId).catch(() => null);
+              await moveTabsToNewWindow(tabs, groupInfo);
+          } else {
+              // Move Tabs to New Group (Split from group)
+              await moveTabsToNewGroup(tabs);
+          }
+      } else {
+          // Ungrouped tabs -> Move to New Window
+          await moveTabsToNewWindow(tabs, null);
+      }
+  }
+  logInfo("Unmerged tabs", { count: tabIds.length });
+};

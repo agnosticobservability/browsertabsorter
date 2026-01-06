@@ -11,8 +11,8 @@ def run():
         window.chrome = {
             runtime: {
                 sendMessage: async (msg) => {
-                    console.log("Message:", msg);
-                    if (msg === "getState") {
+                    console.log("Message type:", msg.type);
+                    if (msg.type === "getState") {
                         return {
                             ok: true,
                             data: {
@@ -28,6 +28,10 @@ def run():
                                 preferences: { sorting: [] }
                             }
                         };
+                    }
+                    if (msg.type === "unmergeSelection") {
+                        console.log("Unmerge called with:", msg.payload);
+                        return { ok: true };
                     }
                     return { ok: true };
                 },
@@ -76,12 +80,7 @@ def run():
         else:
             print("Unmerge button is NOT visible")
 
-        # Select a tab to enable buttons
-        # Expand group first
-        # toggle = page.locator(".tree-toggle").first
-        # toggle.click()
-
-        # Click Select All
+        # Select All
         page.click("#selectAll")
 
         time.sleep(0.5)

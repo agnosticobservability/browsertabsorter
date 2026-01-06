@@ -1,4 +1,4 @@
-import { applyTabGroups, applyTabSorting, fetchTabGroups } from "./tabManager.js";
+import { applyTabGroups, applyTabSorting, calculateTabGroups, fetchCurrentTabGroups, mergeTabs } from "./tabManager.js";
 import { loadPreferences, savePreferences } from "./preferences.js";
 import { logDebug, logInfo } from "./logger.js";
 import { pushUndoState, saveState, undo, getSavedStates, deleteSavedState, restoreState } from "./stateManager.js";
@@ -11,7 +11,8 @@ const handleMessage = async (message, sender) => {
     switch (message.type) {
         case "getState": {
             const prefs = await loadPreferences();
-            const groups = await fetchTabGroups(prefs);
+            // Use fetchCurrentTabGroups to return the actual state of the browser tabs
+            const groups = await fetchCurrentTabGroups(prefs);
             return { ok: true, data: { groups, preferences: prefs } };
         }
         case "applyGrouping": {
@@ -21,7 +22,8 @@ const handleMessage = async (message, sender) => {
             const selection = payload.selection ?? {};
             const sorting = payload.sorting?.length ? payload.sorting : undefined;
             const preferences = sorting ? { ...prefs, sorting } : prefs;
-            const groups = await fetchTabGroups(preferences, selection);
+            // Use calculateTabGroups to determine the target grouping
+            const groups = await calculateTabGroups(preferences, selection);
             await applyTabGroups(groups);
             return { ok: true, data: { groups } };
         }
@@ -34,6 +36,15 @@ const handleMessage = async (message, sender) => {
             const preferences = sorting ? { ...prefs, sorting } : prefs;
             await applyTabSorting(preferences, selection);
             return { ok: true };
+        }
+        case "mergeSelection": {
+            await pushUndoState();
+            const payload = message.payload;
+            if (payload?.tabIds?.length) {
+                await mergeTabs(payload.tabIds);
+                return { ok: true };
+            }
+            return { ok: false, error: "No tabs selected" };
         }
         case "undo": {
             await undo();

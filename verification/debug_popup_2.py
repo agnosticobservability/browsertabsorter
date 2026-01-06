@@ -1,17 +1,18 @@
 from playwright.sync_api import sync_playwright
-import time
 
 def run():
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         page = browser.new_page()
 
-        # Inject Mock Chrome
+        page.on("console", lambda msg: print(f"CONSOLE: {msg.text}"))
+        page.on("pageerror", lambda exc: print(f"PAGE ERROR: {exc}"))
+
         page.add_init_script("""
         window.chrome = {
             runtime: {
                 sendMessage: async (msg) => {
-                    console.log("Message:", msg);
+                    console.log("Mock sendMessage: " + msg);
                     if (msg === "getState") {
                         return {
                             ok: true,
@@ -20,10 +21,7 @@ def run():
                                     { id: "group-1", windowId: 1, label: "Group A", color: "blue", tabs: [
                                         { id: 10, title: "Tab 1", url: "http://a.com", windowId: 1, groupId: 1 },
                                         { id: 11, title: "Tab 2", url: "http://b.com", windowId: 1, groupId: 1 }
-                                    ], reason: "Manual" },
-                                    { id: "ungrouped-1", windowId: 1, label: "Ungrouped", color: "grey", tabs: [
-                                        { id: 12, title: "Tab 3", url: "http://c.com", windowId: 1, groupId: -1 }
-                                    ], reason: "Ungrouped" }
+                                    ], reason: "Manual" }
                                 ],
                                 preferences: { sorting: [] }
                             }
@@ -62,31 +60,16 @@ def run():
         """)
 
         page.goto("http://localhost:8000/ui/popup.html")
+        page.wait_for_timeout(2000)
 
-        # Wait for tree to render
-        page.wait_for_selector(".tree-node")
-
-        # Take screenshot of initial state
-        page.screenshot(path="verification/popup_initial.png")
-
-        # Check for Unmerge button
-        unmerge_btn = page.locator("#btnUnmerge")
-        if unmerge_btn.is_visible():
-            print("Unmerge button is visible")
+        # Check if windows are rendered
+        content = page.content()
+        if "Group A" in content:
+            print("Group A found in content")
         else:
-            print("Unmerge button is NOT visible")
+            print("Group A NOT found")
 
-        # Select a tab to enable buttons
-        # Expand group first
-        # toggle = page.locator(".tree-toggle").first
-        # toggle.click()
-
-        # Click Select All
-        page.click("#selectAll")
-
-        time.sleep(0.5)
-        page.screenshot(path="verification/popup_selected.png")
-
+        page.screenshot(path="verification/debug.png")
         browser.close()
 
 run()
