@@ -6,6 +6,7 @@ import {
   navigationKey,
   groupingKey
 } from "../background/groupingStrategies.js";
+import { GENERA_REGISTRY } from "../background/extraction/generaRegistry.js";
 import {
   sortTabs,
   recencyScore,
@@ -380,6 +381,17 @@ function renderAlgorithmsView() {
       </div>
     `).join('');
   }
+
+  const registryRef = document.getElementById('registry-ref');
+  if (registryRef && registryRef.children.length === 0) {
+      registryRef.innerHTML = `
+        <div class="strategy-item">
+            <div class="strategy-name">Genera Registry</div>
+            <div class="strategy-desc">Static lookup table for domain classification (approx ${Object.keys(GENERA_REGISTRY).length} entries).</div>
+            <button class="strategy-view-btn" data-type="registry" data-name="genera">View Table</button>
+        </div>
+      `;
+  }
 }
 
 function showStrategyDetails(type: string, name: string) {
@@ -427,6 +439,13 @@ function showStrategyDetails(type: string, name: string) {
         } else if (name === 'pinned') {
              content += `<h3>Logic: Pinned Score</h3><pre><code>${escapeHtml(pinnedScore.toString())}</code></pre>`;
         }
+    } else if (type === 'registry' && name === 'genera') {
+        const json = JSON.stringify(GENERA_REGISTRY, null, 2);
+        content = `
+<h3>Genera Registry Data</h3>
+<p>Mapping of domain names to categories.</p>
+<pre><code>${escapeHtml(json)}</code></pre>
+        `;
     }
 
     const modalOverlay = document.createElement('div');
