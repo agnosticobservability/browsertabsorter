@@ -51,7 +51,7 @@ const getLabelComponent = (strategy: GroupingStrategy, tabs: TabMetadata[], allT
   if (!firstTab) return "Unknown";
 
   switch (strategy) {
-    case "domain": {
+    case "url": {
       // Try to find a common siteName
       const siteNames = new Set(tabs.map(t => t.contextData?.siteName).filter(Boolean));
       if (siteNames.size === 1) {
@@ -60,9 +60,9 @@ const getLabelComponent = (strategy: GroupingStrategy, tabs: TabMetadata[], allT
       // If mixed or missing, fall back to domain
       return stripTld(domainFromUrl(firstTab.url));
     }
-    case "semantic":
+    case "title":
       return semanticBucket(firstTab.title, firstTab.url);
-    case "navigation":
+    case "hierarchy":
       if (firstTab.openerTabId !== undefined) {
         const parent = allTabsMap.get(firstTab.openerTabId);
         if (parent) {
@@ -144,11 +144,11 @@ export const groupTabs = (
 
 const groupingKey = (tab: TabMetadata, strategy: GroupingStrategy): string => {
   switch (strategy) {
-    case "domain":
+    case "url":
       return domainFromUrl(tab.url);
-    case "semantic":
+    case "title":
       return semanticBucket(tab.title, tab.url);
-    case "navigation":
+    case "hierarchy":
       return navigationKey(tab);
     case "context":
       return tab.context || "Uncategorized";

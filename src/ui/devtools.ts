@@ -310,9 +310,9 @@ function renderAlgorithmsView() {
 
   if (groupingRef && groupingRef.innerHTML.trim() === '') {
     const groupings = [
-      { name: 'domain', desc: 'Groups tabs by their domain name (e.g. google.com). Subdomains are stripped.' },
-      { name: 'semantic', desc: 'Groups based on keywords in the title (e.g. Docs, Mail, Chat, Tasks).' },
-      { name: 'navigation', desc: 'Groups tabs based on how they were opened (parent/child relationships).' },
+      { name: 'url', desc: 'Groups tabs by their domain name (e.g. google.com). Subdomains are stripped.' },
+      { name: 'title', desc: 'Groups based on keywords in the title (e.g. Docs, Mail, Chat, Tasks).' },
+      { name: 'hierarchy', desc: 'Groups tabs based on how they were opened (parent/child relationships).' },
       { name: 'context', desc: 'Groups by high-level category (e.g. Work, Entertainment) determined by extraction.' }
     ];
 

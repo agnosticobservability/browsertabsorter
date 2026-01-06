@@ -16,9 +16,9 @@ import {
 const deriveGroupingStrategy = (sorting: SortingStrategy[]): GroupingStrategy | undefined => {
   // Map sorting strategies to grouping strategies in priority order
   if (sorting.includes("context")) return "context";
-  if (sorting.includes("hierarchy")) return "navigation";
-  if (sorting.includes("url")) return "domain";
-  if (sorting.includes("title")) return "semantic";
+  if (sorting.includes("hierarchy")) return "hierarchy";
+  if (sorting.includes("url")) return "url";
+  if (sorting.includes("title")) return "title";
   // "pinned" and "recency" do not map to grouping strategies
   return undefined;
 };
