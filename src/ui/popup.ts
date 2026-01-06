@@ -18,12 +18,17 @@ import {
 // Elements
 const searchInput = document.getElementById("tabSearch") as HTMLInputElement;
 const windowsContainer = document.getElementById("windows") as HTMLDivElement;
+
 const sortPinned = document.getElementById("sortPinned") as HTMLInputElement;
-const sortRecency = document.getElementById("sortRecency") as HTMLInputElement;
-const sortHierarchy = document.getElementById("sortHierarchy") as HTMLInputElement;
-const sortTitle = document.getElementById("sortTitle") as HTMLInputElement;
-const sortUrl = document.getElementById("sortUrl") as HTMLInputElement;
 const sortContext = document.getElementById("sortContext") as HTMLInputElement;
+const sortAge = document.getElementById("sortAge") as HTMLInputElement;
+const sortRecency = document.getElementById("sortRecency") as HTMLInputElement;
+const sortLineage = document.getElementById("sortLineage") as HTMLInputElement;
+const sortNesting = document.getElementById("sortNesting") as HTMLInputElement;
+const sortDomain = document.getElementById("sortDomain") as HTMLInputElement;
+const sortUrl = document.getElementById("sortUrl") as HTMLInputElement;
+const sortTopic = document.getElementById("sortTopic") as HTMLInputElement;
+const sortTitle = document.getElementById("sortTitle") as HTMLInputElement;
 
 const selectAllCheckbox = document.getElementById("selectAll") as HTMLInputElement;
 const btnSort = document.getElementById("btnSort") as HTMLButtonElement;
@@ -391,12 +396,17 @@ const loadState = async () => {
   preferences = state.data.preferences;
   if (!sortingInitialized && preferences) {
     const s = preferences.sorting;
-    sortPinned.checked = s.includes("pinned");
-    sortRecency.checked = s.includes("recency");
-    sortHierarchy.checked = s.includes("hierarchy");
-    sortTitle.checked = s.includes("title");
-    sortUrl.checked = s.includes("url");
-    sortContext.checked = s.includes("context");
+    // Map preferences to UI checkboxes
+    if (sortPinned) sortPinned.checked = s.includes("pinned");
+    if (sortContext) sortContext.checked = s.includes("context");
+    if (sortAge) sortAge.checked = s.includes("age");
+    if (sortRecency) sortRecency.checked = s.includes("recency");
+    if (sortLineage) sortLineage.checked = s.includes("lineage");
+    if (sortNesting) sortNesting.checked = s.includes("nesting");
+    if (sortDomain) sortDomain.checked = s.includes("domain");
+    if (sortUrl) sortUrl.checked = s.includes("url");
+    if (sortTopic) sortTopic.checked = s.includes("topic");
+    if (sortTitle) sortTitle.checked = s.includes("title");
     sortingInitialized = true;
   }
 
@@ -426,12 +436,17 @@ const loadState = async () => {
 
 const getSelectedSorting = (): SortingStrategy[] => {
   const selected: SortingStrategy[] = [];
-  if (sortPinned.checked) selected.push("pinned");
-  if (sortRecency.checked) selected.push("recency");
-  if (sortHierarchy.checked) selected.push("hierarchy");
-  if (sortTitle.checked) selected.push("title");
-  if (sortUrl.checked) selected.push("url");
-  if (sortContext.checked) selected.push("context");
+  if (sortPinned?.checked) selected.push("pinned");
+  if (sortContext?.checked) selected.push("context");
+  if (sortAge?.checked) selected.push("age");
+  if (sortRecency?.checked) selected.push("recency");
+  if (sortLineage?.checked) selected.push("lineage");
+  if (sortNesting?.checked) selected.push("nesting");
+  if (sortDomain?.checked) selected.push("domain");
+  if (sortUrl?.checked) selected.push("url");
+  if (sortTopic?.checked) selected.push("topic");
+  if (sortTitle?.checked) selected.push("title");
+
   return selected.length ? selected : (preferences?.sorting ?? ["pinned", "recency"]);
 };
 

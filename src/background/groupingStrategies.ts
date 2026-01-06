@@ -61,7 +61,7 @@ const getLabelComponent = (strategy: GroupingStrategy, tabs: TabMetadata[], allT
   if (!firstTab) return "Unknown";
 
   switch (strategy) {
-    case "url": {
+    case "domain": {
       // Try to find a common siteName
       const siteNames = new Set(tabs.map(t => t.contextData?.siteName).filter(Boolean));
       if (siteNames.size === 1) {
@@ -70,9 +70,9 @@ const getLabelComponent = (strategy: GroupingStrategy, tabs: TabMetadata[], allT
       // If mixed or missing, fall back to domain
       return stripTld(domainFromUrl(firstTab.url));
     }
-    case "title":
+    case "topic":
       return semanticBucket(firstTab.title, firstTab.url);
-    case "hierarchy":
+    case "lineage":
       if (firstTab.openerTabId !== undefined) {
         const parent = allTabsMap.get(firstTab.openerTabId);
         if (parent) {
@@ -88,8 +88,17 @@ const getLabelComponent = (strategy: GroupingStrategy, tabs: TabMetadata[], allT
       return firstTab.context || "Uncategorized";
     case "pinned":
       return firstTab.pinned ? "Pinned" : "Unpinned";
-    case "recency":
+    case "age":
       return getRecencyLabel(firstTab.lastAccessed ?? 0);
+    // For sorting-oriented strategies, we provide a generic label or fallback
+    case "url":
+      return "URL Group"; // Grouping by full URL is rarely useful, usually 1 tab per group
+    case "title":
+      return "Title Group";
+    case "recency":
+      return "Time Group";
+    case "nesting":
+      return firstTab.openerTabId !== undefined ? "Children" : "Roots";
     default:
       return "Unknown";
   }
@@ -102,7 +111,7 @@ const generateLabel = (
 ): string => {
   const labels = strategies
     .map(s => getLabelComponent(s, tabs, allTabsMap))
-    .filter(l => l && l !== "Unknown");
+    .filter(l => l && l !== "Unknown" && l !== "Group" && !l.includes("Group"));
 
   if (labels.length === 0) return "Group";
   return Array.from(new Set(labels)).join(" - ");
@@ -148,18 +157,27 @@ export const groupTabs = (
 
 export const groupingKey = (tab: TabMetadata, strategy: GroupingStrategy): string => {
   switch (strategy) {
-    case "url":
+    case "domain":
       return domainFromUrl(tab.url);
-    case "title":
+    case "topic":
       return semanticBucket(tab.title, tab.url);
-    case "hierarchy":
+    case "lineage":
       return navigationKey(tab);
     case "context":
       return tab.context || "Uncategorized";
     case "pinned":
       return tab.pinned ? "pinned" : "unpinned";
-    case "recency":
+    case "age":
       return getRecencyLabel(tab.lastAccessed ?? 0);
+    // Exact match strategies
+    case "url":
+      return tab.url;
+    case "title":
+      return tab.title;
+    case "recency":
+      return String(tab.lastAccessed ?? 0);
+    case "nesting":
+      return tab.openerTabId !== undefined ? "child" : "root";
     default:
       return "Unknown";
   }

@@ -326,12 +326,31 @@ function renderAlgorithmsView() {
   const groupingRef = document.getElementById('grouping-ref');
   const sortingRef = document.getElementById('sorting-ref');
 
+  // Update dropdown options
+  const simPrimary = document.getElementById('sim-primary') as HTMLSelectElement;
+  const simSecondary = document.getElementById('sim-secondary') as HTMLSelectElement;
+
+  if (simPrimary && simPrimary.options.length < 5) {
+      const options = [
+          { value: 'domain', text: 'Domain (Content)' },
+          { value: 'topic', text: 'Topic (Content)' },
+          { value: 'lineage', text: 'Lineage (Structure)' },
+          { value: 'context', text: 'Context (AI)' },
+          { value: 'age', text: 'Age (Time)' }
+      ];
+
+      [simPrimary, simSecondary].forEach(select => {
+          select.innerHTML = options.map(o => `<option value="${o.value}">${o.text}</option>`).join('');
+      });
+  }
+
   if (groupingRef && groupingRef.children.length === 0) {
     const groupings = [
-      { name: 'url', desc: 'Groups tabs by their domain name (e.g. google.com). Subdomains are stripped.' },
-      { name: 'title', desc: 'Groups based on keywords in the title (e.g. Docs, Mail, Chat, Tasks).' },
-      { name: 'hierarchy', desc: 'Groups tabs based on how they were opened (parent/child relationships).' },
-      { name: 'context', desc: 'Groups by high-level category (e.g. Work, Entertainment) determined by extraction.' }
+      { name: 'domain', desc: 'Groups tabs by their domain name (e.g. google.com). Subdomains are stripped.' },
+      { name: 'topic', desc: 'Groups based on keywords in the title (e.g. Docs, Mail, Chat, Tasks).' },
+      { name: 'lineage', desc: 'Groups tabs based on how they were opened (parent/child relationships).' },
+      { name: 'context', desc: 'Groups by high-level category (e.g. Work, Entertainment) determined by extraction.' },
+      { name: 'age', desc: 'Groups tabs by time buckets (e.g. Today, Yesterday).' }
     ];
 
     groupingRef.innerHTML = groupings.map(g => `
@@ -346,11 +365,15 @@ function renderAlgorithmsView() {
   if (sortingRef && sortingRef.children.length === 0) {
     const sortings = [
        { name: 'recency', desc: 'Sorts by last accessed time (most recent first).' },
-       { name: 'hierarchy', desc: 'Keeps child tabs adjacent to their parents.' },
+       { name: 'nesting', desc: 'Sorts based on hierarchy (roots vs children).' },
        { name: 'pinned', desc: 'Keeps pinned tabs at the beginning of the list.' },
        { name: 'title', desc: 'Alphabetical sort by tab title.' },
        { name: 'url', desc: 'Alphabetical sort by tab URL.' },
-       { name: 'context', desc: 'Sorts alphabetically by context category.' }
+       { name: 'context', desc: 'Sorts alphabetically by context category.' },
+       { name: 'domain', desc: 'Sorts alphabetically by domain.' },
+       { name: 'topic', desc: 'Sorts alphabetically by semantic bucket.' },
+       { name: 'age', desc: 'Sorts by time bucket.' },
+       { name: 'lineage', desc: 'Sorts by parent/child relationship key.' }
     ];
 
     sortingRef.innerHTML = sortings.map(s => `
@@ -368,21 +391,21 @@ function showStrategyDetails(type: string, name: string) {
     let title = `${name} (${type})`;
 
     if (type === 'grouping') {
-        if (name === 'url') {
+        if (name === 'domain') {
             content = `
 <h3>Logic: Domain Extraction</h3>
 <pre><code>${escapeHtml(domainFromUrl.toString())}</code></pre>
 <h3>Logic: Grouping Key</h3>
 <pre><code>${escapeHtml(groupingKey.toString())}</code></pre>
             `;
-        } else if (name === 'title') {
+        } else if (name === 'topic') {
             content = `
 <h3>Logic: Semantic Bucketing</h3>
 <pre><code>${escapeHtml(semanticBucket.toString())}</code></pre>
 <h3>Logic: Grouping Key</h3>
 <pre><code>${escapeHtml(groupingKey.toString())}</code></pre>
             `;
-        } else if (name === 'hierarchy') {
+        } else if (name === 'lineage') {
             content = `
 <h3>Logic: Navigation Key</h3>
 <pre><code>${escapeHtml(navigationKey.toString())}</code></pre>
@@ -403,7 +426,7 @@ function showStrategyDetails(type: string, name: string) {
 
         if (name === 'recency') {
              content += `<h3>Logic: Recency Score</h3><pre><code>${escapeHtml(recencyScore.toString())}</code></pre>`;
-        } else if (name === 'hierarchy') {
+        } else if (name === 'nesting') {
              content += `<h3>Logic: Hierarchy Score</h3><pre><code>${escapeHtml(hierarchyScore.toString())}</code></pre>`;
         } else if (name === 'pinned') {
              content += `<h3>Logic: Pinned Score</h3><pre><code>${escapeHtml(pinnedScore.toString())}</code></pre>`;
