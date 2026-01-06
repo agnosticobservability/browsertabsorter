@@ -1,5 +1,6 @@
 import { PageContext } from "../../shared/types.js";
-import { normalizeUrl } from "./logic.js";
+import { normalizeUrl, parseYouTubeUrl } from "./logic.js";
+import { getGenera } from "./generaRegistry.js";
 import { logDebug } from "../logger.js";
 
 interface ExtractionResponse {
@@ -58,7 +59,33 @@ const buildBaselineContext = (tab: chrome.tabs.Tab): PageContext => {
   } catch (e) {
     hostname = "";
   }
-  const objectType = url.includes('/login') || url.includes('/signin') ? 'login' : 'unknown';
+
+  // Determine Object Type first
+  let objectType: PageContext['objectType'] = 'unknown';
+  if (url.includes('/login') || url.includes('/signin')) {
+      objectType = 'login';
+  } else if (hostname.includes('youtube.com') || hostname.includes('youtu.be')) {
+      const { videoId } = parseYouTubeUrl(url);
+      if (videoId) objectType = 'video';
+  } else if (hostname === 'github.com' && url.includes('/pull/')) {
+      objectType = 'ticket';
+  } else if (hostname === 'github.com' && !url.includes('/pull/') && url.split('/').length >= 5) {
+      // rough check for repo
+      objectType = 'repo';
+  }
+
+  // Determine Genre
+  // Priority 1: Site-specific extraction (derived from objectType)
+  let genre: string | undefined;
+
+  if (objectType === 'video') genre = 'Video';
+  else if (objectType === 'repo' || objectType === 'ticket') genre = 'Development';
+
+  // Priority 2: Fallback to Registry
+  if (!genre) {
+     genre = getGenera(hostname) || undefined;
+  }
+
   return {
     canonicalUrl: url || null,
     normalizedUrl: normalizeUrl(url),
@@ -67,6 +94,7 @@ const buildBaselineContext = (tab: chrome.tabs.Tab): PageContext => {
     objectType,
     objectId: url || null,
     title: tab.title || null,
+    genre,
     description: null,
     authorOrCreator: null,
     publishedAt: null,
@@ -86,7 +114,8 @@ const buildBaselineContext = (tab: chrome.tabs.Tab): PageContext => {
       siteName: 'url',
       platform: 'url',
       objectType: 'url',
-      title: tab.title ? 'tab' : 'url'
+      title: tab.title ? 'tab' : 'url',
+      genre: 'registry'
     },
     confidence: {}
   };
