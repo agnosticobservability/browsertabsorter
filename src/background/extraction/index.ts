@@ -2,6 +2,7 @@ import { PageContext } from "../../shared/types.js";
 import { normalizeUrl, parseYouTubeUrl } from "./logic.js";
 import { getGenera } from "./generaRegistry.js";
 import { logDebug } from "../logger.js";
+import { loadPreferences } from "../preferences.js";
 
 interface ExtractionResponse {
   data: PageContext | null;
@@ -32,7 +33,8 @@ export const extractPageContext = async (tabId: number): Promise<ExtractionRespo
         return { data: null, error: "Restricted URL scheme", status: 'RESTRICTED' };
     }
 
-    const baseline = buildBaselineContext(tab);
+    const prefs = await loadPreferences();
+    const baseline = buildBaselineContext(tab, prefs.customGenera);
 
     // We no longer inject a content script. We rely solely on the baseline context
     // derived from the URL and Tab Title.
@@ -51,7 +53,7 @@ export const extractPageContext = async (tabId: number): Promise<ExtractionRespo
   }
 };
 
-const buildBaselineContext = (tab: chrome.tabs.Tab): PageContext => {
+const buildBaselineContext = (tab: chrome.tabs.Tab, customGenera?: Record<string, string>): PageContext => {
   const url = tab.url || "";
   let hostname = "";
   try {
@@ -83,7 +85,7 @@ const buildBaselineContext = (tab: chrome.tabs.Tab): PageContext => {
 
   // Priority 2: Fallback to Registry
   if (!genre) {
-     genre = getGenera(hostname) || undefined;
+     genre = getGenera(hostname, customGenera) || undefined;
   }
 
   return {
