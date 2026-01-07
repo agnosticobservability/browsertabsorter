@@ -1,5 +1,5 @@
 import { PageContext } from "../../shared/types.js";
-import { normalizeUrl, parseYouTubeUrl } from "./logic.js";
+import { normalizeUrl, parseYouTubeUrl, extractYouTubeChannelFromHtml } from "./logic.js";
 import { getGenera } from "./generaRegistry.js";
 import { logDebug } from "../logger.js";
 import { loadPreferences } from "../preferences.js";
@@ -15,6 +15,27 @@ interface ExtractionResponse {
     | 'NO_HOST_PERMISSION'
     | 'FRAME_ACCESS_DENIED';
 }
+
+// Simple concurrency control
+let activeFetches = 0;
+const MAX_CONCURRENT_FETCHES = 2; // Conservative limit to avoid rate limiting
+const FETCH_QUEUE: (() => void)[] = [];
+
+const enqueueFetch = async <T>(fn: () => Promise<T>): Promise<T> => {
+    if (activeFetches >= MAX_CONCURRENT_FETCHES) {
+        await new Promise<void>(resolve => FETCH_QUEUE.push(resolve));
+    }
+    activeFetches++;
+    try {
+        return await fn();
+    } finally {
+        activeFetches--;
+        if (FETCH_QUEUE.length > 0) {
+            const next = FETCH_QUEUE.shift();
+            if (next) next();
+        }
+    }
+};
 
 export const extractPageContext = async (tabId: number): Promise<ExtractionResponse> => {
   try {
@@ -34,10 +55,29 @@ export const extractPageContext = async (tabId: number): Promise<ExtractionRespo
     }
 
     const prefs = await loadPreferences();
-    const baseline = buildBaselineContext(tab, prefs.customGenera);
+    let baseline = buildBaselineContext(tab, prefs.customGenera);
 
-    // We no longer inject a content script. We rely solely on the baseline context
-    // derived from the URL and Tab Title.
+    // Fetch and enrich for YouTube if author is missing and it is a video
+    const urlObj = new URL(tab.url);
+    const hostname = urlObj.hostname.replace(/^www\./, '');
+    if ((hostname.endsWith('youtube.com') || hostname.endsWith('youtu.be')) && !baseline.authorOrCreator) {
+         try {
+             // We use a queue to prevent flooding requests
+             await enqueueFetch(async () => {
+                 const response = await fetch(tab.url);
+                 if (response.ok) {
+                     const html = await response.text();
+                     const channel = extractYouTubeChannelFromHtml(html);
+                     if (channel) {
+                         baseline.authorOrCreator = channel;
+                     }
+                 }
+             });
+         } catch (fetchErr) {
+             logDebug("Failed to fetch YouTube page content", { error: String(fetchErr) });
+         }
+    }
+
     return {
       data: baseline,
       status: 'OK'
@@ -64,11 +104,32 @@ const buildBaselineContext = (tab: chrome.tabs.Tab, customGenera?: Record<string
 
   // Determine Object Type first
   let objectType: PageContext['objectType'] = 'unknown';
+  let authorOrCreator: string | null = null;
+
   if (url.includes('/login') || url.includes('/signin')) {
       objectType = 'login';
   } else if (hostname.includes('youtube.com') || hostname.includes('youtu.be')) {
       const { videoId } = parseYouTubeUrl(url);
       if (videoId) objectType = 'video';
+
+      // Try to guess channel from URL if possible
+      if (url.includes('/@')) {
+          const parts = url.split('/@');
+          if (parts.length > 1) {
+              const handle = parts[1].split('/')[0];
+              authorOrCreator = '@' + handle;
+          }
+      } else if (url.includes('/c/')) {
+          const parts = url.split('/c/');
+          if (parts.length > 1) {
+              authorOrCreator = decodeURIComponent(parts[1].split('/')[0]);
+          }
+      } else if (url.includes('/user/')) {
+          const parts = url.split('/user/');
+          if (parts.length > 1) {
+              authorOrCreator = decodeURIComponent(parts[1].split('/')[0]);
+          }
+      }
   } else if (hostname === 'github.com' && url.includes('/pull/')) {
       objectType = 'ticket';
   } else if (hostname === 'github.com' && !url.includes('/pull/') && url.split('/').length >= 5) {
@@ -98,7 +159,7 @@ const buildBaselineContext = (tab: chrome.tabs.Tab, customGenera?: Record<string
     title: tab.title || null,
     genre,
     description: null,
-    authorOrCreator: null,
+    authorOrCreator: authorOrCreator,
     publishedAt: null,
     modifiedAt: null,
     language: null,
@@ -122,4 +183,3 @@ const buildBaselineContext = (tab: chrome.tabs.Tab, customGenera?: Record<string
     confidence: {}
   };
 };
-
