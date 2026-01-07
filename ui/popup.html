@@ -80,18 +80,34 @@
         </div>
       </div>
       <div class="action-bar">
-        <button id="btnSort" class="btn">Sort</button>
-        <button id="btnGroup" class="btn">Group</button>
+        <button id="btnApply" class="btn primary">Apply</button>
+      </div>
+    </div>
+
+    <div class="secondary-actions">
         <button id="btnUngroup" class="btn">Ungroup</button>
         <button id="btnMerge" class="btn">Merge</button>
         <button id="btnSplit" class="btn">Split</button>
-      </div>
     </div>
 
     <div class="selection-bar">
         <label class="checkbox-label">
           <input type="checkbox" id="selectAll"> Select All
         </label>
+        <div class="tree-actions">
+            <button id="btnExpandAll" class="text-btn" title="Expand All">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="4 14 12 22 20 14"></polyline>
+                <polyline points="4 2 12 10 20 2"></polyline>
+              </svg>
+            </button>
+            <button id="btnCollapseAll" class="text-btn" title="Collapse All">
+               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="18 10 12 2 6 10"></polyline>
+                <polyline points="18 22 12 14 6 22"></polyline>
+              </svg>
+            </button>
+        </div>
     </div>
 
     <dialog id="loadStateDialog" style="border: 1px solid var(--border-color); border-radius: 8px; padding: 16px; min-width: 300px; background: var(--bg-color); color: var(--text-color);">
