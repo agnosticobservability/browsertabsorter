@@ -110,11 +110,26 @@ export interface ApplyGroupingPayload {
   sorting?: SortingStrategy[];
 }
 
+export interface StrategyRule {
+  field: "url" | "title" | "domain";
+  operator: "contains" | "matches" | "equals" | "startsWith" | "endsWith";
+  value: string;
+  result: string;
+}
+
+export interface CustomStrategy {
+  id: string;
+  label: string;
+  type: "grouping" | "sorting";
+  rules: StrategyRule[];
+}
+
 export interface Preferences {
   sorting: SortingStrategy[];
   debug: boolean;
   theme?: "light" | "dark";
   customGenera?: Record<string, string>;
+  customStrategies?: CustomStrategy[];
 }
 
 export interface RuntimeMessage<TPayload = unknown> {

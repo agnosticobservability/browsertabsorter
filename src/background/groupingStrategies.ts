@@ -1,6 +1,12 @@
-import { GroupingStrategy, SortingStrategy, TabGroup, TabMetadata } from "../shared/types.js";
-import { getStrategy } from "../shared/strategyRegistry.js";
+import { GroupingStrategy, SortingStrategy, TabGroup, TabMetadata, CustomStrategy, StrategyRule } from "../shared/types.js";
+import { getStrategies, getStrategy } from "../shared/strategyRegistry.js";
 import { logDebug } from "./logger.js";
+
+let customStrategies: CustomStrategy[] = [];
+
+export const setCustomStrategies = (strategies: CustomStrategy[]) => {
+    customStrategies = strategies;
+};
 
 const COLORS = ["blue", "cyan", "green", "orange", "purple", "red", "yellow"];
 
@@ -57,9 +63,19 @@ const hashCode = (value: string): number => {
 };
 
 // Helper to get a human-readable label component from a strategy and a set of tabs
-const getLabelComponent = (strategy: GroupingStrategy, tabs: TabMetadata[], allTabsMap: Map<number, TabMetadata>): string => {
+const getLabelComponent = (strategy: GroupingStrategy | string, tabs: TabMetadata[], allTabsMap: Map<number, TabMetadata>): string => {
   const firstTab = tabs[0];
   if (!firstTab) return "Unknown";
+
+  // Check custom strategies first
+  const custom = customStrategies.find(s => s.id === strategy);
+  if (custom) {
+      // For custom strategies, the group key (result of rule) IS the label.
+      // But we need to re-evaluate it for the representative tab to be consistent,
+      // or just assume the grouping key was correct.
+      // Since `generateLabel` is called after grouping, tabs in this group should share the same key.
+      return groupingKey(firstTab, strategy);
+  }
 
   switch (strategy) {
     case "domain": {
@@ -106,7 +122,7 @@ const getLabelComponent = (strategy: GroupingStrategy, tabs: TabMetadata[], allT
 };
 
 const generateLabel = (
-  strategies: GroupingStrategy[],
+  strategies: (GroupingStrategy | string)[],
   tabs: TabMetadata[],
   allTabsMap: Map<number, TabMetadata>
 ): string => {
@@ -120,9 +136,11 @@ const generateLabel = (
 
 export const groupTabs = (
   tabs: TabMetadata[],
-  strategies: SortingStrategy[]
+  strategies: (SortingStrategy | string)[]
 ): TabGroup[] => {
-  const effectiveStrategies = strategies.filter(s => getStrategy(s)?.isGrouping);
+  // Use getStrategies to check grouping capability dynamically
+  const availableStrategies = getStrategies(customStrategies);
+  const effectiveStrategies = strategies.filter(s => availableStrategies.find(avail => avail.id === s)?.isGrouping);
   const buckets = new Map<string, TabGroup>();
 
   // Create a map of all tabs for easy lookup (needed for navigation parent title resolution)
@@ -157,7 +175,14 @@ export const groupTabs = (
   return groups;
 };
 
-export const groupingKey = (tab: TabMetadata, strategy: GroupingStrategy): string => {
+export const groupingKey = (tab: TabMetadata, strategy: GroupingStrategy | string): string => {
+  // 1. Check Custom Strategies (Override built-in if ID matches)
+  const custom = customStrategies.find(s => s.id === strategy);
+  if (custom) {
+      return evaluateRules(custom.rules, tab) || "Misc";
+  }
+
+  // 2. Built-in Strategies
   switch (strategy) {
     case "domain":
       return domainFromUrl(tab.url);
@@ -183,4 +208,35 @@ export const groupingKey = (tab: TabMetadata, strategy: GroupingStrategy): strin
     default:
       return "Unknown";
   }
+};
+
+const evaluateRules = (rules: StrategyRule[], tab: TabMetadata): string | null => {
+    for (const rule of rules) {
+        let valueToCheck = "";
+        if (rule.field === 'url') valueToCheck = tab.url;
+        else if (rule.field === 'title') valueToCheck = tab.title;
+        else if (rule.field === 'domain') valueToCheck = domainFromUrl(tab.url);
+
+        valueToCheck = valueToCheck.toLowerCase();
+        const pattern = rule.value.toLowerCase();
+        let matched = false;
+
+        switch (rule.operator) {
+            case 'contains': matched = valueToCheck.includes(pattern); break;
+            case 'equals': matched = valueToCheck === pattern; break;
+            case 'startsWith': matched = valueToCheck.startsWith(pattern); break;
+            case 'endsWith': matched = valueToCheck.endsWith(pattern); break;
+            case 'matches':
+                try {
+                    const regex = new RegExp(pattern, 'i');
+                    matched = regex.test(valueToCheck);
+                } catch (e) {
+                    // Invalid regex, ignore
+                }
+                break;
+        }
+
+        if (matched) return rule.result;
+    }
+    return null;
 };

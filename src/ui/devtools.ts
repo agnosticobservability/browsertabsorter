@@ -14,17 +14,19 @@ import {
   pinnedScore,
   compareBy
 } from "../background/sortingStrategies.js";
-import { GroupingStrategy, Preferences, SortingStrategy, TabMetadata, TabGroup } from "../shared/types.js";
-import { STRATEGIES, StrategyDefinition } from "../shared/strategyRegistry.js";
+import { setCustomStrategies } from "../background/groupingStrategies.js";
+import { GroupingStrategy, Preferences, SortingStrategy, TabMetadata, TabGroup, CustomStrategy, StrategyRule } from "../shared/types.js";
+import { STRATEGIES, StrategyDefinition, getStrategies } from "../shared/strategyRegistry.js";
 
 // State
 let currentTabs: chrome.tabs.Tab[] = [];
+let localCustomStrategies: CustomStrategy[] = [];
 let currentContextMap = new Map<number, ContextResult>();
 let tabTitles = new Map<number, string>();
 let sortKey: string | null = null;
 let sortDirection: 'asc' | 'desc' = 'asc';
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   const refreshBtn = document.getElementById('refreshBtn');
   if (refreshBtn) {
     refreshBtn.addEventListener('click', loadTabs);
@@ -139,9 +141,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
   loadTabs();
   // Pre-render static content
+  await loadPreferencesAndInit(); // Load preferences first to init strategies
   renderAlgorithmsView();
   loadCustomGenera();
+  initStrategyEditor();
 });
+
+async function loadPreferencesAndInit() {
+    try {
+        const response = await chrome.runtime.sendMessage({ type: 'loadPreferences' });
+        if (response && response.ok && response.data) {
+            const prefs = response.data as Preferences;
+            localCustomStrategies = prefs.customStrategies || [];
+            setCustomStrategies(localCustomStrategies);
+        }
+    } catch (e) {
+        console.error("Failed to load preferences", e);
+    }
+}
 
 async function loadCustomGenera() {
     const listContainer = document.getElementById('custom-genera-list');
@@ -155,6 +172,212 @@ async function loadCustomGenera() {
         }
     } catch (e) {
         console.error("Failed to load custom genera", e);
+    }
+}
+
+function initStrategyEditor() {
+    const addRuleBtn = document.getElementById('add-rule-btn');
+    const saveStratBtn = document.getElementById('save-strat-btn');
+    const rulesList = document.getElementById('rules-list');
+
+    if (addRuleBtn) {
+        addRuleBtn.addEventListener('click', () => {
+             addRuleRow();
+        });
+    }
+
+    if (saveStratBtn) {
+        saveStratBtn.addEventListener('click', saveCustomStrategy);
+    }
+
+    renderCustomStrategiesList();
+}
+
+function addRuleRow(data?: StrategyRule) {
+    const rulesList = document.getElementById('rules-list');
+    if (!rulesList) return;
+
+    const div = document.createElement('div');
+    div.className = 'rule-row';
+    div.style.display = 'flex';
+    div.style.gap = '5px';
+    div.style.marginBottom = '5px';
+
+    div.innerHTML = `
+        <select class="rule-field">
+            <option value="url">URL</option>
+            <option value="title">Title</option>
+            <option value="domain">Domain</option>
+        </select>
+        <select class="rule-operator">
+            <option value="contains">Contains</option>
+            <option value="equals">Equals</option>
+            <option value="startsWith">Starts With</option>
+            <option value="endsWith">Ends With</option>
+            <option value="matches">Matches Regex</option>
+        </select>
+        <input type="text" class="rule-value" placeholder="Pattern" style="flex: 1;">
+        <span>&rarr;</span>
+        <input type="text" class="rule-result" placeholder="Group Name" style="flex: 1;">
+        <button class="remove-rule-btn" style="color: red;">&times;</button>
+    `;
+
+    if (data) {
+        (div.querySelector('.rule-field') as HTMLSelectElement).value = data.field;
+        (div.querySelector('.rule-operator') as HTMLSelectElement).value = data.operator;
+        (div.querySelector('.rule-value') as HTMLInputElement).value = data.value;
+        (div.querySelector('.rule-result') as HTMLInputElement).value = data.result;
+    }
+
+    div.querySelector('.remove-rule-btn')?.addEventListener('click', () => {
+        div.remove();
+    });
+
+    rulesList.appendChild(div);
+}
+
+async function saveCustomStrategy() {
+    const idInput = document.getElementById('new-strat-id') as HTMLInputElement;
+    const labelInput = document.getElementById('new-strat-label') as HTMLInputElement;
+    const rulesList = document.getElementById('rules-list');
+
+    if (!idInput || !labelInput || !rulesList) return;
+
+    const id = idInput.value.trim();
+    const label = labelInput.value.trim();
+
+    if (!id || !label) {
+        alert("Please enter ID and Label");
+        return;
+    }
+
+    const rules: StrategyRule[] = [];
+    rulesList.querySelectorAll('.rule-row').forEach(row => {
+        const field = (row.querySelector('.rule-field') as HTMLSelectElement).value as any;
+        const operator = (row.querySelector('.rule-operator') as HTMLSelectElement).value as any;
+        const value = (row.querySelector('.rule-value') as HTMLInputElement).value;
+        const result = (row.querySelector('.rule-result') as HTMLInputElement).value;
+
+        if (value && result) {
+            rules.push({ field, operator, value, result });
+        }
+    });
+
+    if (rules.length === 0) {
+        alert("Please add at least one valid rule.");
+        return;
+    }
+
+    const newStrategy: CustomStrategy = {
+        id,
+        label,
+        type: 'grouping', // Default to grouping for now
+        rules
+    };
+
+    try {
+        // Fetch current to merge
+        const response = await chrome.runtime.sendMessage({ type: 'loadPreferences' });
+        if (response && response.ok && response.data) {
+            const prefs = response.data as Preferences;
+            let currentStrategies = prefs.customStrategies || [];
+
+            // Remove existing if same ID
+            currentStrategies = currentStrategies.filter(s => s.id !== id);
+            currentStrategies.push(newStrategy);
+
+            await chrome.runtime.sendMessage({
+                type: 'savePreferences',
+                payload: { customStrategies: currentStrategies }
+            });
+
+            // Update local state
+            localCustomStrategies = currentStrategies;
+            setCustomStrategies(localCustomStrategies);
+
+            // Reset form
+            idInput.value = '';
+            labelInput.value = '';
+            rulesList.innerHTML = '';
+
+            renderCustomStrategiesList();
+            renderAlgorithmsView(); // Refresh algo lists
+            alert("Strategy saved!");
+        }
+    } catch (e) {
+        console.error("Failed to save strategy", e);
+        alert("Error saving strategy");
+    }
+}
+
+function renderCustomStrategiesList() {
+    const container = document.getElementById('custom-strategies-list');
+    if (!container) return;
+
+    if (localCustomStrategies.length === 0) {
+        container.innerHTML = '<p style="color: #888;">No custom strategies defined.</p>';
+        return;
+    }
+
+    container.innerHTML = localCustomStrategies.map(s => `
+        <div style="border: 1px solid #ddd; padding: 10px; margin-bottom: 5px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <strong>${escapeHtml(s.label)}</strong> (${escapeHtml(s.id)})
+                <div style="font-size: 0.8em; color: #666;">${s.rules.length} rules</div>
+            </div>
+            <div>
+                <button class="edit-strat-btn" data-id="${escapeHtml(s.id)}">Edit</button>
+                <button class="delete-strat-btn" data-id="${escapeHtml(s.id)}" style="color: red;">Delete</button>
+            </div>
+        </div>
+    `).join('');
+
+    container.querySelectorAll('.delete-strat-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            const id = (e.target as HTMLElement).dataset.id;
+            if (id && confirm(`Delete strategy "${id}"?`)) {
+                await deleteCustomStrategy(id);
+            }
+        });
+    });
+
+    container.querySelectorAll('.edit-strat-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const id = (e.target as HTMLElement).dataset.id;
+            const strat = localCustomStrategies.find(s => s.id === id);
+            if (strat) {
+                // Populate form
+                (document.getElementById('new-strat-id') as HTMLInputElement).value = strat.id;
+                (document.getElementById('new-strat-label') as HTMLInputElement).value = strat.label;
+                const rulesList = document.getElementById('rules-list');
+                if (rulesList) {
+                    rulesList.innerHTML = '';
+                    strat.rules.forEach(r => addRuleRow(r));
+                }
+            }
+        });
+    });
+}
+
+async function deleteCustomStrategy(id: string) {
+    try {
+        const response = await chrome.runtime.sendMessage({ type: 'loadPreferences' });
+        if (response && response.ok && response.data) {
+            const prefs = response.data as Preferences;
+            const newStrategies = (prefs.customStrategies || []).filter(s => s.id !== id);
+
+            await chrome.runtime.sendMessage({
+                type: 'savePreferences',
+                payload: { customStrategies: newStrategies }
+            });
+
+            localCustomStrategies = newStrategies;
+            setCustomStrategies(localCustomStrategies);
+            renderCustomStrategiesList();
+            renderAlgorithmsView();
+        }
+    } catch (e) {
+        console.error("Failed to delete strategy", e);
     }
 }
 
@@ -433,50 +656,53 @@ function renderTable() {
 }
 
 function renderAlgorithmsView() {
+  // Use updated strategies list including custom ones
   renderStrategyConfig();
 
   const groupingRef = document.getElementById('grouping-ref');
   const sortingRef = document.getElementById('sorting-ref');
 
-  if (groupingRef && groupingRef.children.length === 0) {
-    const groupings = [
-      { name: 'domain', desc: 'Groups tabs by their domain name (e.g. google.com). Subdomains are stripped.' },
-      { name: 'topic', desc: 'Groups based on keywords in the title (e.g. Docs, Mail, Chat, Tasks).' },
-      { name: 'lineage', desc: 'Groups tabs based on how they were opened (parent/child relationships).' },
-      { name: 'context', desc: 'Groups by high-level category (e.g. Work, Entertainment) determined by extraction.' },
-      { name: 'age', desc: 'Groups tabs by time buckets (e.g. Today, Yesterday).' }
-    ];
+  if (groupingRef) {
+      // Re-render because strategy list might change
+      const allStrategies: StrategyDefinition[] = getStrategies(localCustomStrategies);
+      const groupings = allStrategies.filter(s => s.isGrouping);
 
-    groupingRef.innerHTML = groupings.map(g => `
-      <div class="strategy-item">
-        <div class="strategy-name">${g.name}</div>
-        <div class="strategy-desc">${g.desc}</div>
-        <button class="strategy-view-btn" data-type="grouping" data-name="${g.name}">View Logic</button>
-      </div>
-    `).join('');
+      groupingRef.innerHTML = groupings.map(g => {
+         const isCustom = localCustomStrategies.some(s => s.id === g.id);
+         let desc = "Built-in strategy";
+         if (isCustom) desc = "Custom strategy defined by rules.";
+         else if (g.id === 'domain') desc = 'Groups tabs by their domain name.';
+         else if (g.id === 'topic') desc = 'Groups based on keywords in the title.';
+
+         return `
+          <div class="strategy-item">
+            <div class="strategy-name">${g.label} (${g.id}) ${isCustom ? '<span style="color: blue; font-size: 0.8em;">Custom</span>' : ''}</div>
+            <div class="strategy-desc">${desc}</div>
+            <button class="strategy-view-btn" data-type="grouping" data-name="${g.id}">View Logic</button>
+          </div>
+        `;
+      }).join('');
   }
 
-  if (sortingRef && sortingRef.children.length === 0) {
-    const sortings = [
-       { name: 'recency', desc: 'Sorts by last accessed time (most recent first).' },
-       { name: 'nesting', desc: 'Sorts based on hierarchy (roots vs children).' },
-       { name: 'pinned', desc: 'Keeps pinned tabs at the beginning of the list.' },
-       { name: 'title', desc: 'Alphabetical sort by tab title.' },
-       { name: 'url', desc: 'Alphabetical sort by tab URL.' },
-       { name: 'context', desc: 'Sorts alphabetically by context category.' },
-       { name: 'domain', desc: 'Sorts alphabetically by domain.' },
-       { name: 'topic', desc: 'Sorts alphabetically by semantic bucket.' },
-       { name: 'age', desc: 'Sorts by time bucket.' },
-       { name: 'lineage', desc: 'Sorts by parent/child relationship key.' }
-    ];
+  if (sortingRef) {
+    // Re-render sorting strategies too
+    const allStrategies: StrategyDefinition[] = getStrategies(localCustomStrategies);
+    const sortings = allStrategies.filter(s => s.isSorting);
 
-    sortingRef.innerHTML = sortings.map(s => `
+    sortingRef.innerHTML = sortings.map(s => {
+        let desc = "Built-in sorting";
+        if (s.id === 'recency') desc = 'Sorts by last accessed time (most recent first).';
+        else if (s.id === 'nesting') desc = 'Sorts based on hierarchy (roots vs children).';
+        else if (s.id === 'pinned') desc = 'Keeps pinned tabs at the beginning of the list.';
+
+        return `
       <div class="strategy-item">
-        <div class="strategy-name">${s.name}</div>
-        <div class="strategy-desc">${s.desc}</div>
-        <button class="strategy-view-btn" data-type="sorting" data-name="${s.name}">View Logic</button>
+        <div class="strategy-name">${s.label}</div>
+        <div class="strategy-desc">${desc}</div>
+        <button class="strategy-view-btn" data-type="sorting" data-name="${s.id}">View Logic</button>
       </div>
-    `).join('');
+    `;
+    }).join('');
   }
 
   const registryRef = document.getElementById('registry-ref');
@@ -495,14 +721,19 @@ function renderStrategyConfig() {
   const groupingList = document.getElementById('sim-grouping-list');
   const sortingList = document.getElementById('sim-sorting-list');
 
-  if (groupingList && groupingList.children.length === 0) {
-      const groupingStrategies = STRATEGIES.filter(s => s.isGrouping);
-      renderStrategyList(groupingList, groupingStrategies, ['domain', 'topic']); // Default enabled
+  // Use dynamic strategy list
+  const strategies: StrategyDefinition[] = getStrategies(localCustomStrategies);
+
+  if (groupingList) {
+      const groupingStrategies = strategies.filter(s => s.isGrouping);
+      // We should preserve checked state if re-rendering, but for now just defaulting is okay or reading current DOM
+      // Simplification: just re-render.
+      renderStrategyList(groupingList, groupingStrategies, ['domain', 'topic']);
   }
 
-  if (sortingList && sortingList.children.length === 0) {
-      const sortingStrategies = STRATEGIES.filter(s => s.isSorting);
-      renderStrategyList(sortingList, sortingStrategies, ['pinned', 'recency']); // Default enabled
+  if (sortingList) {
+      const sortingStrategies = strategies.filter(s => s.isSorting);
+      renderStrategyList(sortingList, sortingStrategies, ['pinned', 'recency']);
   }
 }
 
@@ -510,10 +741,11 @@ function renderStrategyList(container: HTMLElement, strategies: StrategyDefiniti
     container.innerHTML = '';
 
     // Sort enabled by their index in defaultEnabled
-    const enabled = strategies.filter(s => defaultEnabled.includes(s.id));
-    enabled.sort((a, b) => defaultEnabled.indexOf(a.id) - defaultEnabled.indexOf(b.id));
+    const enabled = strategies.filter(s => defaultEnabled.includes(s.id as string));
+    // Safe indexof check since ids are strings in defaultEnabled
+    enabled.sort((a, b) => defaultEnabled.indexOf(a.id as string) - defaultEnabled.indexOf(b.id as string));
 
-    const disabled = strategies.filter(s => !defaultEnabled.includes(s.id));
+    const disabled = strategies.filter(s => !defaultEnabled.includes(s.id as string));
 
     // Initial render order: Enabled (ordered) then Disabled
     const ordered = [...enabled, ...disabled];
@@ -613,10 +845,22 @@ function showStrategyDetails(type: string, name: string) {
 <pre><code>${escapeHtml(groupingKey.toString())}</code></pre>
             `;
         } else {
-            content = `
+            // Check for custom strategy details
+            const custom = localCustomStrategies.find(s => s.id === name);
+            if (custom) {
+                content = `
+<h3>Custom Strategy: ${escapeHtml(custom.label)}</h3>
+<p><b>Rules:</b></p>
+<pre><code>${escapeHtml(JSON.stringify(custom.rules, null, 2))}</code></pre>
 <h3>Logic: Grouping Key</h3>
 <pre><code>${escapeHtml(groupingKey.toString())}</code></pre>
-            `;
+                `;
+            } else {
+                content = `
+<h3>Logic: Grouping Key</h3>
+<pre><code>${escapeHtml(groupingKey.toString())}</code></pre>
+                `;
+            }
         }
     } else if (type === 'sorting') {
         content = `
@@ -668,7 +912,7 @@ function showStrategyDetails(type: string, name: string) {
     });
 }
 
-function getStrategies(container: HTMLElement): SortingStrategy[] {
+function getEnabledStrategiesFromUI(container: HTMLElement): SortingStrategy[] {
     return Array.from(container.children)
         .filter(row => (row.querySelector('input[type="checkbox"]') as HTMLInputElement).checked)
         .map(row => (row as HTMLElement).dataset.id as SortingStrategy);
@@ -681,8 +925,8 @@ function runSimulation() {
 
   if (!groupingList || !sortingList || !resultContainer) return;
 
-  const groupingStrats = getStrategies(groupingList);
-  const sortingStrats = getStrategies(sortingList);
+  const groupingStrats = getEnabledStrategiesFromUI(groupingList);
+  const sortingStrats = getEnabledStrategiesFromUI(sortingList);
 
   // Prepare data
   let tabs = getMappedTabs();
@@ -726,8 +970,8 @@ async function applyToBrowser() {
 
     if (!groupingList || !sortingList) return;
 
-    const groupingStrats = getStrategies(groupingList);
-    const sortingStrats = getStrategies(sortingList);
+    const groupingStrats = getEnabledStrategiesFromUI(groupingList);
+    const sortingStrats = getEnabledStrategiesFromUI(sortingList);
 
     // Combine strategies.
     // We prioritize grouping strategies first, then sorting strategies,

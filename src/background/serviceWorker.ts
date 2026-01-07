@@ -1,5 +1,6 @@
 import { applyTabGroups, applyTabSorting, calculateTabGroups, fetchCurrentTabGroups, mergeTabs, splitTabs } from "./tabManager.js";
 import { loadPreferences, savePreferences } from "./preferences.js";
+import { setCustomStrategies } from "./groupingStrategies.js";
 import { logDebug, logInfo } from "./logger.js";
 import { pushUndoState, saveState, undo, getSavedStates, deleteSavedState, restoreState } from "./stateManager.js";
 import {
@@ -15,6 +16,7 @@ import {
 
 chrome.runtime.onInstalled.addListener(async () => {
   const prefs = await loadPreferences();
+  setCustomStrategies(prefs.customStrategies || []);
   logInfo("Extension installed", { prefs });
 });
 
@@ -26,6 +28,7 @@ const handleMessage = async <TData>(
   switch (message.type) {
     case "getState": {
       const prefs = await loadPreferences();
+      setCustomStrategies(prefs.customStrategies || []);
       // Use fetchCurrentTabGroups to return the actual state of the browser tabs
       const groups = await fetchCurrentTabGroups(prefs);
       return { ok: true, data: { groups, preferences: prefs } as TData };
@@ -33,6 +36,7 @@ const handleMessage = async <TData>(
     case "applyGrouping": {
       await pushUndoState();
       const prefs = await loadPreferences();
+      setCustomStrategies(prefs.customStrategies || []);
       const payload = (message.payload as ApplyGroupingPayload | undefined) ?? {};
       const selection = payload.selection ?? {};
       const sorting = payload.sorting?.length ? payload.sorting : undefined;
@@ -47,6 +51,7 @@ const handleMessage = async <TData>(
     case "applySorting": {
       await pushUndoState();
       const prefs = await loadPreferences();
+      setCustomStrategies(prefs.customStrategies || []);
       const payload = (message.payload as ApplyGroupingPayload | undefined) ?? {};
       const selection = payload.selection ?? {};
       const sorting = payload.sorting?.length ? payload.sorting : undefined;
@@ -106,10 +111,12 @@ const handleMessage = async <TData>(
     }
     case "loadPreferences": {
       const prefs = await loadPreferences();
+      setCustomStrategies(prefs.customStrategies || []);
       return { ok: true, data: prefs as TData };
     }
     case "savePreferences": {
       const prefs = await savePreferences(message.payload as any);
+      setCustomStrategies(prefs.customStrategies || []);
       return { ok: true, data: prefs as TData };
     }
     default:
