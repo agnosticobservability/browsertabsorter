@@ -44,7 +44,7 @@ const selectedTabs = new Set<number>();
 let preferences: Preferences | null = null;
 
 // Tree State
-const expandedNodes = new Set<string>();
+const collapsedNodes = new Set<string>();
 const TREE_ICONS = {
   chevronRight: `<svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>`,
   folder: `<svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>`
@@ -149,8 +149,7 @@ const renderTree = () => {
 
   filtered.forEach(({ window, visibleTabs }) => {
     const windowKey = `w-${window.id}`;
-    if (!expandedNodes.has(windowKey) && !query) expandedNodes.add(windowKey);
-    const isExpanded = !!query || expandedNodes.has(windowKey);
+    const isExpanded = !!query || !collapsedNodes.has(windowKey);
 
     // Window Checkbox Logic
     const allTabIds = visibleTabs.map(t => t.id);
@@ -269,8 +268,7 @@ const renderTree = () => {
 
     Array.from(groups.entries()).sort().forEach(([groupLabel, groupData]) => {
         const groupKey = `${windowKey}-g-${groupLabel}`;
-        if (!expandedNodes.has(groupKey) && !query) expandedNodes.add(groupKey);
-        const isGroupExpanded = !!query || expandedNodes.has(groupKey);
+        const isGroupExpanded = !!query || !collapsedNodes.has(groupKey);
 
         // Group Checkbox Logic
         const groupTabIds = groupData.tabs.map(t => t.id);
@@ -343,10 +341,10 @@ const renderTree = () => {
             'group',
             isGroupExpanded,
             () => {
-                if (expandedNodes.has(groupKey)) expandedNodes.delete(groupKey);
-                else expandedNodes.add(groupKey);
+                if (collapsedNodes.has(groupKey)) collapsedNodes.delete(groupKey);
+                else collapsedNodes.add(groupKey);
 
-                const expanded = expandedNodes.has(groupKey);
+                const expanded = !collapsedNodes.has(groupKey);
                 grpToggle.classList.toggle('rotated', expanded);
                 grpChildren!.classList.toggle('expanded', expanded);
             }
@@ -364,10 +362,10 @@ const renderTree = () => {
         'window',
         isExpanded,
         () => {
-             if (expandedNodes.has(windowKey)) expandedNodes.delete(windowKey);
-             else expandedNodes.add(windowKey);
+             if (collapsedNodes.has(windowKey)) collapsedNodes.delete(windowKey);
+             else collapsedNodes.add(windowKey);
 
-             const expanded = expandedNodes.has(windowKey);
+             const expanded = !collapsedNodes.has(windowKey);
              winToggle.classList.toggle('rotated', expanded);
              winChildren!.classList.toggle('expanded', expanded);
         }
@@ -527,11 +525,6 @@ const loadState = async () => {
 
   windowState = mapWindows(state.data.groups, windowTitles);
 
-  // Initialize expanded state for new windows
-  windowState.forEach(w => {
-      if (!expandedNodes.has(`w-${w.id}`)) expandedNodes.add(`w-${w.id}`);
-  });
-
   renderTree();
 };
 
@@ -595,19 +588,19 @@ btnSplit.addEventListener("click", async () => {
 });
 
 btnExpandAll?.addEventListener("click", () => {
-    windowState.forEach(win => {
-        expandedNodes.add(`w-${win.id}`);
-        win.tabs.forEach(tab => {
-            if (tab.groupLabel) {
-                 expandedNodes.add(`w-${win.id}-g-${tab.groupLabel}`);
-            }
-        });
-    });
+    collapsedNodes.clear();
     renderTree();
 });
 
 btnCollapseAll?.addEventListener("click", () => {
-    expandedNodes.clear();
+    windowState.forEach(win => {
+        collapsedNodes.add(`w-${win.id}`);
+        win.tabs.forEach(tab => {
+            if (tab.groupLabel) {
+                 collapsedNodes.add(`w-${win.id}-g-${tab.groupLabel}`);
+            }
+        });
+    });
     renderTree();
 });
 

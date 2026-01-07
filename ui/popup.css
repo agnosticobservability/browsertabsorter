@@ -362,8 +362,31 @@ body {
   padding: 8px 12px;
   display: flex;
   align-items: center;
+  justify-content: space-between;
   border-bottom: 1px solid var(--border-color);
   margin-bottom: 4px;
+}
+
+.tree-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.text-btn {
+  background: none;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  color: var(--text-muted);
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.text-btn:hover {
+  background: var(--hover-bg);
+  color: var(--text-main);
 }
 
 .checkbox-label {
