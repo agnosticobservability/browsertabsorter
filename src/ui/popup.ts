@@ -21,11 +21,12 @@ const searchInput = document.getElementById("tabSearch") as HTMLInputElement;
 const windowsContainer = document.getElementById("windows") as HTMLDivElement;
 
 const selectAllCheckbox = document.getElementById("selectAll") as HTMLInputElement;
-const btnSort = document.getElementById("btnSort") as HTMLButtonElement;
-const btnGroup = document.getElementById("btnGroup") as HTMLButtonElement;
+const btnApply = document.getElementById("btnApply") as HTMLButtonElement;
 const btnUngroup = document.getElementById("btnUngroup") as HTMLButtonElement;
 const btnMerge = document.getElementById("btnMerge") as HTMLButtonElement;
 const btnSplit = document.getElementById("btnSplit") as HTMLButtonElement;
+const btnExpandAll = document.getElementById("btnExpandAll") as HTMLButtonElement;
+const btnCollapseAll = document.getElementById("btnCollapseAll") as HTMLButtonElement;
 
 const strategiesList = document.getElementById("strategiesList") as HTMLDivElement;
 const toggleStrategies = document.getElementById("toggleStrategies") as HTMLDivElement;
@@ -41,7 +42,6 @@ let windowState: WindowView[] = [];
 let focusedWindowId: number | null = null;
 const selectedTabs = new Set<number>();
 let preferences: Preferences | null = null;
-let sortingInitialized = false;
 
 // Tree State
 const expandedNodes = new Set<string>();
@@ -60,14 +60,10 @@ const updateStats = () => {
 
   // Update selection buttons
   const hasSelection = selectedTabs.size > 0;
-  btnSort.disabled = !hasSelection;
-  btnGroup.disabled = !hasSelection;
   btnUngroup.disabled = !hasSelection;
   btnMerge.disabled = !hasSelection;
   btnSplit.disabled = !hasSelection;
 
-  btnSort.style.opacity = hasSelection ? "1" : "0.5";
-  btnGroup.style.opacity = hasSelection ? "1" : "0.5";
   btnUngroup.style.opacity = hasSelection ? "1" : "0.5";
   btnMerge.style.opacity = hasSelection ? "1" : "0.5";
   btnSplit.style.opacity = hasSelection ? "1" : "0.5";
@@ -554,12 +550,6 @@ const getSelectedSorting = (): SortingStrategy[] => {
   return [...groupingStrats, ...sortingStrats];
 };
 
-const triggerSort = async (selection?: GroupingSelection) => {
-    const sorting = getSelectedSorting();
-    await applySorting({ selection, sorting });
-    await loadState();
-};
-
 const triggerGroup = async (selection?: GroupingSelection) => {
     const sorting = getSelectedSorting();
     await applyGrouping({ selection, sorting });
@@ -581,8 +571,8 @@ selectAllCheckbox.addEventListener("change", (e) => {
     renderTree();
 });
 
-btnSort.addEventListener("click", () => triggerSort({ tabIds: Array.from(selectedTabs) }));
-btnGroup.addEventListener("click", () => triggerGroup({ tabIds: Array.from(selectedTabs) }));
+btnApply?.addEventListener("click", () => triggerGroup({ tabIds: Array.from(selectedTabs) }));
+
 btnUngroup.addEventListener("click", async () => {
   if (confirm(`Ungroup ${selectedTabs.size} tabs?`)) {
       await chrome.tabs.ungroup(Array.from(selectedTabs));
@@ -602,6 +592,23 @@ btnSplit.addEventListener("click", async () => {
       if (!res.ok) alert("Split failed: " + res.error);
       else await loadState();
   }
+});
+
+btnExpandAll?.addEventListener("click", () => {
+    windowState.forEach(win => {
+        expandedNodes.add(`w-${win.id}`);
+        win.tabs.forEach(tab => {
+            if (tab.groupLabel) {
+                 expandedNodes.add(`w-${win.id}-g-${tab.groupLabel}`);
+            }
+        });
+    });
+    renderTree();
+});
+
+btnCollapseAll?.addEventListener("click", () => {
+    expandedNodes.clear();
+    renderTree();
 });
 
 toggleStrategies.addEventListener("click", () => {
