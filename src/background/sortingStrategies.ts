@@ -16,7 +16,7 @@ export const sortTabs = (tabs: TabMetadata[], strategies: SortingStrategy[]): Ta
   });
 };
 
-export const compareBy = (strategy: SortingStrategy, a: TabMetadata, b: TabMetadata): number => {
+export const compareBy = (strategy: SortingStrategy | string, a: TabMetadata, b: TabMetadata): number => {
   switch (strategy) {
     case "recency":
       return (b.lastAccessed ?? 0) - (a.lastAccessed ?? 0);
@@ -40,6 +40,7 @@ export const compareBy = (strategy: SortingStrategy, a: TabMetadata, b: TabMetad
       // Reverse alphabetical for age buckets (Today < Yesterday), rough approx
       return groupingKey(a, "age").localeCompare(groupingKey(b, "age"));
     default:
-      return 0;
+      // Fallback for custom strategies or unhandled built-ins
+      return groupingKey(a, strategy).localeCompare(groupingKey(b, strategy));
   }
 };
