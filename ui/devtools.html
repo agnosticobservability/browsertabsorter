@@ -24,25 +24,28 @@
         <div id="stats">
           <span>Total Tabs: <span id="totalTabs">0</span></span>
         </div>
+
+        <div class="table-toolbar">
+            <div class="search-container">
+                <input type="text" id="globalSearch" placeholder="Search all columns..." />
+            </div>
+            <div class="columns-menu-container">
+                <button id="columnsBtn">Columns ▾</button>
+                <div id="columnsMenu" class="columns-menu hidden">
+                    <!-- Checkboxes populated by JS -->
+                </div>
+            </div>
+            <button id="resetViewBtn" class="small-btn">Reset View</button>
+        </div>
+
         <div class="table-container">
           <table id="tabsTable">
             <thead>
-              <tr>
-                <th class="sortable" data-key="id">ID</th>
-                <th class="sortable" data-key="index">Index</th>
-                <th class="sortable" data-key="windowId">Window</th>
-                <th class="sortable" data-key="groupId">Group</th>
-                <th class="sortable" data-key="title">Title</th>
-                <th class="sortable" data-key="url">URL</th>
-                <th class="sortable" data-key="status">Status</th>
-                <th class="sortable" data-key="active">Active</th>
-                <th class="sortable" data-key="pinned">Pinned</th>
-                <th class="sortable" data-key="openerTabId">Opener ID</th>
-                <th class="sortable" data-key="parentTitle">Parent Title</th>
-        <th class="sortable" data-key="genre">Genre</th>
-                <th class="sortable" data-key="context">Context Details</th>
-                <th class="sortable" data-key="lastAccessed">Last Accessed</th>
-                <th>Actions</th>
+              <tr id="headerRow">
+                <!-- Headers populated by JS to support reordering/resizing -->
+              </tr>
+              <tr id="filterRow">
+                <!-- Filter inputs populated by JS -->
               </tr>
             </thead>
             <tbody>
