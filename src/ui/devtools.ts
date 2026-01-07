@@ -190,7 +190,7 @@ function initStrategyEditor() {
         saveStratBtn.addEventListener('click', saveCustomStrategy);
     }
 
-    renderCustomStrategiesList();
+    renderStrategiesList();
 }
 
 function addRuleRow(data?: StrategyRule) {
@@ -300,7 +300,7 @@ async function saveCustomStrategy() {
             labelInput.value = '';
             rulesList.innerHTML = '';
 
-            renderCustomStrategiesList();
+            renderStrategiesList();
             renderAlgorithmsView(); // Refresh algo lists
             alert("Strategy saved!");
         }
@@ -310,32 +310,56 @@ async function saveCustomStrategy() {
     }
 }
 
-function renderCustomStrategiesList() {
+function renderStrategiesList() {
     const container = document.getElementById('custom-strategies-list');
     if (!container) return;
 
-    if (localCustomStrategies.length === 0) {
-        container.innerHTML = '<p style="color: #888;">No custom strategies defined.</p>';
+    const allStrategies = getStrategies(localCustomStrategies);
+
+    if (allStrategies.length === 0) {
+        container.innerHTML = '<p style="color: #888;">No strategies found.</p>';
         return;
     }
 
-    container.innerHTML = localCustomStrategies.map(s => `
-        <div style="border: 1px solid #ddd; padding: 10px; margin-bottom: 5px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center;">
+    container.innerHTML = allStrategies.map(s => {
+        const isCustom = localCustomStrategies.some(cs => cs.id === s.id);
+        const isBuiltIn = STRATEGIES.some(bs => bs.id === s.id);
+
+        let typeLabel = '';
+        if (isCustom && isBuiltIn) typeLabel = '<span style="color: orange; font-size: 0.8em;">Overrides Built-in</span>';
+        else if (isCustom) typeLabel = '<span style="color: blue; font-size: 0.8em;">Custom</span>';
+        else typeLabel = '<span style="color: gray; font-size: 0.8em;">Built-in</span>';
+
+        let actions = '';
+        if (isCustom) {
+            actions += `<button class="edit-strat-btn" data-id="${escapeHtml(String(s.id))}">Edit</button> `;
+            actions += `<button class="delete-strat-btn" data-id="${escapeHtml(String(s.id))}" style="color: red;">${isBuiltIn ? 'Restore' : 'Delete'}</button>`;
+        } else {
+            actions += `<button class="override-strat-btn" data-id="${escapeHtml(String(s.id))}" data-label="${escapeHtml(s.label)}">Override</button>`;
+        }
+
+        return `
+        <div style="border: 1px solid #ddd; padding: 10px; margin-bottom: 5px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; background-color: ${isCustom ? '#f9faff' : '#fff'};">
             <div>
-                <strong>${escapeHtml(s.label)}</strong> (${escapeHtml(s.id)})
-                <div style="font-size: 0.8em; color: #666;">${s.rules.length} rules</div>
+                <strong>${escapeHtml(s.label)}</strong> (${escapeHtml(String(s.id))})
+                ${typeLabel}
+                ${isCustom ? `<div style="font-size: 0.8em; color: #666;">${localCustomStrategies.find(c => c.id === s.id)?.rules.length || 0} rules</div>` : ''}
             </div>
             <div>
-                <button class="edit-strat-btn" data-id="${escapeHtml(s.id)}">Edit</button>
-                <button class="delete-strat-btn" data-id="${escapeHtml(s.id)}" style="color: red;">Delete</button>
+                ${actions}
             </div>
         </div>
-    `).join('');
+        `;
+    }).join('');
 
+    // Attach listeners
     container.querySelectorAll('.delete-strat-btn').forEach(btn => {
         btn.addEventListener('click', async (e) => {
             const id = (e.target as HTMLElement).dataset.id;
-            if (id && confirm(`Delete strategy "${id}"?`)) {
+            const isBuiltIn = STRATEGIES.some(s => s.id === id);
+            const action = isBuiltIn ? "Restore built-in strategy" : "Delete strategy";
+
+            if (id && confirm(`${action} "${id}"?`)) {
                 await deleteCustomStrategy(id);
             }
         });
@@ -354,7 +378,29 @@ function renderCustomStrategiesList() {
                     rulesList.innerHTML = '';
                     strat.rules.forEach(r => addRuleRow(r));
                 }
+                document.querySelector('.strategy-editor')?.scrollIntoView({ behavior: 'smooth' });
             }
+        });
+    });
+
+    container.querySelectorAll('.override-strat-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const id = (e.target as HTMLElement).dataset.id;
+            const label = (e.target as HTMLElement).dataset.label;
+
+            // Populate form
+            (document.getElementById('new-strat-id') as HTMLInputElement).value = id || '';
+            (document.getElementById('new-strat-label') as HTMLInputElement).value = label || '';
+
+            // Clear rules
+            const rulesList = document.getElementById('rules-list');
+            if (rulesList) rulesList.innerHTML = '';
+
+            // Add one empty rule to start
+            addRuleRow();
+
+            // Scroll to editor
+            document.querySelector('.strategy-editor')?.scrollIntoView({ behavior: 'smooth' });
         });
     });
 }
@@ -373,7 +419,7 @@ async function deleteCustomStrategy(id: string) {
 
             localCustomStrategies = newStrategies;
             setCustomStrategies(localCustomStrategies);
-            renderCustomStrategiesList();
+            renderStrategiesList();
             renderAlgorithmsView();
         }
     } catch (e) {
