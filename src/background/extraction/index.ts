@@ -58,13 +58,14 @@ export const extractPageContext = async (tabId: number): Promise<ExtractionRespo
     let baseline = buildBaselineContext(tab, prefs.customGenera);
 
     // Fetch and enrich for YouTube if author is missing and it is a video
-    const urlObj = new URL(tab.url);
+    const targetUrl = tab.url;
+    const urlObj = new URL(targetUrl);
     const hostname = urlObj.hostname.replace(/^www\./, '');
     if ((hostname.endsWith('youtube.com') || hostname.endsWith('youtu.be')) && !baseline.authorOrCreator) {
          try {
              // We use a queue to prevent flooding requests
              await enqueueFetch(async () => {
-                 const response = await fetch(tab.url);
+                 const response = await fetch(targetUrl);
                  if (response.ok) {
                      const html = await response.text();
                      const channel = extractYouTubeChannelFromHtml(html);
