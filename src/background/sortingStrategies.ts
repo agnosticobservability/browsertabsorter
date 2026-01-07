@@ -31,6 +31,7 @@ export const compareBy = (strategy: SortingStrategy | string, a: TabMetadata, b:
     case "context":
       return (a.context ?? "").localeCompare(b.context ?? "");
     case "domain":
+    case "domain_full":
       return domainFromUrl(a.url).localeCompare(domainFromUrl(b.url));
     case "topic":
       return semanticBucket(a.title, a.url).localeCompare(semanticBucket(b.title, b.url));

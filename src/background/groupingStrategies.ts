@@ -87,6 +87,9 @@ const getLabelComponent = (strategy: GroupingStrategy | string, tabs: TabMetadat
       // If mixed or missing, fall back to domain
       return stripTld(domainFromUrl(firstTab.url));
     }
+    case "domain_full":
+      // Return full domain (no TLD stripping)
+      return domainFromUrl(firstTab.url);
     case "topic":
       return semanticBucket(firstTab.title, firstTab.url);
     case "lineage":
@@ -185,6 +188,7 @@ export const groupingKey = (tab: TabMetadata, strategy: GroupingStrategy | strin
   // 2. Built-in Strategies
   switch (strategy) {
     case "domain":
+    case "domain_full":
       return domainFromUrl(tab.url);
     case "topic":
       return semanticBucket(tab.title, tab.url);
