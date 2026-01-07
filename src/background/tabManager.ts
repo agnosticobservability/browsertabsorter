@@ -16,7 +16,10 @@ const mapChromeTab = (tab: chrome.tabs.Tab): TabMetadata | null => {
     lastAccessed: tab.lastAccessed,
     openerTabId: tab.openerTabId ?? undefined,
     favIconUrl: tab.favIconUrl,
-    groupId: tab.groupId
+    groupId: tab.groupId,
+    index: tab.index,
+    active: tab.active,
+    status: tab.status
   };
 };
 

@@ -566,7 +566,10 @@ function getMappedTabs(): TabMetadata[] {
         openerTabId: tab.openerTabId,
         favIconUrl: tab.favIconUrl || undefined,
         context: contextResult?.context,
-        contextData: contextResult?.data
+        contextData: contextResult?.data,
+        index: tab.index,
+        active: tab.active,
+        status: tab.status
       };
     });
 }

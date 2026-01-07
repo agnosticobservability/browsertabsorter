@@ -62,6 +62,9 @@ export interface TabMetadata {
   context?: string;
   contextData?: PageContext;
   groupId?: number;
+  index: number;
+  active: boolean;
+  status?: string;
 }
 
 export interface TabGroup {
@@ -73,7 +76,7 @@ export interface TabGroup {
   reason: string;
 }
 
-export type SortingStrategy = "domain" | "url" | "topic" | "title" | "lineage" | "nesting" | "context" | "pinned" | "age" | "recency" | "youtubeChannel" | "domain_full";
+export type SortingStrategy = "domain" | "url" | "topic" | "title" | "lineage" | "nesting" | "context" | "pinned" | "age" | "recency" | "youtubeChannel" | "domain_full" | string;
 export type GroupingStrategy = SortingStrategy;
 
 export interface StoredTabState {

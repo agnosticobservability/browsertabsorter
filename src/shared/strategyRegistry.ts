@@ -18,10 +18,11 @@ export const ARCHIVED_STRATEGIES: StrategyDefinition[] = [
     { id: "url", label: "URL", isGrouping: false, isSorting: true },
     { id: "topic", label: "Topic", isGrouping: true, isSorting: true },
     { id: "title", label: "Title", isGrouping: false, isSorting: true },
+    { id: "domain_full", label: "Domain", isGrouping: true, isSorting: true },
 ];
 
 export const STRATEGIES: StrategyDefinition[] = [
-    { id: "domain_full", label: "Domain", isGrouping: true, isSorting: true },
+    { id: "title", label: "Title", isGrouping: true, isSorting: true },
 ];
 
 export const getStrategies = (customStrategies?: CustomStrategy[]): StrategyDefinition[] => {
