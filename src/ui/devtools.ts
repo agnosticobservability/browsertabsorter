@@ -4,7 +4,8 @@ import {
   domainFromUrl,
   semanticBucket,
   navigationKey,
-  groupingKey
+  groupingKey,
+  getFieldValue
 } from "../background/groupingStrategies.js";
 import { GENERA_REGISTRY } from "../background/extraction/generaRegistry.js";
 import {
@@ -12,10 +13,11 @@ import {
   recencyScore,
   hierarchyScore,
   pinnedScore,
-  compareBy
+  compareBy,
+  setCustomStrategiesForSorting
 } from "../background/sortingStrategies.js";
 import { setCustomStrategies } from "../background/groupingStrategies.js";
-import { GroupingStrategy, Preferences, SortingStrategy, TabMetadata, TabGroup, CustomStrategy, StrategyRule } from "../shared/types.js";
+import { GroupingStrategy, Preferences, SortingStrategy, TabMetadata, TabGroup, CustomStrategy, StrategyRule, RuleCondition, SortRule } from "../shared/types.js";
 import { STRATEGIES, StrategyDefinition, getStrategies } from "../shared/strategyRegistry.js";
 
 // Types
@@ -338,6 +340,7 @@ async function loadPreferencesAndInit() {
             const prefs = response.data as Preferences;
             localCustomStrategies = prefs.customStrategies || [];
             setCustomStrategies(localCustomStrategies);
+            setCustomStrategiesForSorting(localCustomStrategies);
         }
     } catch (e) {
         console.error("Failed to load preferences", e);
@@ -360,13 +363,20 @@ async function loadCustomGenera() {
 }
 
 function initStrategyEditor() {
-    const addRuleBtn = document.getElementById('add-rule-btn');
+    const addGroupBtn = document.getElementById('add-group-btn');
+    const addSortBtn = document.getElementById('add-sort-btn');
     const saveStratBtn = document.getElementById('save-strat-btn');
-    const rulesList = document.getElementById('rules-list');
+    const runBuilderBtn = document.getElementById('run-builder-btn');
 
-    if (addRuleBtn) {
-        addRuleBtn.addEventListener('click', () => {
+    if (addGroupBtn) {
+        addGroupBtn.addEventListener('click', () => {
              addRuleRow();
+        });
+    }
+
+    if (addSortBtn) {
+        addSortBtn.addEventListener('click', () => {
+            addSortRow();
         });
     }
 
@@ -374,134 +384,11 @@ function initStrategyEditor() {
         saveStratBtn.addEventListener('click', saveCustomStrategy);
     }
 
+    if (runBuilderBtn) {
+        runBuilderBtn.addEventListener('click', runBuilderSimulation);
+    }
+
     renderStrategiesList();
-}
-
-function addRuleRow(data?: StrategyRule) {
-    const rulesList = document.getElementById('rules-list');
-    if (!rulesList) return;
-
-    const div = document.createElement('div');
-    div.className = 'rule-row';
-    div.style.display = 'flex';
-    div.style.gap = '5px';
-    div.style.marginBottom = '5px';
-
-    div.innerHTML = `
-        <select class="rule-field">
-            <option value="url">URL</option>
-            <option value="title">Title</option>
-            <option value="domain">Domain</option>
-            <option value="genre">Genre</option>
-            <option value="siteName">Site Name</option>
-            <option value="platform">Platform</option>
-            <option value="context">Context Label</option>
-            <option value="pinned">Pinned (true/false)</option>
-            <option value="active">Active (true/false)</option>
-        </select>
-        <select class="rule-operator">
-            <option value="contains">Contains</option>
-            <option value="equals">Equals</option>
-            <option value="startsWith">Starts With</option>
-            <option value="endsWith">Ends With</option>
-            <option value="matches">Matches Regex</option>
-        </select>
-        <input type="text" class="rule-value" placeholder="Pattern" style="flex: 1;">
-        <span>&rarr;</span>
-        <input type="text" class="rule-result" placeholder="Group Name" style="flex: 1;">
-        <button class="remove-rule-btn" style="color: red;">&times;</button>
-    `;
-
-    if (data) {
-        (div.querySelector('.rule-field') as HTMLSelectElement).value = data.field;
-        (div.querySelector('.rule-operator') as HTMLSelectElement).value = data.operator;
-        (div.querySelector('.rule-value') as HTMLInputElement).value = data.value;
-        (div.querySelector('.rule-result') as HTMLInputElement).value = data.result;
-    }
-
-    div.querySelector('.remove-rule-btn')?.addEventListener('click', () => {
-        div.remove();
-    });
-
-    rulesList.appendChild(div);
-}
-
-async function saveCustomStrategy() {
-    const idInput = document.getElementById('new-strat-id') as HTMLInputElement;
-    const labelInput = document.getElementById('new-strat-label') as HTMLInputElement;
-    const fallbackInput = document.getElementById('new-strat-fallback') as HTMLInputElement;
-    const rulesList = document.getElementById('rules-list');
-
-    if (!idInput || !labelInput || !rulesList) return;
-
-    const id = idInput.value.trim();
-    const label = labelInput.value.trim();
-    const fallback = fallbackInput ? fallbackInput.value.trim() : undefined;
-
-    if (!id || !label) {
-        alert("Please enter ID and Label");
-        return;
-    }
-
-    const rules: StrategyRule[] = [];
-    rulesList.querySelectorAll('.rule-row').forEach(row => {
-        const field = (row.querySelector('.rule-field') as HTMLSelectElement).value as any;
-        const operator = (row.querySelector('.rule-operator') as HTMLSelectElement).value as any;
-        const value = (row.querySelector('.rule-value') as HTMLInputElement).value;
-        const result = (row.querySelector('.rule-result') as HTMLInputElement).value;
-
-        if (value && result) {
-            rules.push({ field, operator, value, result });
-        }
-    });
-
-    if (rules.length === 0) {
-        alert("Please add at least one valid rule.");
-        return;
-    }
-
-    const newStrategy: CustomStrategy = {
-        id,
-        label,
-        type: 'grouping', // Default to grouping for now
-        rules,
-        fallback
-    };
-
-    try {
-        // Fetch current to merge
-        const response = await chrome.runtime.sendMessage({ type: 'loadPreferences' });
-        if (response && response.ok && response.data) {
-            const prefs = response.data as Preferences;
-            let currentStrategies = prefs.customStrategies || [];
-
-            // Remove existing if same ID
-            currentStrategies = currentStrategies.filter(s => s.id !== id);
-            currentStrategies.push(newStrategy);
-
-            await chrome.runtime.sendMessage({
-                type: 'savePreferences',
-                payload: { customStrategies: currentStrategies }
-            });
-
-            // Update local state
-            localCustomStrategies = currentStrategies;
-            setCustomStrategies(localCustomStrategies);
-
-            // Reset form
-            idInput.value = '';
-            labelInput.value = '';
-            if (fallbackInput) fallbackInput.value = '';
-            rulesList.innerHTML = '';
-
-            renderStrategiesList();
-            renderAlgorithmsView(); // Refresh algo lists
-            alert("Strategy saved!");
-        }
-    } catch (e) {
-        console.error("Failed to save strategy", e);
-        alert("Error saving strategy");
-    }
 }
 
 function renderStrategiesList() {
@@ -564,19 +451,8 @@ function renderStrategiesList() {
             const id = (e.target as HTMLElement).dataset.id;
             const strat = localCustomStrategies.find(s => s.id === id);
             if (strat) {
-                // Populate form
-                (document.getElementById('new-strat-id') as HTMLInputElement).value = strat.id;
-                (document.getElementById('new-strat-label') as HTMLInputElement).value = strat.label;
-
-                const fallbackInput = document.getElementById('new-strat-fallback') as HTMLInputElement;
-                if (fallbackInput) fallbackInput.value = strat.fallback || '';
-
-                const rulesList = document.getElementById('rules-list');
-                if (rulesList) {
-                    rulesList.innerHTML = '';
-                    strat.rules.forEach(r => addRuleRow(r));
-                }
-                document.querySelector('.strategy-editor')?.scrollIntoView({ behavior: 'smooth' });
+                populateStrategyEditor(strat);
+                document.querySelector('.strategy-builder-header')?.scrollIntoView({ behavior: 'smooth' });
             }
         });
     });
@@ -586,24 +462,362 @@ function renderStrategiesList() {
             const id = (e.target as HTMLElement).dataset.id;
             const label = (e.target as HTMLElement).dataset.label;
 
-            // Populate form
+            // Populate form basic info
             (document.getElementById('new-strat-id') as HTMLInputElement).value = id || '';
             (document.getElementById('new-strat-label') as HTMLInputElement).value = label || '';
-
-            const fallbackInput = document.getElementById('new-strat-fallback') as HTMLInputElement;
-            if (fallbackInput) fallbackInput.value = '';
+            (document.getElementById('new-strat-fallback') as HTMLInputElement).value = '';
 
             // Clear rules
             const rulesList = document.getElementById('rules-list');
             if (rulesList) rulesList.innerHTML = '';
+            const sortList = document.getElementById('sort-list');
+            if (sortList) sortList.innerHTML = '';
 
             // Add one empty rule to start
             addRuleRow();
 
             // Scroll to editor
-            document.querySelector('.strategy-editor')?.scrollIntoView({ behavior: 'smooth' });
+            document.querySelector('.strategy-builder-header')?.scrollIntoView({ behavior: 'smooth' });
         });
     });
+}
+
+function populateStrategyEditor(strat: CustomStrategy) {
+    (document.getElementById('new-strat-id') as HTMLInputElement).value = strat.id;
+    (document.getElementById('new-strat-label') as HTMLInputElement).value = strat.label;
+    (document.getElementById('new-strat-fallback') as HTMLInputElement).value = strat.fallback || '';
+
+    const rulesList = document.getElementById('rules-list');
+    if (rulesList) {
+        rulesList.innerHTML = '';
+        strat.rules.forEach(r => addRuleRow(r));
+    }
+
+    const sortList = document.getElementById('sort-list');
+    if (sortList) {
+        sortList.innerHTML = '';
+        if (strat.sortRules && strat.sortRules.length > 0) {
+            strat.sortRules.forEach(s => addSortRow(s));
+        }
+    }
+}
+
+function addRuleRow(data?: StrategyRule) {
+    const rulesList = document.getElementById('rules-list');
+    if (!rulesList) return;
+
+    const rowId = 'rule-' + Date.now() + Math.random().toString(36).substring(7);
+
+    const div = document.createElement('div');
+    div.className = 'rule-row-container';
+    div.style.marginBottom = '10px';
+    div.style.padding = '10px';
+    div.style.backgroundColor = '#f9f9f9';
+    div.style.border = '1px solid #eee';
+    div.style.borderRadius = '4px';
+
+    div.innerHTML = `
+        <div class="conditions-list" id="${rowId}-conditions"></div>
+        <div style="display: flex; gap: 5px; margin-top: 5px; align-items: center;">
+            <div style="flex: 1; display: flex; align-items: center; gap: 5px; background: #eef; padding: 5px; border-radius: 4px;">
+                 <span style="font-weight: bold; font-size: 0.9em; white-space: nowrap;">Group By:</span>
+                 <input type="text" class="rule-result" placeholder="Group Name (e.g. Social Media or $1)" style="flex: 1;" value="${data?.result || ''}">
+            </div>
+            <button class="remove-rule-btn" style="color: red; padding: 5px;">Delete Rule Group</button>
+        </div>
+    `;
+
+    // Add initial conditions
+    const conditionsContainer = div.querySelector('.conditions-list');
+    if (conditionsContainer) {
+        if (data && data.conditions) {
+            data.conditions.forEach((c, index) => addConditionRow(conditionsContainer, c, index === 0));
+        } else if (data && (data as any).field) {
+            // Migration for old flat structure
+             addConditionRow(conditionsContainer, {
+                field: (data as any).field,
+                operator: (data as any).operator,
+                value: (data as any).value
+             }, true);
+        } else {
+             addConditionRow(conditionsContainer, undefined, true);
+        }
+    }
+
+    div.querySelector('.remove-rule-btn')?.addEventListener('click', () => {
+        div.remove();
+    });
+
+    rulesList.appendChild(div);
+}
+
+function addConditionRow(container: Element, data?: RuleCondition, isFirst: boolean = false) {
+    const conditionDiv = document.createElement('div');
+    conditionDiv.className = 'condition-row';
+    conditionDiv.style.display = 'flex';
+    conditionDiv.style.gap = '5px';
+    conditionDiv.style.marginBottom = '5px';
+    conditionDiv.style.alignItems = 'center';
+
+    const fieldOptions = `
+        <option value="url">URL</option>
+        <option value="title">Title</option>
+        <option value="domain">Domain</option>
+        <option value="genre">Genre</option>
+        <option value="siteName">Site Name</option>
+        <option value="platform">Platform</option>
+        <option value="context">Context Label</option>
+        <option value="pinned">Pinned</option>
+    `;
+
+    const operatorOptions = `
+        <option value="contains">contains</option>
+        <option value="equals">equals</option>
+        <option value="startsWith">starts with</option>
+        <option value="endsWith">ends with</option>
+        <option value="matches">matches regex</option>
+    `;
+
+    conditionDiv.innerHTML = `
+        ${!isFirst ? '<span style="font-weight: bold; color: #666; font-size: 0.8em; padding: 0 5px;">AND</span>' : ''}
+        <select class="cond-field" style="width: 100px;">${fieldOptions}</select>
+        <select class="cond-operator" style="width: 120px;">${operatorOptions}</select>
+        <input type="text" class="cond-value" placeholder="Value" style="flex: 1;">
+        <button class="add-condition-btn" style="padding: 2px 8px; font-size: 0.8em;">AND</button>
+        <button class="remove-condition-btn" style="color: red; visibility: ${isFirst ? 'hidden' : 'visible'};">&times;</button>
+    `;
+
+    if (data) {
+        (conditionDiv.querySelector('.cond-field') as HTMLSelectElement).value = data.field;
+        (conditionDiv.querySelector('.cond-operator') as HTMLSelectElement).value = data.operator;
+        (conditionDiv.querySelector('.cond-value') as HTMLInputElement).value = data.value;
+    }
+
+    // Handlers
+    conditionDiv.querySelector('.add-condition-btn')?.addEventListener('click', () => {
+        addConditionRow(container, undefined, false);
+    });
+
+    conditionDiv.querySelector('.remove-condition-btn')?.addEventListener('click', () => {
+        conditionDiv.remove();
+    });
+
+    container.appendChild(conditionDiv);
+}
+
+function addSortRow(data?: SortRule) {
+    const sortList = document.getElementById('sort-list');
+    if (!sortList) return;
+
+    const div = document.createElement('div');
+    div.className = 'sort-row';
+    div.style.display = 'flex';
+    div.style.gap = '5px';
+    div.style.marginBottom = '5px';
+    div.style.alignItems = 'center';
+
+    const fieldOptions = `
+        <option value="domain">Domain</option>
+        <option value="url">URL</option>
+        <option value="title">Title</option>
+        <option value="recency">Last Accessed</option>
+        <option value="pinned">Pinned Status</option>
+        <option value="genre">Genre</option>
+    `;
+
+    div.innerHTML = `
+        <select class="sort-field" style="flex: 1;">${fieldOptions}</select>
+        <select class="sort-order" style="width: 100px;">
+            <option value="asc">a to z (asc)</option>
+            <option value="desc">z to a (desc)</option>
+        </select>
+        <button class="remove-sort-btn" style="color: red;">Delete</button>
+    `;
+
+    if (data) {
+        (div.querySelector('.sort-field') as HTMLSelectElement).value = data.field;
+        (div.querySelector('.sort-order') as HTMLSelectElement).value = data.order;
+    }
+
+    div.querySelector('.remove-sort-btn')?.addEventListener('click', () => {
+        div.remove();
+    });
+
+    sortList.appendChild(div);
+}
+
+async function runBuilderSimulation() {
+    const strategy = constructStrategyFromBuilder();
+    if (!strategy) return; // Validation failed
+
+    // Use current tabs
+    let tabs = getMappedTabs();
+
+    // 1. Sort using custom strategy rules
+    // We need to inject this temp strategy into the customStrategies array temporarily
+    // OR we can manually invoke sort logic.
+    // The `sortTabs` function takes strategy IDs.
+    // But we can invoke `compareBy` directly or mock the behavior.
+    // Better: Update the global `customStrategies` variable locally with this temp strategy
+    const tempStrategies = [...localCustomStrategies.filter(s => s.id !== strategy.id), strategy];
+    setCustomStrategies(tempStrategies);
+    setCustomStrategiesForSorting(tempStrategies);
+
+    // Apply Sort
+    // We want to sort by *this* strategy
+    // If this strategy has sort rules, `compareBy` will use them if we pass the strategy ID
+    tabs = sortTabs(tabs, [strategy.id]);
+
+    // 2. Group using this strategy
+    const groups = groupTabs(tabs, [strategy.id]);
+
+    // 3. Render Results
+    renderBuilderResults(tabs, groups);
+
+    // Restore original strategies
+    setCustomStrategies(localCustomStrategies);
+    setCustomStrategiesForSorting(localCustomStrategies);
+}
+
+function renderBuilderResults(tabs: TabMetadata[], groups: TabGroup[]) {
+    const tbody = document.querySelector('#builderResultsTable tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    // Create a map for fast group lookup
+    const tabGroupMap = new Map<number, string>();
+    groups.forEach(g => {
+        g.tabs.forEach(t => tabGroupMap.set(t.id, g.label));
+    });
+
+    let index = 1;
+    tabs.forEach(tab => {
+        const row = document.createElement('tr');
+        row.style.borderBottom = '1px solid #eee';
+
+        row.innerHTML = `
+            <td style="padding: 5px;">${index++}</td>
+            <td style="padding: 5px;">${escapeHtml(tab.title).substring(0, 40)}...</td>
+            <td style="padding: 5px; font-size: 0.9em; color: #666;">${escapeHtml(tab.url).substring(0, 40)}...</td>
+            <td style="padding: 5px;">${escapeHtml(domainFromUrl(tab.url))}</td>
+            <td style="padding: 5px;"><b>${escapeHtml(tabGroupMap.get(tab.id) || 'Ungrouped')}</b></td>
+            <td style="padding: 5px;">${index-1}</td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+function constructStrategyFromBuilder(): CustomStrategy | null {
+    const idInput = document.getElementById('new-strat-id') as HTMLInputElement;
+    const labelInput = document.getElementById('new-strat-label') as HTMLInputElement;
+    const fallbackInput = document.getElementById('new-strat-fallback') as HTMLInputElement;
+    const rulesList = document.getElementById('rules-list');
+    const sortList = document.getElementById('sort-list');
+
+    if (!idInput || !labelInput || !rulesList) return null;
+
+    const id = idInput.value.trim();
+    const label = labelInput.value.trim();
+    const fallback = fallbackInput ? fallbackInput.value.trim() : undefined;
+
+    if (!id || !label) {
+        alert("Please enter ID and Label");
+        return null;
+    }
+
+    // Collect Rules
+    const rules: StrategyRule[] = [];
+    rulesList.querySelectorAll('.rule-row-container').forEach(row => {
+        const result = (row.querySelector('.rule-result') as HTMLInputElement).value;
+        const conditions: RuleCondition[] = [];
+
+        row.querySelectorAll('.condition-row').forEach(condRow => {
+            const field = (condRow.querySelector('.cond-field') as HTMLSelectElement).value;
+            const operator = (condRow.querySelector('.cond-operator') as HTMLSelectElement).value as any;
+            const value = (condRow.querySelector('.cond-value') as HTMLInputElement).value;
+
+            if (value) {
+                conditions.push({ field, operator, value });
+            }
+        });
+
+        if (conditions.length > 0 && result) {
+            rules.push({ conditions, result });
+        }
+    });
+
+    if (rules.length === 0) {
+        alert("Please add at least one valid rule with conditions and a group name.");
+        return null;
+    }
+
+    // Collect Sort Rules
+    const sortRules: SortRule[] = [];
+    if (sortList) {
+        sortList.querySelectorAll('.sort-row').forEach(row => {
+            const field = (row.querySelector('.sort-field') as HTMLSelectElement).value;
+            const order = (row.querySelector('.sort-order') as HTMLSelectElement).value as 'asc' | 'desc';
+            sortRules.push({ field, order });
+        });
+    }
+
+    return {
+        id,
+        label,
+        type: 'grouping', // Default base type
+        rules,
+        sortRules,
+        fallback
+    };
+}
+
+async function saveCustomStrategy() {
+    const newStrategy = constructStrategyFromBuilder();
+    if (!newStrategy) return;
+
+    try {
+        // Fetch current to merge
+        const response = await chrome.runtime.sendMessage({ type: 'loadPreferences' });
+        if (response && response.ok && response.data) {
+            const prefs = response.data as Preferences;
+            let currentStrategies = prefs.customStrategies || [];
+
+            // Remove existing if same ID
+            currentStrategies = currentStrategies.filter(s => s.id !== newStrategy.id);
+            currentStrategies.push(newStrategy);
+
+            await chrome.runtime.sendMessage({
+                type: 'savePreferences',
+                payload: { customStrategies: currentStrategies }
+            });
+
+            // Update local state
+            localCustomStrategies = currentStrategies;
+            setCustomStrategies(localCustomStrategies);
+            setCustomStrategiesForSorting(localCustomStrategies);
+
+            // Reset form
+            (document.getElementById('new-strat-id') as HTMLInputElement).value = '';
+            (document.getElementById('new-strat-label') as HTMLInputElement).value = '';
+            const fallbackInput = document.getElementById('new-strat-fallback') as HTMLInputElement;
+            if (fallbackInput) fallbackInput.value = '';
+
+            const rulesList = document.getElementById('rules-list');
+            if (rulesList) rulesList.innerHTML = '';
+            const sortList = document.getElementById('sort-list');
+            if (sortList) sortList.innerHTML = '';
+
+            // Add initial empty rule
+            addRuleRow();
+
+            renderStrategiesList();
+            renderAlgorithmsView(); // Refresh algo lists
+            alert("Strategy saved!");
+        }
+    } catch (e) {
+        console.error("Failed to save strategy", e);
+        alert("Error saving strategy");
+    }
 }
 
 async function deleteCustomStrategy(id: string) {
@@ -620,6 +834,7 @@ async function deleteCustomStrategy(id: string) {
 
             localCustomStrategies = newStrategies;
             setCustomStrategies(localCustomStrategies);
+            setCustomStrategiesForSorting(localCustomStrategies);
             renderStrategiesList();
             renderAlgorithmsView();
         }
@@ -768,6 +983,7 @@ function getMappedTabs(): TabMetadata[] {
         favIconUrl: tab.favIconUrl || undefined,
         context: contextResult?.context,
         contextData: contextResult?.data,
+        groupId: tab.groupId,
         index: tab.index,
         active: tab.active,
         status: tab.status

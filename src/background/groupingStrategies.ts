@@ -246,43 +246,85 @@ export const groupingKey = (tab: TabMetadata, strategy: GroupingStrategy | strin
 
 const evaluateRules = (rules: StrategyRule[], tab: TabMetadata): string | null => {
     for (const rule of rules) {
-        const rawValue = getFieldValue(tab, rule.field);
-        let valueToCheck = rawValue !== undefined && rawValue !== null ? String(rawValue) : "";
+        // Support backward compatibility if rule is old format (runtime might differ from types)
+        let conditions = rule.conditions;
 
-        // Case-insensitive comparison usually desired for grouping
-        valueToCheck = valueToCheck.toLowerCase();
-        const pattern = rule.value.toLowerCase();
+        if (!conditions || conditions.length === 0) {
+            // Check for flat properties (migration fallback)
+            if ((rule as any).field && (rule as any).operator && (rule as any).value) {
+                conditions = [{
+                    field: (rule as any).field,
+                    operator: (rule as any).operator,
+                    value: (rule as any).value
+                }];
+            } else {
+                 continue;
+            }
+        }
 
-        switch (rule.operator) {
-            case 'contains':
-                if (valueToCheck.includes(pattern)) return rule.result;
-                break;
-            case 'equals':
-                if (valueToCheck === pattern) return rule.result;
-                break;
-            case 'startsWith':
-                if (valueToCheck.startsWith(pattern)) return rule.result;
-                break;
-            case 'endsWith':
-                if (valueToCheck.endsWith(pattern)) return rule.result;
-                break;
-            case 'matches':
-                try {
-                    const regex = new RegExp(rule.value, 'i'); // Use original casing for regex pattern if needed, but 'i' handles it
-                    // Use original raw value for regex to preserve case in capture groups
-                    const match = regex.exec(rawValue !== undefined && rawValue !== null ? String(rawValue) : "");
-                    if (match) {
-                        // Support capture group replacement ($1, $2, etc.)
-                        let result = rule.result;
-                        for (let i = 1; i < match.length; i++) {
-                             result = result.replace(new RegExp(`\\$${i}`, 'g'), match[i] || "");
+        // Check if ALL conditions match (AND logic)
+        let match = true;
+
+        // Variable to hold the captured result from regex (from the LAST matching regex condition)
+        // This allows $1 replacement to work based on the last condition that had a capture group.
+        let capturedResult = rule.result;
+        let hasRegexMatch = false;
+
+        for (const condition of conditions) {
+            const rawValue = getFieldValue(tab, condition.field);
+            let valueToCheck = rawValue !== undefined && rawValue !== null ? String(rawValue) : "";
+
+            // Case-insensitive comparison usually desired for grouping
+            valueToCheck = valueToCheck.toLowerCase();
+            const pattern = condition.value.toLowerCase();
+
+            let conditionMatch = false;
+
+            switch (condition.operator) {
+                case 'contains':
+                    if (valueToCheck.includes(pattern)) conditionMatch = true;
+                    break;
+                case 'equals':
+                    if (valueToCheck === pattern) conditionMatch = true;
+                    break;
+                case 'startsWith':
+                    if (valueToCheck.startsWith(pattern)) conditionMatch = true;
+                    break;
+                case 'endsWith':
+                    if (valueToCheck.endsWith(pattern)) conditionMatch = true;
+                    break;
+                case 'matches':
+                    try {
+                        const regex = new RegExp(condition.value, 'i');
+                        const matchExec = regex.exec(rawValue !== undefined && rawValue !== null ? String(rawValue) : "");
+                        if (matchExec) {
+                            conditionMatch = true;
+                            // Only apply replacement if this condition succeeded
+                            hasRegexMatch = true;
+                            let newResult = rule.result;
+                            for (let i = 1; i < matchExec.length; i++) {
+                                // We replace based on the original template
+                                // Note: if multiple regex conditions exist, this is tricky.
+                                // We'll accumulate replacements? Or just use the last one?
+                                // Standard simple logic: Use the last one.
+                                newResult = newResult.replace(new RegExp(`\\$${i}`, 'g'), matchExec[i] || "");
+                            }
+                            capturedResult = newResult;
                         }
-                        return result;
+                    } catch (e) {
+                        // Invalid regex
                     }
-                } catch (e) {
-                    // Invalid regex, ignore
-                }
-                break;
+                    break;
+            }
+
+            if (!conditionMatch) {
+                match = false;
+                break; // Short-circuit AND
+            }
+        }
+
+        if (match) {
+            return hasRegexMatch ? capturedResult : rule.result;
         }
     }
     return null;

@@ -118,27 +118,64 @@
             <h2>Strategy Manager</h2>
 
             <div id="custom-strategies-container">
-              <h3>Custom Strategies</h3>
-              <p class="help-text">Define rules to group tabs. Use <b>Matches Regex</b> with capture groups (e.g., <code>(.*)</code>) and <code>$1</code> in the result to extract values dynamically.</p>
-
-              <div class="strategy-editor" style="border: 1px solid #ddd; padding: 15px; border-radius: 5px; background: #fdfdfd; margin-bottom: 20px;">
-                  <div style="display: flex; gap: 10px; margin-bottom: 10px;">
-                      <input type="text" id="new-strat-id" placeholder="ID (e.g. social)" style="width: 150px; padding: 5px;">
-                      <input type="text" id="new-strat-label" placeholder="Label (e.g. Social Media)" style="flex: 1; padding: 5px;">
-                      <input type="text" id="new-strat-fallback" placeholder="Fallback (e.g. Misc)" style="width: 150px; padding: 5px;">
-                  </div>
-                  <div id="rules-container" style="margin-bottom: 10px; background: #fff; padding: 10px; border: 1px solid #eee; border-radius: 4px;">
-                      <h4>Rules</h4>
-                      <div id="rules-list"></div>
-                      <button id="add-rule-btn" style="margin-top: 5px; font-size: 0.9em;">+ Add Rule</button>
-                  </div>
-                  <div style="text-align: right;">
-                      <button id="save-strat-btn" style="padding: 8px 20px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">Save Strategy</button>
-                  </div>
+              <div class="strategy-builder-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h3 style="margin: 0;">Tab Sorter Strategy Builder</h3>
+                <div style="display: flex; gap: 8px;">
+                  <input type="text" id="new-strat-id" placeholder="ID (e.g. social)" style="width: 120px; padding: 5px;">
+                  <input type="text" id="new-strat-label" placeholder="Label (e.g. Social)" style="width: 150px; padding: 5px;">
+                  <input type="text" id="new-strat-fallback" placeholder="Fallback (Optional)" style="width: 120px; padding: 5px;">
+                  <button id="run-builder-btn" style="padding: 5px 15px;">Run</button>
+                  <button id="save-strat-btn" style="padding: 5px 15px; background: #007bff; color: white; border: none; border-radius: 4px;">Save Strategy</button>
+                </div>
               </div>
 
-              <h4>Existing Strategies</h4>
-              <div id="custom-strategies-list" style="max-height: 400px; overflow-y: auto;">
+              <!-- Conditions Section -->
+              <div class="builder-section" style="border: 1px solid #ddd; padding: 15px; border-radius: 5px; background: #fdfdfd; margin-bottom: 20px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                  <h4 style="margin: 0;">All of these conditions must be met (Rules)</h4>
+                  <div style="display: flex; gap: 5px;">
+                     <button id="add-group-btn" class="small-btn">+ Add Rule Group</button>
+                  </div>
+                </div>
+
+                <div id="rules-list">
+                    <!-- Rule Rows Injected Here -->
+                </div>
+              </div>
+
+              <!-- Sorting Section -->
+              <div class="builder-section" style="border: 1px solid #ddd; padding: 15px; border-radius: 5px; background: #fdfdfd; margin-bottom: 20px;">
+                <h4 style="margin-top: 0;">Order results by the following fields</h4>
+                <div id="sort-list">
+                    <!-- Sort Rows Injected Here -->
+                </div>
+                <button id="add-sort-btn" class="small-btn" style="margin-top: 5px;">+ Add Sort</button>
+              </div>
+
+              <!-- Simulation Results Preview -->
+              <div id="builder-results-container" style="border-top: 2px solid #eee; padding-top: 20px; margin-top: 20px;">
+                 <h4>Simulation Results</h4>
+                 <div id="builder-results-table-container">
+                    <table id="builderResultsTable" style="width: 100%; border-collapse: collapse; font-size: 12px;">
+                        <thead>
+                            <tr style="background: #f5f5f5; text-align: left;">
+                                <th style="padding: 5px;">#</th>
+                                <th style="padding: 5px;">Title</th>
+                                <th style="padding: 5px;">URL</th>
+                                <th style="padding: 5px;">Domain</th>
+                                <th style="padding: 5px;">Group</th>
+                                <th style="padding: 5px;">Sort Order</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Results -->
+                        </tbody>
+                    </table>
+                 </div>
+              </div>
+
+              <h4 style="margin-top: 30px;">Existing Strategies</h4>
+              <div id="custom-strategies-list" style="max-height: 300px; overflow-y: auto;">
                   <!-- All strategies populated by JS -->
               </div>
             </div>

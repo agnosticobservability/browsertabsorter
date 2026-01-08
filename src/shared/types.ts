@@ -113,11 +113,20 @@ export interface ApplyGroupingPayload {
   sorting?: SortingStrategy[];
 }
 
-export interface StrategyRule {
+export interface RuleCondition {
   field: string;
   operator: "contains" | "matches" | "equals" | "startsWith" | "endsWith";
   value: string;
+}
+
+export interface StrategyRule {
+  conditions: RuleCondition[];
   result: string;
+}
+
+export interface SortRule {
+    field: string;
+    order: 'asc' | 'desc';
 }
 
 export interface CustomStrategy {
@@ -125,6 +134,7 @@ export interface CustomStrategy {
   label: string;
   type: "grouping" | "sorting";
   rules: StrategyRule[];
+  sortRules?: SortRule[];
   fallback?: string;
 }
 
