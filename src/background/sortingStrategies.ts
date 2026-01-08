@@ -1,5 +1,5 @@
 import { SortingStrategy, TabMetadata } from "../shared/types.js";
-import { domainFromUrl, semanticBucket, navigationKey, groupingKey } from "./groupingStrategies.js";
+import { domainFromUrl, semanticBucket, navigationKey, groupingKey, getFieldValue } from "./groupingStrategies.js";
 
 export const recencyScore = (tab: TabMetadata) => tab.lastAccessed ?? 0;
 export const hierarchyScore = (tab: TabMetadata) => (tab.openerTabId !== undefined ? 1 : 0);
@@ -41,6 +41,16 @@ export const compareBy = (strategy: SortingStrategy | string, a: TabMetadata, b:
       // Reverse alphabetical for age buckets (Today < Yesterday), rough approx
       return groupingKey(a, "age").localeCompare(groupingKey(b, "age"));
     default:
+      // Check if it's a generic field first
+      const valA = getFieldValue(a, strategy);
+      const valB = getFieldValue(b, strategy);
+
+      if (valA !== undefined && valB !== undefined) {
+          if (valA < valB) return -1;
+          if (valA > valB) return 1;
+          return 0;
+      }
+
       // Fallback for custom strategies or unhandled built-ins
       return groupingKey(a, strategy).localeCompare(groupingKey(b, strategy));
   }

@@ -20,6 +20,28 @@ export const domainFromUrl = (url: string): string => {
   }
 };
 
+export const getFieldValue = (tab: TabMetadata, field: string): any => {
+    switch(field) {
+        case 'id': return tab.id;
+        case 'index': return tab.index;
+        case 'windowId': return tab.windowId;
+        case 'groupId': return tab.groupId;
+        case 'title': return tab.title;
+        case 'url': return tab.url;
+        case 'status': return tab.status;
+        case 'active': return tab.active;
+        case 'pinned': return tab.pinned;
+        case 'openerTabId': return tab.openerTabId;
+        case 'lastAccessed': return tab.lastAccessed;
+        case 'context': return tab.context;
+        case 'genre': return tab.contextData?.genre;
+        case 'siteName': return tab.contextData?.siteName;
+        // Derived or mapped fields
+        case 'domain': return domainFromUrl(tab.url);
+        default: return (tab as any)[field];
+    }
+};
+
 const stripTld = (domain: string): string => {
   return domain.replace(/\.(com|org|gov|net|edu|io)$/i, "");
 };
@@ -113,13 +135,16 @@ const getLabelComponent = (strategy: GroupingStrategy | string, tabs: TabMetadat
     // For sorting-oriented strategies, we provide a generic label or fallback
     case "url":
       return "URL Group"; // Grouping by full URL is rarely useful, usually 1 tab per group
-    case "title":
-      return "Title Group";
     case "recency":
       return "Time Group";
     case "nesting":
       return firstTab.openerTabId !== undefined ? "Children" : "Roots";
     default:
+      // Check if it matches a generic field
+      const val = getFieldValue(firstTab, strategy);
+      if (val !== undefined && val !== null) {
+          return String(val);
+      }
       return "Unknown";
   }
 };
@@ -210,7 +235,12 @@ export const groupingKey = (tab: TabMetadata, strategy: GroupingStrategy | strin
     case "nesting":
       return tab.openerTabId !== undefined ? "child" : "root";
     default:
-      return "Unknown";
+        // Generic field fallback
+        const val = getFieldValue(tab, strategy);
+        if (val !== undefined && val !== null) {
+            return String(val);
+        }
+        return "Unknown";
   }
 };
 
