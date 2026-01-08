@@ -51,7 +51,7 @@ let columns: ColumnDefinition[] = [
     { key: 'openerTabId', label: 'Opener', visible: false, width: '70px', filterable: true },
     { key: 'parentTitle', label: 'Parent Title', visible: false, width: '150px', filterable: true },
     { key: 'genre', label: 'Genre', visible: true, width: '100px', filterable: true },
-    { key: 'context', label: 'Context', visible: true, width: '150px', filterable: true },
+    { key: 'context', label: 'Extracted Context', visible: true, width: '400px', filterable: true },
     { key: 'lastAccessed', label: 'Last Accessed', visible: true, width: '150px', filterable: false },
     { key: 'actions', label: 'Actions', visible: true, width: '120px', filterable: false }
 ];
@@ -914,21 +914,24 @@ function getCellValue(tab: chrome.tabs.Tab, key: string): string | HTMLElement {
                  aiContext = `${contextResult.context}`;
             }
 
-            const wrapper = document.createElement('div');
-            wrapper.style.cssText = cellStyle;
-            wrapper.textContent = aiContext;
+            const container = document.createElement('div');
+            container.style.display = 'flex';
+            container.style.flexDirection = 'column';
+            container.style.gap = '5px';
+
+            const summaryDiv = document.createElement('div');
+            summaryDiv.style.cssText = cellStyle;
+            summaryDiv.textContent = aiContext;
+            container.appendChild(summaryDiv);
 
             if (contextResult.data) {
-                const btn = document.createElement('button');
-                btn.className = 'context-json-btn';
-                btn.dataset.tabId = String(tab.id);
-                btn.textContent = 'JSON';
-                btn.style.marginLeft = '5px';
-                btn.style.fontSize = '0.8em';
-                btn.style.padding = '1px 4px';
-                wrapper.appendChild(btn);
+                const details = document.createElement('pre');
+                details.style.cssText = 'max-height: 300px; overflow: auto; font-size: 11px; text-align: left; background: #f5f5f5; padding: 5px; border: 1px solid #ddd; margin: 0; white-space: pre-wrap; font-family: monospace;';
+                details.textContent = JSON.stringify(contextResult.data, null, 2);
+                container.appendChild(details);
             }
-            return wrapper;
+
+            return container;
         }
         case 'lastAccessed':
             return new Date((tab as any).lastAccessed || 0).toLocaleString();
