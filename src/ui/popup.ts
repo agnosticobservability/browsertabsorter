@@ -12,7 +12,8 @@ import {
   mapWindows,
   sendMessage,
   TabWithGroup,
-  WindowView
+  WindowView,
+  GROUP_COLORS
 } from "./common.js";
 import { STRATEGIES, StrategyDefinition } from "../shared/strategyRegistry.js";
 
@@ -44,10 +45,19 @@ const selectedTabs = new Set<number>();
 let preferences: Preferences | null = null;
 
 // Tree State
-const collapsedNodes = new Set<string>();
+const expandedNodes = new Set<string>(); // Default empty = all collapsed
 const TREE_ICONS = {
   chevronRight: `<svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>`,
   folder: `<svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>`
+};
+
+const hexToRgba = (hex: string, alpha: number) => {
+    // Ensure hex format
+    if (!hex.startsWith('#')) return hex;
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 };
 
 const updateStats = () => {
@@ -88,11 +98,11 @@ const createNode = (
     content: HTMLElement,
     childrenContainer: HTMLElement | null,
     level: 'window' | 'group' | 'tab',
-    isExpanded: boolean = true,
+    isExpanded: boolean = false,
     onToggle?: () => void
 ) => {
     const node = document.createElement("div");
-    node.className = "tree-node";
+    node.className = `tree-node node-${level}`;
 
     const row = document.createElement("div");
     row.className = `tree-row ${level}-row`;
@@ -149,7 +159,7 @@ const renderTree = () => {
 
   filtered.forEach(({ window, visibleTabs }) => {
     const windowKey = `w-${window.id}`;
-    const isExpanded = !!query || !collapsedNodes.has(windowKey);
+    const isExpanded = !!query || expandedNodes.has(windowKey);
 
     // Window Checkbox Logic
     const allTabIds = visibleTabs.map(t => t.id);
@@ -268,7 +278,7 @@ const renderTree = () => {
 
     Array.from(groups.entries()).sort().forEach(([groupLabel, groupData]) => {
         const groupKey = `${windowKey}-g-${groupLabel}`;
-        const isGroupExpanded = !!query || !collapsedNodes.has(groupKey);
+        const isGroupExpanded = !!query || expandedNodes.has(groupKey);
 
         // Group Checkbox Logic
         const groupTabIds = groupData.tabs.map(t => t.id);
@@ -297,7 +307,6 @@ const renderTree = () => {
         grpContent.style.alignItems = "center";
         grpContent.style.flex = "1";
         grpContent.style.overflow = "hidden";
-        if (groupData.color) grpContent.style.color = groupData.color;
 
         const icon = document.createElement("div");
         icon.className = "tree-icon";
@@ -341,14 +350,25 @@ const renderTree = () => {
             'group',
             isGroupExpanded,
             () => {
-                if (collapsedNodes.has(groupKey)) collapsedNodes.delete(groupKey);
-                else collapsedNodes.add(groupKey);
+                if (expandedNodes.has(groupKey)) expandedNodes.delete(groupKey);
+                else expandedNodes.add(groupKey);
 
-                const expanded = !collapsedNodes.has(groupKey);
+                const expanded = expandedNodes.has(groupKey);
                 grpToggle.classList.toggle('rotated', expanded);
                 grpChildren!.classList.toggle('expanded', expanded);
             }
         );
+
+        // Apply background color to group node
+        if (groupData.color) {
+            const colorName = groupData.color;
+            const hex = GROUP_COLORS[colorName] || colorName; // Fallback if it's already hex
+            if (hex.startsWith('#')) {
+                groupNode.style.backgroundColor = hexToRgba(hex, 0.1);
+                groupNode.style.border = `1px solid ${hexToRgba(hex, 0.2)}`;
+            }
+        }
+
         childrenContainer.appendChild(groupNode);
     });
 
@@ -362,10 +382,10 @@ const renderTree = () => {
         'window',
         isExpanded,
         () => {
-             if (collapsedNodes.has(windowKey)) collapsedNodes.delete(windowKey);
-             else collapsedNodes.add(windowKey);
+             if (expandedNodes.has(windowKey)) expandedNodes.delete(windowKey);
+             else expandedNodes.add(windowKey);
 
-             const expanded = !collapsedNodes.has(windowKey);
+             const expanded = expandedNodes.has(windowKey);
              winToggle.classList.toggle('rotated', expanded);
              winChildren!.classList.toggle('expanded', expanded);
         }
@@ -588,19 +608,19 @@ btnSplit.addEventListener("click", async () => {
 });
 
 btnExpandAll?.addEventListener("click", () => {
-    collapsedNodes.clear();
+    windowState.forEach(win => {
+        expandedNodes.add(`w-${win.id}`);
+        win.tabs.forEach(tab => {
+            if (tab.groupLabel) {
+                 expandedNodes.add(`w-${win.id}-g-${tab.groupLabel}`);
+            }
+        });
+    });
     renderTree();
 });
 
 btnCollapseAll?.addEventListener("click", () => {
-    windowState.forEach(win => {
-        collapsedNodes.add(`w-${win.id}`);
-        win.tabs.forEach(tab => {
-            if (tab.groupLabel) {
-                 collapsedNodes.add(`w-${win.id}-g-${tab.groupLabel}`);
-            }
-        });
-    });
+    expandedNodes.clear();
     renderTree();
 });
 
