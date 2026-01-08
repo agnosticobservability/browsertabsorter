@@ -15,7 +15,7 @@ import {
   compareBy
 } from "../background/sortingStrategies.js";
 import { setCustomStrategies } from "../background/groupingStrategies.js";
-import { GroupingStrategy, Preferences, SortingStrategy, TabMetadata, TabGroup, CustomStrategy, StrategyRule } from "../shared/types.js";
+import { GroupingStrategy, Preferences, SortingStrategy, TabMetadata, TabGroup, CustomStrategy, StrategyRule, RuleCondition, GroupingRule, SortingRule } from "../shared/types.js";
 import { STRATEGIES, StrategyDefinition, getStrategies } from "../shared/strategyRegistry.js";
 
 // Types
@@ -208,7 +208,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   await loadPreferencesAndInit(); // Load preferences first to init strategies
   renderAlgorithmsView();
   loadCustomGenera();
-  initStrategyEditor();
+  initStrategyBuilder();
 });
 
 // Column Management
@@ -359,143 +359,321 @@ async function loadCustomGenera() {
     }
 }
 
-function initStrategyEditor() {
-    const addRuleBtn = document.getElementById('add-rule-btn');
-    const saveStratBtn = document.getElementById('save-strat-btn');
-    const rulesList = document.getElementById('rules-list');
+// ---------------------- STRATEGY BUILDER ----------------------
 
-    if (addRuleBtn) {
-        addRuleBtn.addEventListener('click', () => {
-             addRuleRow();
-        });
-    }
+function initStrategyBuilder() {
+    const addFilterBtn = document.getElementById('add-filter-btn');
+    const addGroupBtn = document.getElementById('add-group-btn');
+    const addSortBtn = document.getElementById('add-sort-btn');
+    const saveBtn = document.getElementById('builder-save-btn');
+    const runBtn = document.getElementById('builder-run-btn');
 
-    if (saveStratBtn) {
-        saveStratBtn.addEventListener('click', saveCustomStrategy);
-    }
+    if (addFilterBtn) addFilterBtn.addEventListener('click', () => addBuilderRow('filter'));
+    if (addGroupBtn) addGroupBtn.addEventListener('click', () => addBuilderRow('group'));
+    if (addSortBtn) addSortBtn.addEventListener('click', () => addBuilderRow('sort'));
+
+    if (saveBtn) saveBtn.addEventListener('click', saveCustomStrategyFromBuilder);
+    if (runBtn) runBtn.addEventListener('click', runBuilderSimulation);
+
+    // Initial Empty Rows? Maybe not.
+    // addBuilderRow('filter');
+    // addBuilderRow('group');
+    // addBuilderRow('sort');
 
     renderStrategiesList();
 }
 
-function addRuleRow(data?: StrategyRule) {
-    const rulesList = document.getElementById('rules-list');
-    if (!rulesList) return;
+function addBuilderRow(type: 'filter' | 'group' | 'sort', data?: any) {
+    let containerId = '';
+    if (type === 'filter') containerId = 'filter-rows-container';
+    else if (type === 'group') containerId = 'group-rows-container';
+    else if (type === 'sort') containerId = 'sort-rows-container';
+
+    const container = document.getElementById(containerId);
+    if (!container) return;
 
     const div = document.createElement('div');
-    div.className = 'rule-row';
-    div.style.display = 'flex';
-    div.style.gap = '5px';
-    div.style.marginBottom = '5px';
+    div.className = 'builder-row';
+    div.dataset.type = type;
 
-    div.innerHTML = `
-        <select class="rule-field">
-            <option value="url">URL</option>
-            <option value="title">Title</option>
-            <option value="domain">Domain</option>
-            <option value="genre">Genre</option>
-            <option value="siteName">Site Name</option>
-            <option value="platform">Platform</option>
-            <option value="context">Context Label</option>
-            <option value="pinned">Pinned (true/false)</option>
-            <option value="active">Active (true/false)</option>
-        </select>
-        <select class="rule-operator">
-            <option value="contains">Contains</option>
-            <option value="equals">Equals</option>
-            <option value="startsWith">Starts With</option>
-            <option value="endsWith">Ends With</option>
-            <option value="matches">Matches Regex</option>
-        </select>
-        <input type="text" class="rule-value" placeholder="Pattern" style="flex: 1;">
-        <span>&rarr;</span>
-        <input type="text" class="rule-result" placeholder="Group Name" style="flex: 1;">
-        <button class="remove-rule-btn" style="color: red;">&times;</button>
-    `;
+    if (type === 'filter' || type === 'group') {
+        const isGroup = type === 'group';
+        div.innerHTML = `
+            ${isGroup ? '<span class="row-number"></span>' : ''}
+            <select class="field-select">
+                <option value="url">URL</option>
+                <option value="title">Title</option>
+                <option value="domain">Domain</option>
+                <option value="genre">Genre</option>
+                <option value="siteName">Site Name</option>
+                <option value="context">Context</option>
+            </select>
+            <select class="operator-select">
+                <option value="contains">contains</option>
+                <option value="matches">matches regex</option>
+                <option value="equals">equals</option>
+                <option value="startsWith">starts with</option>
+                <option value="endsWith">ends with</option>
+            </select>
+            <input type="text" class="value-input" placeholder="Value">
 
-    if (data) {
-        (div.querySelector('.rule-field') as HTMLSelectElement).value = data.field;
-        (div.querySelector('.rule-operator') as HTMLSelectElement).value = data.operator;
-        (div.querySelector('.rule-value') as HTMLInputElement).value = data.value;
-        (div.querySelector('.rule-result') as HTMLInputElement).value = data.result;
+            ${isGroup ? '<span style="margin: 0 5px;">&rarr;</span><input type="text" class="result-input" placeholder="Group Name (e.g. $1 Domains)">' : ''}
+
+            <div class="row-actions">
+                <button class="small-btn btn-and">AND</button>
+                <button class="small-btn btn-or">OR</button>
+                <button class="small-btn btn-del" style="background: #ffcccc; color: darkred;">Delete</button>
+            </div>
+        `;
+    } else if (type === 'sort') {
+        div.innerHTML = `
+            <select class="field-select">
+                <option value="domain">Domain</option>
+                <option value="title">Title</option>
+                <option value="url">URL</option>
+                <option value="lastAccessed">Last Accessed</option>
+            </select>
+            <select class="order-select">
+                <option value="asc">a to z (asc)</option>
+                <option value="desc">z to a (desc)</option>
+            </select>
+            <div class="row-actions">
+                 <button class="small-btn btn-del" style="background: #ffcccc; color: darkred;">Delete</button>
+            </div>
+        `;
     }
 
-    div.querySelector('.remove-rule-btn')?.addEventListener('click', () => {
+    // Populate data if provided (for editing)
+    if (data) {
+        if (data.field) (div.querySelector('.field-select') as HTMLSelectElement).value = data.field;
+        if (data.operator) (div.querySelector('.operator-select') as HTMLSelectElement).value = data.operator;
+        if (data.value) (div.querySelector('.value-input') as HTMLInputElement).value = data.value;
+        if (data.result && type === 'group') (div.querySelector('.result-input') as HTMLInputElement).value = data.result;
+        if (data.order && type === 'sort') (div.querySelector('.order-select') as HTMLSelectElement).value = data.order;
+    }
+
+    // Listeners
+    div.querySelector('.btn-del')?.addEventListener('click', () => {
         div.remove();
+        updateBreadcrumb();
     });
 
-    rulesList.appendChild(div);
+    // AND / OR listeners (Visual mainly, or appending new rows)
+    div.querySelector('.btn-and')?.addEventListener('click', () => {
+        addBuilderRow(type); // Just add another row
+    });
+    div.querySelector('.btn-or')?.addEventListener('click', () => {
+        // Complex logic not fully supported by backend yet,
+        // treat as add row for now or alert
+        alert("OR logic for rows is currently simplified to sequential evaluation.");
+        addBuilderRow(type);
+    });
+
+    div.querySelectorAll('input, select').forEach(el => {
+        el.addEventListener('change', updateBreadcrumb);
+        el.addEventListener('input', updateBreadcrumb);
+    });
+
+    container.appendChild(div);
+    updateBreadcrumb();
 }
 
-async function saveCustomStrategy() {
-    const idInput = document.getElementById('new-strat-id') as HTMLInputElement;
-    const labelInput = document.getElementById('new-strat-label') as HTMLInputElement;
-    const fallbackInput = document.getElementById('new-strat-fallback') as HTMLInputElement;
-    const rulesList = document.getElementById('rules-list');
+function updateBreadcrumb() {
+    const breadcrumb = document.getElementById('strategy-breadcrumb');
+    if (!breadcrumb) return;
 
-    if (!idInput || !labelInput || !rulesList) return;
+    let text = 'All';
+
+    // Filters
+    const filters = document.getElementById('filter-rows-container')?.querySelectorAll('.builder-row');
+    if (filters && filters.length > 0) {
+        filters.forEach(row => {
+             const field = (row.querySelector('.field-select') as HTMLSelectElement).value;
+             const op = (row.querySelector('.operator-select') as HTMLSelectElement).value;
+             const val = (row.querySelector('.value-input') as HTMLInputElement).value;
+             if (val) text += ` > ${field} ${op} ${val}`;
+        });
+    }
+
+    // Groups
+    const groups = document.getElementById('group-rows-container')?.querySelectorAll('.builder-row');
+    if (groups && groups.length > 0) {
+        groups.forEach(row => {
+             const field = (row.querySelector('.field-select') as HTMLSelectElement).value;
+             const op = (row.querySelector('.operator-select') as HTMLSelectElement).value;
+             const val = (row.querySelector('.value-input') as HTMLInputElement).value;
+             const res = (row.querySelector('.result-input') as HTMLInputElement).value;
+             if (val) text += ` > ${field} ${op} ${val} (Group: ${res || '...'})`;
+        });
+    }
+
+    // Sorts
+    const sorts = document.getElementById('sort-rows-container')?.querySelectorAll('.builder-row');
+    if (sorts && sorts.length > 0) {
+        sorts.forEach(row => {
+             const field = (row.querySelector('.field-select') as HTMLSelectElement).value;
+             const order = (row.querySelector('.order-select') as HTMLSelectElement).value;
+             text += ` > Sort by ${field} (${order})`;
+        });
+    }
+
+    breadcrumb.textContent = text;
+}
+
+function getBuilderStrategy(): CustomStrategy | null {
+    const idInput = document.getElementById('strat-id') as HTMLInputElement;
+    const labelInput = document.getElementById('strat-label') as HTMLInputElement;
+    const fallbackInput = document.getElementById('strat-fallback') as HTMLInputElement;
 
     const id = idInput.value.trim();
     const label = labelInput.value.trim();
-    const fallback = fallbackInput ? fallbackInput.value.trim() : undefined;
+    const fallback = fallbackInput.value.trim();
 
     if (!id || !label) {
-        alert("Please enter ID and Label");
-        return;
+        // Allow temporary strategy for simulation without ID/Label?
+        // But for saving, we need them.
+        return null;
     }
 
-    const rules: StrategyRule[] = [];
-    rulesList.querySelectorAll('.rule-row').forEach(row => {
-        const field = (row.querySelector('.rule-field') as HTMLSelectElement).value as any;
-        const operator = (row.querySelector('.rule-operator') as HTMLSelectElement).value as any;
-        const value = (row.querySelector('.rule-value') as HTMLInputElement).value;
-        const result = (row.querySelector('.rule-result') as HTMLInputElement).value;
-
-        if (value && result) {
-            rules.push({ field, operator, value, result });
-        }
+    const filters: RuleCondition[] = [];
+    document.getElementById('filter-rows-container')?.querySelectorAll('.builder-row').forEach(row => {
+        const field = (row.querySelector('.field-select') as HTMLSelectElement).value;
+        const operator = (row.querySelector('.operator-select') as HTMLSelectElement).value as any;
+        const value = (row.querySelector('.value-input') as HTMLInputElement).value;
+        if (value) filters.push({ field, operator, value });
     });
 
-    if (rules.length === 0) {
-        alert("Please add at least one valid rule.");
+    const groupingRules: GroupingRule[] = [];
+    document.getElementById('group-rows-container')?.querySelectorAll('.builder-row').forEach(row => {
+        const field = (row.querySelector('.field-select') as HTMLSelectElement).value;
+        const operator = (row.querySelector('.operator-select') as HTMLSelectElement).value as any;
+        const value = (row.querySelector('.value-input') as HTMLInputElement).value;
+        const result = (row.querySelector('.result-input') as HTMLInputElement).value;
+        if (value && result) groupingRules.push({ field, operator, value, result });
+    });
+
+    const sortingRules: SortingRule[] = [];
+    document.getElementById('sort-rows-container')?.querySelectorAll('.builder-row').forEach(row => {
+        const field = (row.querySelector('.field-select') as HTMLSelectElement).value;
+        const order = (row.querySelector('.order-select') as HTMLSelectElement).value as any;
+        sortingRules.push({ field, order });
+    });
+
+    return {
+        id,
+        label,
+        filters,
+        groupingRules,
+        sortingRules,
+        fallback
+    };
+}
+
+function runBuilderSimulation() {
+    const strat = getBuilderStrategy();
+    const resultContainer = document.getElementById('builder-results');
+
+    // For simulation, we can mock an ID/Label if missing
+    const simStrat: CustomStrategy = strat || {
+        id: 'sim_temp',
+        label: 'Simulation',
+        filters: [],
+        groupingRules: [],
+        sortingRules: [],
+        fallback: 'Misc'
+    };
+
+    // Extract what we can from DOM if getBuilderStrategy failed due to validation
+    if (!strat) {
+        // Manual extraction just for Sim
+        // (Copy paste logic or refactor extraction to be loose)
+        // Let's rely on user filling basics or improve UX later.
+        // For now, alert if missing.
+        if (!(document.getElementById('strat-id') as HTMLInputElement).value) {
+            alert("Please enter an ID to run simulation.");
+            return;
+        }
+    }
+
+    if (!resultContainer) return;
+
+    // Update localCustomStrategies temporarily for Sim
+    const originalStrategies = [...localCustomStrategies];
+
+    // Replace or add
+    const existingIdx = localCustomStrategies.findIndex(s => s.id === simStrat.id);
+    if (existingIdx !== -1) {
+        localCustomStrategies[existingIdx] = simStrat;
+    } else {
+        localCustomStrategies.push(simStrat);
+    }
+    setCustomStrategies(localCustomStrategies);
+
+    // Run Logic
+    let tabs = getMappedTabs();
+
+    // Sort using this strategy?
+    // sortTabs expects SortingStrategy[].
+    // If we use this strategy for sorting...
+    tabs = sortTabs(tabs, [simStrat.id]);
+
+    // Group using this strategy
+    const groups = groupTabs(tabs, [simStrat.id]);
+
+    // Restore strategies
+    localCustomStrategies = originalStrategies;
+    setCustomStrategies(localCustomStrategies);
+
+    // Render Results
+     if (groups.length === 0) {
+      resultContainer.innerHTML = '<p>No groups created.</p>';
+      return;
+    }
+
+    resultContainer.innerHTML = groups.map(group => `
+    <div class="group-result">
+      <div class="group-header" style="border-left: 5px solid ${group.color}">
+        <span>${escapeHtml(group.label || 'Ungrouped')}</span>
+        <span class="group-meta">${group.tabs.length} tabs</span>
+      </div>
+      <ul class="group-tabs">
+        ${group.tabs.map(tab => `
+          <li class="group-tab-item">
+            <span class="title-cell" title="${escapeHtml(tab.title)}">${escapeHtml(tab.title)}</span>
+          </li>
+        `).join('')}
+      </ul>
+    </div>
+  `).join('');
+}
+
+async function saveCustomStrategyFromBuilder() {
+    const strat = getBuilderStrategy();
+    if (!strat) {
+        alert("Please fill in ID and Label.");
         return;
     }
 
-    const newStrategy: CustomStrategy = {
-        id,
-        label,
-        type: 'grouping', // Default to grouping for now
-        rules,
-        fallback
-    };
-
     try {
-        // Fetch current to merge
         const response = await chrome.runtime.sendMessage({ type: 'loadPreferences' });
         if (response && response.ok && response.data) {
             const prefs = response.data as Preferences;
             let currentStrategies = prefs.customStrategies || [];
 
             // Remove existing if same ID
-            currentStrategies = currentStrategies.filter(s => s.id !== id);
-            currentStrategies.push(newStrategy);
+            currentStrategies = currentStrategies.filter(s => s.id !== strat.id);
+            currentStrategies.push(strat);
 
             await chrome.runtime.sendMessage({
                 type: 'savePreferences',
                 payload: { customStrategies: currentStrategies }
             });
 
-            // Update local state
             localCustomStrategies = currentStrategies;
             setCustomStrategies(localCustomStrategies);
 
-            // Reset form
-            idInput.value = '';
-            labelInput.value = '';
-            if (fallbackInput) fallbackInput.value = '';
-            rulesList.innerHTML = '';
-
             renderStrategiesList();
-            renderAlgorithmsView(); // Refresh algo lists
+            renderAlgorithmsView();
             alert("Strategy saved!");
         }
     } catch (e) {
@@ -508,52 +686,37 @@ function renderStrategiesList() {
     const container = document.getElementById('custom-strategies-list');
     if (!container) return;
 
-    const allStrategies = getStrategies(localCustomStrategies);
+    // Filter to only user-defined ones from preferences
+    const strategies = localCustomStrategies;
 
-    if (allStrategies.length === 0) {
-        container.innerHTML = '<p style="color: #888;">No strategies found.</p>';
+    if (strategies.length === 0) {
+        container.innerHTML = '<p style="color: #888;">No custom strategies found.</p>';
         return;
     }
 
-    container.innerHTML = allStrategies.map(s => {
-        const isCustom = localCustomStrategies.some(cs => cs.id === s.id);
-        const isBuiltIn = STRATEGIES.some(bs => bs.id === s.id);
-
-        let typeLabel = '';
-        if (isCustom && isBuiltIn) typeLabel = '<span style="color: orange; font-size: 0.8em;">Overrides Built-in</span>';
-        else if (isCustom) typeLabel = '<span style="color: blue; font-size: 0.8em;">Custom</span>';
-        else typeLabel = '<span style="color: gray; font-size: 0.8em;">Built-in</span>';
-
-        let actions = '';
-        if (isCustom) {
-            actions += `<button class="edit-strat-btn" data-id="${escapeHtml(String(s.id))}">Edit</button> `;
-            actions += `<button class="delete-strat-btn" data-id="${escapeHtml(String(s.id))}" style="color: red;">${isBuiltIn ? 'Restore' : 'Delete'}</button>`;
-        } else {
-            actions += `<button class="override-strat-btn" data-id="${escapeHtml(String(s.id))}" data-label="${escapeHtml(s.label)}">Override</button>`;
-        }
-
+    container.innerHTML = strategies.map(s => {
         return `
-        <div style="border: 1px solid #ddd; padding: 10px; margin-bottom: 5px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; background-color: ${isCustom ? '#f9faff' : '#fff'};">
+        <div style="border: 1px solid #ddd; padding: 10px; margin-bottom: 5px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; background-color: #f9faff;">
             <div>
                 <strong>${escapeHtml(s.label)}</strong> (${escapeHtml(String(s.id))})
-                ${typeLabel}
-                ${isCustom ? `<div style="font-size: 0.8em; color: #666;">${localCustomStrategies.find(c => c.id === s.id)?.rules.length || 0} rules</div>` : ''}
+                <div style="font-size: 0.8em; color: #666;">
+                    Filters: ${s.filters?.length || 0},
+                    Groups: ${s.groupingRules?.length || 0},
+                    Sorts: ${s.sortingRules?.length || 0}
+                </div>
             </div>
             <div>
-                ${actions}
+                <button class="edit-strat-btn" data-id="${escapeHtml(String(s.id))}">Edit</button>
+                <button class="delete-strat-btn" data-id="${escapeHtml(String(s.id))}" style="color: red;">Delete</button>
             </div>
         </div>
         `;
     }).join('');
 
-    // Attach listeners
     container.querySelectorAll('.delete-strat-btn').forEach(btn => {
         btn.addEventListener('click', async (e) => {
             const id = (e.target as HTMLElement).dataset.id;
-            const isBuiltIn = STRATEGIES.some(s => s.id === id);
-            const action = isBuiltIn ? "Restore built-in strategy" : "Delete strategy";
-
-            if (id && confirm(`${action} "${id}"?`)) {
+            if (id && confirm(`Delete strategy "${id}"?`)) {
                 await deleteCustomStrategy(id);
             }
         });
@@ -564,44 +727,25 @@ function renderStrategiesList() {
             const id = (e.target as HTMLElement).dataset.id;
             const strat = localCustomStrategies.find(s => s.id === id);
             if (strat) {
-                // Populate form
-                (document.getElementById('new-strat-id') as HTMLInputElement).value = strat.id;
-                (document.getElementById('new-strat-label') as HTMLInputElement).value = strat.label;
+                // Populate fields
+                (document.getElementById('strat-id') as HTMLInputElement).value = strat.id;
+                (document.getElementById('strat-label') as HTMLInputElement).value = strat.label;
+                (document.getElementById('strat-fallback') as HTMLInputElement).value = strat.fallback || '';
 
-                const fallbackInput = document.getElementById('new-strat-fallback') as HTMLInputElement;
-                if (fallbackInput) fallbackInput.value = strat.fallback || '';
+                // Clear lists
+                ['filter-rows-container', 'group-rows-container', 'sort-rows-container'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.innerHTML = '';
+                });
 
-                const rulesList = document.getElementById('rules-list');
-                if (rulesList) {
-                    rulesList.innerHTML = '';
-                    strat.rules.forEach(r => addRuleRow(r));
-                }
-                document.querySelector('.strategy-editor')?.scrollIntoView({ behavior: 'smooth' });
+                // Populate rows
+                strat.filters?.forEach(f => addBuilderRow('filter', f));
+                strat.groupingRules?.forEach(g => addBuilderRow('group', g));
+                strat.sortingRules?.forEach(s => addBuilderRow('sort', s));
+
+                document.querySelector('.strategy-builder-section')?.scrollIntoView({ behavior: 'smooth' });
+                updateBreadcrumb();
             }
-        });
-    });
-
-    container.querySelectorAll('.override-strat-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const id = (e.target as HTMLElement).dataset.id;
-            const label = (e.target as HTMLElement).dataset.label;
-
-            // Populate form
-            (document.getElementById('new-strat-id') as HTMLInputElement).value = id || '';
-            (document.getElementById('new-strat-label') as HTMLInputElement).value = label || '';
-
-            const fallbackInput = document.getElementById('new-strat-fallback') as HTMLInputElement;
-            if (fallbackInput) fallbackInput.value = '';
-
-            // Clear rules
-            const rulesList = document.getElementById('rules-list');
-            if (rulesList) rulesList.innerHTML = '';
-
-            // Add one empty rule to start
-            addRuleRow();
-
-            // Scroll to editor
-            document.querySelector('.strategy-editor')?.scrollIntoView({ behavior: 'smooth' });
         });
     });
 }
@@ -628,6 +772,7 @@ async function deleteCustomStrategy(id: string) {
     }
 }
 
+// ... Genera management ... (kept as is)
 function renderCustomGeneraList(customGenera: Record<string, string>) {
     const listContainer = document.getElementById('custom-genera-list');
     if (!listContainer) return;
@@ -1159,8 +1304,8 @@ function showStrategyDetails(type: string, name: string) {
             if (custom) {
                 content = `
 <h3>Custom Strategy: ${escapeHtml(custom.label)}</h3>
-<p><b>Rules:</b></p>
-<pre><code>${escapeHtml(JSON.stringify(custom.rules, null, 2))}</code></pre>
+<p><b>Configuration:</b></p>
+<pre><code>${escapeHtml(JSON.stringify(custom, null, 2))}</code></pre>
 <h3>Logic: Grouping Key</h3>
 <pre><code>${escapeHtml(groupingKey.toString())}</code></pre>
                 `;

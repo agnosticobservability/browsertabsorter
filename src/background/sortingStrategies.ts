@@ -1,5 +1,5 @@
-import { SortingStrategy, TabMetadata } from "../shared/types.js";
-import { domainFromUrl, semanticBucket, navigationKey, groupingKey, getFieldValue } from "./groupingStrategies.js";
+import { SortingStrategy, TabMetadata, CustomStrategy, SortingRule } from "../shared/types.js";
+import { domainFromUrl, semanticBucket, navigationKey, groupingKey, getFieldValue, getCustomStrategies } from "./groupingStrategies.js";
 
 export const recencyScore = (tab: TabMetadata) => tab.lastAccessed ?? 0;
 export const hierarchyScore = (tab: TabMetadata) => (tab.openerTabId !== undefined ? 1 : 0);
@@ -17,6 +17,28 @@ export const sortTabs = (tabs: TabMetadata[], strategies: SortingStrategy[]): Ta
 };
 
 export const compareBy = (strategy: SortingStrategy | string, a: TabMetadata, b: TabMetadata): number => {
+  // 1. Check Custom Strategies for Sorting Rules
+  const customStrats = getCustomStrategies();
+  const custom = customStrats.find(s => s.id === strategy);
+  if (custom && custom.sortingRules && custom.sortingRules.length > 0) {
+      // Evaluate custom sorting rules in order
+      for (const rule of custom.sortingRules) {
+          const valA = getFieldValue(a, rule.field);
+          const valB = getFieldValue(b, rule.field);
+
+          let result = 0;
+          if (valA < valB) result = -1;
+          else if (valA > valB) result = 1;
+
+          if (result !== 0) {
+              return rule.order === 'desc' ? -result : result;
+          }
+      }
+      // If all rules equal, continue to next strategy (return 0)
+      return 0;
+  }
+
+  // 2. Built-in or fallback
   switch (strategy) {
     case "recency":
       return (b.lastAccessed ?? 0) - (a.lastAccessed ?? 0);
@@ -51,7 +73,8 @@ export const compareBy = (strategy: SortingStrategy | string, a: TabMetadata, b:
           return 0;
       }
 
-      // Fallback for custom strategies or unhandled built-ins
+      // Fallback for custom strategies grouping key (if using custom strategy as sorting but no sorting rules defined)
+      // or unhandled built-ins
       return groupingKey(a, strategy).localeCompare(groupingKey(b, strategy));
   }
 };

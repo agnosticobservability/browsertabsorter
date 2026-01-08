@@ -7,19 +7,7 @@ export interface StrategyDefinition {
     isSorting: boolean;
 }
 
-export const ARCHIVED_STRATEGIES: StrategyDefinition[] = [
-    { id: "pinned", label: "Pinned", isGrouping: true, isSorting: true },
-    { id: "context", label: "Context", isGrouping: true, isSorting: true },
-    { id: "age", label: "Age", isGrouping: true, isSorting: true },
-    { id: "recency", label: "Recency", isGrouping: false, isSorting: true },
-    { id: "lineage", label: "Lineage", isGrouping: true, isSorting: true },
-    { id: "nesting", label: "Nesting", isGrouping: true, isSorting: true },
-    { id: "domain", label: "Domain", isGrouping: true, isSorting: true },
-    { id: "url", label: "URL", isGrouping: false, isSorting: true },
-    { id: "topic", label: "Topic", isGrouping: true, isSorting: true },
-    { id: "title", label: "Title", isGrouping: false, isSorting: true },
-    { id: "domain_full", label: "Domain", isGrouping: true, isSorting: true },
-];
+// Old strategies deleted as requested.
 
 export const STRATEGIES: StrategyDefinition[] = [
     { id: "title", label: "Title", isGrouping: true, isSorting: true },
@@ -36,8 +24,8 @@ export const getStrategies = (customStrategies?: CustomStrategy[]): StrategyDefi
         const definition: StrategyDefinition = {
             id: custom.id,
             label: custom.label,
-            isGrouping: custom.type === 'grouping',
-            isSorting: true // Custom grouping implies sorting capability (sorting by group label)
+            isGrouping: true, // New Custom Strategies are always grouping capable
+            isSorting: true   // And sorting capable
         };
 
         if (existingIndex !== -1) {

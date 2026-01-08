@@ -113,6 +113,26 @@ export interface ApplyGroupingPayload {
   sorting?: SortingStrategy[];
 }
 
+// New Strategy Types
+export interface RuleCondition {
+  field: string;
+  operator: "contains" | "matches" | "equals" | "startsWith" | "endsWith";
+  value: string;
+}
+
+export interface GroupingRule {
+  field: string;
+  operator: "contains" | "matches" | "equals" | "startsWith" | "endsWith";
+  value: string;
+  result: string; // The format string, e.g. "$1 Domains" or "Facebook Tabs"
+}
+
+export interface SortingRule {
+  field: string;
+  order: "asc" | "desc";
+}
+
+// Legacy Interface for compatibility (if needed) or replacement
 export interface StrategyRule {
   field: string;
   operator: "contains" | "matches" | "equals" | "startsWith" | "endsWith";
@@ -123,9 +143,17 @@ export interface StrategyRule {
 export interface CustomStrategy {
   id: string;
   label: string;
-  type: "grouping" | "sorting";
-  rules: StrategyRule[];
+
+  // New Structure
+  filters: RuleCondition[];
+  groupingRules: GroupingRule[];
+  sortingRules: SortingRule[];
+
   fallback?: string;
+
+  // Legacy fields (optional during migration or if we want to support old style)
+  type?: "grouping" | "sorting";
+  rules?: StrategyRule[];
 }
 
 export interface Preferences {

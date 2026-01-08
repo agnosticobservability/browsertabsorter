@@ -1,4 +1,4 @@
-import { GroupingStrategy, SortingStrategy, TabGroup, TabMetadata, CustomStrategy, StrategyRule } from "../shared/types.js";
+import { GroupingStrategy, SortingStrategy, TabGroup, TabMetadata, CustomStrategy, StrategyRule, RuleCondition, GroupingRule } from "../shared/types.js";
 import { getStrategies, getStrategy } from "../shared/strategyRegistry.js";
 import { logDebug } from "./logger.js";
 
@@ -7,6 +7,8 @@ let customStrategies: CustomStrategy[] = [];
 export const setCustomStrategies = (strategies: CustomStrategy[]) => {
     customStrategies = strategies;
 };
+
+export const getCustomStrategies = (): CustomStrategy[] => customStrategies;
 
 const COLORS = ["blue", "cyan", "green", "orange", "purple", "red", "yellow"];
 
@@ -92,10 +94,7 @@ const getLabelComponent = (strategy: GroupingStrategy | string, tabs: TabMetadat
   // Check custom strategies first
   const custom = customStrategies.find(s => s.id === strategy);
   if (custom) {
-      // For custom strategies, the group key (result of rule) IS the label.
-      // But we need to re-evaluate it for the representative tab to be consistent,
-      // or just assume the grouping key was correct.
-      // Since `generateLabel` is called after grouping, tabs in this group should share the same key.
+      // Use groupingKey logic which now handles the new structure
       return groupingKey(firstTab, strategy);
   }
 
@@ -140,7 +139,7 @@ const getLabelComponent = (strategy: GroupingStrategy | string, tabs: TabMetadat
     case "nesting":
       return firstTab.openerTabId !== undefined ? "Children" : "Roots";
     default:
-      // Check if it matches a generic field
+      // Check if it's a generic field
       const val = getFieldValue(firstTab, strategy);
       if (val !== undefined && val !== null) {
           return String(val);
@@ -156,7 +155,7 @@ const generateLabel = (
 ): string => {
   const labels = strategies
     .map(s => getLabelComponent(s, tabs, allTabsMap))
-    .filter(l => l && l !== "Unknown" && l !== "Group" && !l.includes("Group"));
+    .filter(l => l && l !== "Unknown" && l !== "Group" && !l.includes("Group") && l !== "Misc");
 
   if (labels.length === 0) return "Group";
   return Array.from(new Set(labels)).join(" - ");
@@ -207,7 +206,48 @@ export const groupingKey = (tab: TabMetadata, strategy: GroupingStrategy | strin
   // 1. Check Custom Strategies (Override built-in if ID matches)
   const custom = customStrategies.find(s => s.id === strategy);
   if (custom) {
-      return evaluateRules(custom.rules, tab) || custom.fallback || "Misc";
+      // 1. Check Filters (ALL must be met)
+      if (custom.filters && custom.filters.length > 0) {
+          const allPass = custom.filters.every(filter => checkCondition(filter, tab));
+          if (!allPass) {
+              return custom.fallback || "Misc";
+          }
+      }
+
+      // 2. Apply Grouping Rules
+      if (custom.groupingRules && custom.groupingRules.length > 0) {
+          const parts: string[] = [];
+          for (const rule of custom.groupingRules) {
+              // Check if rule applies
+              const val = checkConditionAndGetResult(rule, tab);
+              if (val) {
+                  parts.push(val);
+              }
+              // If we want nested, we continue.
+              // If a rule fails, do we stop? The mock suggests "A > B > C".
+              // If A fails, we can't be in A > B.
+              // So if checkCondition fails, we might break?
+              // However, checkConditionAndGetResult returns null if fail.
+              // If it fails, does it contribute to the key?
+              // If strict hierarchy, failure at level 1 puts you in "Other" for level 1.
+              // But here we are building a string key.
+
+              // Let's assume sequential: if rule matches, add result. If not, ignore or add fallback?
+              // If I ignore, then key is empty?
+          }
+
+          if (parts.length > 0) {
+              return parts.join(" - ");
+          }
+          // If no rules matched, return fallback
+          return custom.fallback || "Misc";
+
+      } else if (custom.rules) {
+          // Legacy support
+          return evaluateLegacyRules(custom.rules, tab) || custom.fallback || "Misc";
+      }
+
+      return custom.fallback || "Misc";
   }
 
   // 2. Built-in Strategies
@@ -244,12 +284,67 @@ export const groupingKey = (tab: TabMetadata, strategy: GroupingStrategy | strin
   }
 };
 
-const evaluateRules = (rules: StrategyRule[], tab: TabMetadata): string | null => {
+const checkCondition = (condition: RuleCondition, tab: TabMetadata): boolean => {
+    const rawValue = getFieldValue(tab, condition.field);
+    const valueToCheck = rawValue !== undefined && rawValue !== null ? String(rawValue).toLowerCase() : "";
+    const pattern = condition.value.toLowerCase();
+
+    switch (condition.operator) {
+        case 'contains': return valueToCheck.includes(pattern);
+        case 'equals': return valueToCheck === pattern;
+        case 'startsWith': return valueToCheck.startsWith(pattern);
+        case 'endsWith': return valueToCheck.endsWith(pattern);
+        case 'matches':
+             try {
+                return new RegExp(condition.value, 'i').test(rawValue !== undefined && rawValue !== null ? String(rawValue) : "");
+             } catch { return false; }
+        default: return false;
+    }
+};
+
+const checkConditionAndGetResult = (rule: GroupingRule, tab: TabMetadata): string | null => {
+    const rawValue = getFieldValue(tab, rule.field);
+    const valueToCheck = rawValue !== undefined && rawValue !== null ? String(rawValue).toLowerCase() : "";
+    const pattern = rule.value.toLowerCase();
+
+    let isMatch = false;
+    let matchObj: RegExpExecArray | null = null;
+
+    switch (rule.operator) {
+        case 'contains': isMatch = valueToCheck.includes(pattern); break;
+        case 'equals': isMatch = valueToCheck === pattern; break;
+        case 'startsWith': isMatch = valueToCheck.startsWith(pattern); break;
+        case 'endsWith': isMatch = valueToCheck.endsWith(pattern); break;
+        case 'matches':
+            try {
+                const regex = new RegExp(rule.value, 'i');
+                matchObj = regex.exec(rawValue !== undefined && rawValue !== null ? String(rawValue) : "");
+                isMatch = !!matchObj;
+            } catch { isMatch = false; }
+            break;
+    }
+
+    if (isMatch) {
+        let result = rule.result;
+        // Support capture group replacement ($1, $2, etc.) for regex matches
+        if (matchObj) {
+            for (let i = 1; i < matchObj.length; i++) {
+                 result = result.replace(new RegExp(`\\$${i}`, 'g'), matchObj[i] || "");
+            }
+        } else {
+            // For non-regex, maybe we want to support injecting the field value?
+            // e.g. "Group: $value"
+            // For now, simple static result usually, or basic interpolation could be added if requested.
+        }
+        return result;
+    }
+    return null;
+};
+
+const evaluateLegacyRules = (rules: StrategyRule[], tab: TabMetadata): string | null => {
     for (const rule of rules) {
         const rawValue = getFieldValue(tab, rule.field);
         let valueToCheck = rawValue !== undefined && rawValue !== null ? String(rawValue) : "";
-
-        // Case-insensitive comparison usually desired for grouping
         valueToCheck = valueToCheck.toLowerCase();
         const pattern = rule.value.toLowerCase();
 
@@ -268,20 +363,16 @@ const evaluateRules = (rules: StrategyRule[], tab: TabMetadata): string | null =
                 break;
             case 'matches':
                 try {
-                    const regex = new RegExp(rule.value, 'i'); // Use original casing for regex pattern if needed, but 'i' handles it
-                    // Use original raw value for regex to preserve case in capture groups
+                    const regex = new RegExp(rule.value, 'i');
                     const match = regex.exec(rawValue !== undefined && rawValue !== null ? String(rawValue) : "");
                     if (match) {
-                        // Support capture group replacement ($1, $2, etc.)
                         let result = rule.result;
                         for (let i = 1; i < match.length; i++) {
                              result = result.replace(new RegExp(`\\$${i}`, 'g'), match[i] || "");
                         }
                         return result;
                     }
-                } catch (e) {
-                    // Invalid regex, ignore
-                }
+                } catch (e) {}
                 break;
         }
     }
