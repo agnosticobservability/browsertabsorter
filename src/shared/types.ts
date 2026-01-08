@@ -114,7 +114,7 @@ export interface ApplyGroupingPayload {
 }
 
 export interface StrategyRule {
-  field: "url" | "title" | "domain";
+  field: string;
   operator: "contains" | "matches" | "equals" | "startsWith" | "endsWith";
   value: string;
   result: string;
@@ -125,6 +125,7 @@ export interface CustomStrategy {
   label: string;
   type: "grouping" | "sorting";
   rules: StrategyRule[];
+  fallback?: string;
 }
 
 export interface Preferences {
