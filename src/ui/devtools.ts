@@ -18,6 +18,15 @@ import { setCustomStrategies } from "../background/groupingStrategies.js";
 import { GroupingStrategy, Preferences, SortingStrategy, TabMetadata, TabGroup, CustomStrategy, StrategyRule } from "../shared/types.js";
 import { STRATEGIES, StrategyDefinition, getStrategies } from "../shared/strategyRegistry.js";
 
+// Types
+interface ColumnDefinition {
+    key: string;
+    label: string;
+    visible: boolean;
+    width: string; // CSS width
+    filterable: boolean;
+}
+
 // State
 let currentTabs: chrome.tabs.Tab[] = [];
 let localCustomStrategies: CustomStrategy[] = [];
@@ -25,6 +34,28 @@ let currentContextMap = new Map<number, ContextResult>();
 let tabTitles = new Map<number, string>();
 let sortKey: string | null = null;
 let sortDirection: 'asc' | 'desc' = 'asc';
+
+// Modern Table State
+let globalSearchQuery = '';
+let columnFilters: Record<string, string> = {};
+let columns: ColumnDefinition[] = [
+    { key: 'id', label: 'ID', visible: true, width: '60px', filterable: true },
+    { key: 'index', label: 'Index', visible: true, width: '60px', filterable: true },
+    { key: 'windowId', label: 'Window', visible: true, width: '70px', filterable: true },
+    { key: 'groupId', label: 'Group', visible: true, width: '70px', filterable: true },
+    { key: 'title', label: 'Title', visible: true, width: '200px', filterable: true },
+    { key: 'url', label: 'URL', visible: true, width: '250px', filterable: true },
+    { key: 'status', label: 'Status', visible: false, width: '80px', filterable: true },
+    { key: 'active', label: 'Active', visible: false, width: '60px', filterable: true },
+    { key: 'pinned', label: 'Pinned', visible: false, width: '60px', filterable: true },
+    { key: 'openerTabId', label: 'Opener', visible: false, width: '70px', filterable: true },
+    { key: 'parentTitle', label: 'Parent Title', visible: false, width: '150px', filterable: true },
+    { key: 'genre', label: 'Genre', visible: true, width: '100px', filterable: true },
+    { key: 'context', label: 'Context', visible: true, width: '150px', filterable: true },
+    { key: 'lastAccessed', label: 'Last Accessed', visible: true, width: '150px', filterable: false },
+    { key: 'actions', label: 'Actions', visible: true, width: '120px', filterable: false }
+];
+
 
 document.addEventListener('DOMContentLoaded', async () => {
   const refreshBtn = document.getElementById('refreshBtn');
@@ -66,15 +97,45 @@ document.addEventListener('DOMContentLoaded', async () => {
     applyBtn.addEventListener('click', applyToBrowser);
   }
 
-  // Add sort listeners
-  document.querySelectorAll('th.sortable').forEach(th => {
-    th.addEventListener('click', () => {
-      const key = th.getAttribute('data-key');
-      if (key) {
-        handleSort(key);
+  // Modern Table Controls
+  const globalSearchInput = document.getElementById('globalSearch') as HTMLInputElement;
+  if (globalSearchInput) {
+      globalSearchInput.addEventListener('input', (e) => {
+          globalSearchQuery = (e.target as HTMLInputElement).value;
+          renderTable();
+      });
+  }
+
+  const columnsBtn = document.getElementById('columnsBtn');
+  if (columnsBtn) {
+      columnsBtn.addEventListener('click', () => {
+          const menu = document.getElementById('columnsMenu');
+          menu?.classList.toggle('hidden');
+          renderColumnsMenu();
+      });
+  }
+
+  const resetViewBtn = document.getElementById('resetViewBtn');
+  if (resetViewBtn) {
+      resetViewBtn.addEventListener('click', () => {
+          // Reset columns to defaults (simplified, just show all reasonable ones)
+          columns.forEach(c => c.visible = ['id', 'title', 'url', 'windowId', 'groupId', 'genre', 'context', 'actions'].includes(c.key));
+          globalSearchQuery = '';
+          if (globalSearchInput) globalSearchInput.value = '';
+          columnFilters = {};
+          renderTableHeader();
+          renderTable();
+      });
+  }
+
+  // Hide column menu when clicking outside
+  document.addEventListener('click', (e) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('.columns-menu-container')) {
+          document.getElementById('columnsMenu')?.classList.add('hidden');
       }
-    });
   });
+
 
   // Listen for tab updates to refresh data (SPA support)
   chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
@@ -139,6 +200,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
+  // Init table header
+  renderTableHeader();
+
   loadTabs();
   // Pre-render static content
   await loadPreferencesAndInit(); // Load preferences first to init strategies
@@ -146,6 +210,126 @@ document.addEventListener('DOMContentLoaded', async () => {
   loadCustomGenera();
   initStrategyEditor();
 });
+
+// Column Management
+
+function renderColumnsMenu() {
+    const menu = document.getElementById('columnsMenu');
+    if (!menu) return;
+
+    menu.innerHTML = columns.map(col => `
+        <label class="column-toggle">
+            <input type="checkbox" data-key="${col.key}" ${col.visible ? 'checked' : ''}>
+            ${escapeHtml(col.label)}
+        </label>
+    `).join('');
+
+    menu.querySelectorAll('input').forEach(input => {
+        input.addEventListener('change', (e) => {
+            const key = (e.target as HTMLInputElement).dataset.key;
+            const checked = (e.target as HTMLInputElement).checked;
+            const col = columns.find(c => c.key === key);
+            if (col) {
+                col.visible = checked;
+                renderTableHeader(); // Re-render header to add/remove columns
+                renderTable(); // Re-render body
+            }
+        });
+    });
+}
+
+function renderTableHeader() {
+    const headerRow = document.getElementById('headerRow');
+    const filterRow = document.getElementById('filterRow');
+    if (!headerRow || !filterRow) return;
+
+    const visibleCols = columns.filter(c => c.visible);
+
+    // Render Headers
+    headerRow.innerHTML = visibleCols.map(col => `
+        <th class="${col.key !== 'actions' ? 'sortable' : ''}" data-key="${col.key}" style="width: ${col.width}; position: relative;">
+            ${escapeHtml(col.label)}
+            <div class="resizer"></div>
+        </th>
+    `).join('');
+
+    // Render Filter Inputs
+    filterRow.innerHTML = visibleCols.map(col => {
+        if (!col.filterable) return '<th></th>';
+        const val = columnFilters[col.key] || '';
+        return `
+            <th>
+                <input type="text" class="filter-input" data-key="${col.key}" value="${escapeHtml(val)}" placeholder="Filter...">
+            </th>
+        `;
+    }).join('');
+
+    // Attach Sort Listeners
+    headerRow.querySelectorAll('.sortable').forEach(th => {
+        th.addEventListener('click', (e) => {
+            // Ignore if clicked on resizer
+            if ((e.target as HTMLElement).classList.contains('resizer')) return;
+
+            const key = th.getAttribute('data-key');
+            if (key) handleSort(key);
+        });
+    });
+
+    // Attach Filter Listeners
+    filterRow.querySelectorAll('.filter-input').forEach(input => {
+        input.addEventListener('input', (e) => {
+            const key = (e.target as HTMLElement).dataset.key;
+            const val = (e.target as HTMLInputElement).value;
+            if (key) {
+                columnFilters[key] = val;
+                renderTable();
+            }
+        });
+    });
+
+    // Attach Resize Listeners
+    headerRow.querySelectorAll('.resizer').forEach(resizer => {
+        initResize(resizer as HTMLElement);
+    });
+
+    updateHeaderStyles();
+}
+
+function initResize(resizer: HTMLElement) {
+    let x = 0;
+    let w = 0;
+    let th: HTMLElement;
+
+    const mouseDownHandler = (e: MouseEvent) => {
+        th = resizer.parentElement as HTMLElement;
+        x = e.clientX;
+        w = th.offsetWidth;
+
+        document.addEventListener('mousemove', mouseMoveHandler);
+        document.addEventListener('mouseup', mouseUpHandler);
+        resizer.classList.add('resizing');
+    };
+
+    const mouseMoveHandler = (e: MouseEvent) => {
+        const dx = e.clientX - x;
+        const colKey = th.getAttribute('data-key');
+        const col = columns.find(c => c.key === colKey);
+        if (col) {
+            const newWidth = Math.max(30, w + dx); // Min width 30px
+            col.width = `${newWidth}px`;
+            th.style.width = col.width;
+        }
+    };
+
+    const mouseUpHandler = () => {
+        document.removeEventListener('mousemove', mouseMoveHandler);
+        document.removeEventListener('mouseup', mouseUpHandler);
+        resizer.classList.remove('resizing');
+    };
+
+    resizer.addEventListener('mousedown', mouseDownHandler);
+}
+
 
 async function loadPreferencesAndInit() {
     try {
@@ -626,8 +810,26 @@ function renderTable() {
   const tbody = document.querySelector('#tabsTable tbody');
   if (!tbody) return;
 
-  let tabsDisplay = [...currentTabs];
+  // 1. Filter
+  let tabsDisplay = currentTabs.filter(tab => {
+      // Global Search
+      if (globalSearchQuery) {
+          const q = globalSearchQuery.toLowerCase();
+          const searchableText = `${tab.title} ${tab.url} ${tab.id}`.toLowerCase();
+          if (!searchableText.includes(q)) return false;
+      }
 
+      // Column Filters
+      for (const [key, filter] of Object.entries(columnFilters)) {
+          if (!filter) continue;
+          const val = String(getSortValue(tab, key)).toLowerCase();
+          if (!val.includes(filter.toLowerCase())) return false;
+      }
+
+      return true;
+  });
+
+  // 2. Sort
   if (sortKey) {
     tabsDisplay.sort((a, b) => {
       let valA: any = getSortValue(a, sortKey!);
@@ -641,67 +843,105 @@ function renderTable() {
 
   tbody.innerHTML = ''; // Clear existing rows
 
+  // 3. Render
+  const visibleCols = columns.filter(c => c.visible);
+
   tabsDisplay.forEach(tab => {
     const row = document.createElement('tr');
 
-    const parentTitle = tab.openerTabId ? (tabTitles.get(tab.openerTabId) || 'Unknown') : '-';
+    visibleCols.forEach(col => {
+        const td = document.createElement('td');
+        if (col.key === 'title') td.classList.add('title-cell');
+        if (col.key === 'url') td.classList.add('url-cell');
 
-    const contextResult = tab.id ? currentContextMap.get(tab.id) : undefined;
-    const genre = contextResult?.data?.genre || '-';
-    let aiContext = 'N/A';
-    let cellStyle = '';
-    let cellTitle = '';
+        const val = getCellValue(tab, col.key);
 
-    if (contextResult) {
-        if (contextResult.status === 'RESTRICTED') {
-            aiContext = 'Unextractable (restricted)';
-            cellStyle = 'color: gray; font-style: italic;';
-            cellTitle = contextResult.error || '';
-        } else if (contextResult.error) {
-            aiContext = `Error (${contextResult.error})`;
-            cellStyle = 'color: red;';
-            cellTitle = contextResult.error;
-        } else if (contextResult.source === 'Extraction') {
-            aiContext = `${contextResult.context} (Extracted)`;
-            cellStyle = 'color: green; font-weight: bold;';
-        } else if (contextResult.source === 'AI') {
-            aiContext = `${contextResult.context} (AI)`;
-        } else if (contextResult.source === 'Heuristic') {
-             aiContext = `${contextResult.context}`;
+        if (val instanceof HTMLElement) {
+            td.appendChild(val);
+        } else {
+            td.innerHTML = val;
+            td.title = stripHtml(String(val));
         }
-    }
-
-    // Add data tooltip for debugging
-    if (contextResult && contextResult.data) {
-        cellTitle += '\n' + JSON.stringify(contextResult.data, null, 2);
-    }
-
-    row.innerHTML = `
-      <td>${tab.id ?? 'N/A'}</td>
-      <td>${tab.index}</td>
-      <td>${tab.windowId}</td>
-      <td>${tab.groupId}</td>
-      <td class="title-cell" title="${escapeHtml(tab.title || '')}">${escapeHtml(tab.title || '')}</td>
-      <td class="url-cell" title="${escapeHtml(tab.url || '')}">${escapeHtml(tab.url || '')}</td>
-      <td>${tab.status}</td>
-      <td>${tab.active ? 'Yes' : 'No'}</td>
-      <td>${tab.pinned ? 'Yes' : 'No'}</td>
-      <td>${tab.openerTabId ?? '-'}</td>
-      <td title="${escapeHtml(parentTitle)}">${escapeHtml(parentTitle)}</td>
-      <td>${escapeHtml(genre)}</td>
-      <td style="${cellStyle}" title="${escapeHtml(cellTitle)}">
-        ${escapeHtml(aiContext)}
-        ${contextResult?.data ? ` <button class="context-json-btn" data-tab-id="${tab.id}">View JSON</button>` : ''}
-      </td>
-      <td>${new Date((tab as any).lastAccessed || 0).toLocaleString()}</td>
-      <td>
-        <button class="goto-tab-btn" data-tab-id="${tab.id}" data-window-id="${tab.windowId}">Go to Tab</button>
-        <button class="close-tab-btn" data-tab-id="${tab.id}" style="background-color: #dc3545; margin-left: 5px;">Close</button>
-      </td>
-    `;
+        row.appendChild(td);
+    });
 
     tbody.appendChild(row);
   });
+}
+
+function stripHtml(html: string) {
+    let tmp = document.createElement("DIV");
+    tmp.innerHTML = html;
+    return tmp.textContent || tmp.innerText || "";
+}
+
+
+function getCellValue(tab: chrome.tabs.Tab, key: string): string | HTMLElement {
+    const escape = escapeHtml;
+
+    switch (key) {
+        case 'id': return String(tab.id ?? 'N/A');
+        case 'index': return String(tab.index);
+        case 'windowId': return String(tab.windowId);
+        case 'groupId': return String(tab.groupId);
+        case 'title': return escape(tab.title || '');
+        case 'url': return escape(tab.url || '');
+        case 'status': return escape(tab.status || '');
+        case 'active': return tab.active ? 'Yes' : 'No';
+        case 'pinned': return tab.pinned ? 'Yes' : 'No';
+        case 'openerTabId': return String(tab.openerTabId ?? '-');
+        case 'parentTitle':
+             return escape(tab.openerTabId ? (tabTitles.get(tab.openerTabId) || 'Unknown') : '-');
+        case 'genre':
+             return escape((tab.id && currentContextMap.get(tab.id)?.data?.genre) || '-');
+        case 'context': {
+            const contextResult = tab.id ? currentContextMap.get(tab.id) : undefined;
+            if (!contextResult) return 'N/A';
+
+            let cellStyle = '';
+            let aiContext = '';
+
+            if (contextResult.status === 'RESTRICTED') {
+                aiContext = 'Unextractable (restricted)';
+                cellStyle = 'color: gray; font-style: italic;';
+            } else if (contextResult.error) {
+                aiContext = `Error (${contextResult.error})`;
+                cellStyle = 'color: red;';
+            } else if (contextResult.source === 'Extraction') {
+                aiContext = `${contextResult.context} (Extracted)`;
+                cellStyle = 'color: green; font-weight: bold;';
+            } else {
+                 aiContext = `${contextResult.context}`;
+            }
+
+            const wrapper = document.createElement('div');
+            wrapper.style.cssText = cellStyle;
+            wrapper.textContent = aiContext;
+
+            if (contextResult.data) {
+                const btn = document.createElement('button');
+                btn.className = 'context-json-btn';
+                btn.dataset.tabId = String(tab.id);
+                btn.textContent = 'JSON';
+                btn.style.marginLeft = '5px';
+                btn.style.fontSize = '0.8em';
+                btn.style.padding = '1px 4px';
+                wrapper.appendChild(btn);
+            }
+            return wrapper;
+        }
+        case 'lastAccessed':
+            return new Date((tab as any).lastAccessed || 0).toLocaleString();
+        case 'actions': {
+            const wrapper = document.createElement('div');
+            wrapper.innerHTML = `
+                <button class="goto-tab-btn" data-tab-id="${tab.id}" data-window-id="${tab.windowId}">Go</button>
+                <button class="close-tab-btn" data-tab-id="${tab.id}" style="background-color: #dc3545; margin-left: 2px;">X</button>
+            `;
+            return wrapper;
+        }
+        default: return '';
+    }
 }
 
 function renderAlgorithmsView() {
