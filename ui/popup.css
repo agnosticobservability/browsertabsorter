@@ -273,6 +273,20 @@ body {
 }
 
 /* Node Types */
+.node-window {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  margin-bottom: 12px;
+  padding: 4px;
+  background-color: var(--bg-card);
+}
+
+.node-group {
+  margin-bottom: 4px;
+  padding: 2px;
+  border-radius: var(--radius-sm);
+}
+
 .window-row {
   font-weight: 600;
   text-transform: uppercase;
