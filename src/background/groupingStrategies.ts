@@ -207,7 +207,7 @@ export const groupingKey = (tab: TabMetadata, strategy: GroupingStrategy | strin
   // 1. Check Custom Strategies (Override built-in if ID matches)
   const custom = customStrategies.find(s => s.id === strategy);
   if (custom) {
-      return evaluateRules(custom.rules, tab) || "Misc";
+      return evaluateRules(custom.rules, tab) || custom.fallback || "Misc";
   }
 
   // 2. Built-in Strategies
@@ -246,31 +246,44 @@ export const groupingKey = (tab: TabMetadata, strategy: GroupingStrategy | strin
 
 const evaluateRules = (rules: StrategyRule[], tab: TabMetadata): string | null => {
     for (const rule of rules) {
-        let valueToCheck = "";
-        if (rule.field === 'url') valueToCheck = tab.url;
-        else if (rule.field === 'title') valueToCheck = tab.title;
-        else if (rule.field === 'domain') valueToCheck = domainFromUrl(tab.url);
+        const rawValue = getFieldValue(tab, rule.field);
+        let valueToCheck = rawValue !== undefined && rawValue !== null ? String(rawValue) : "";
 
+        // Case-insensitive comparison usually desired for grouping
         valueToCheck = valueToCheck.toLowerCase();
         const pattern = rule.value.toLowerCase();
-        let matched = false;
 
         switch (rule.operator) {
-            case 'contains': matched = valueToCheck.includes(pattern); break;
-            case 'equals': matched = valueToCheck === pattern; break;
-            case 'startsWith': matched = valueToCheck.startsWith(pattern); break;
-            case 'endsWith': matched = valueToCheck.endsWith(pattern); break;
+            case 'contains':
+                if (valueToCheck.includes(pattern)) return rule.result;
+                break;
+            case 'equals':
+                if (valueToCheck === pattern) return rule.result;
+                break;
+            case 'startsWith':
+                if (valueToCheck.startsWith(pattern)) return rule.result;
+                break;
+            case 'endsWith':
+                if (valueToCheck.endsWith(pattern)) return rule.result;
+                break;
             case 'matches':
                 try {
-                    const regex = new RegExp(pattern, 'i');
-                    matched = regex.test(valueToCheck);
+                    const regex = new RegExp(rule.value, 'i'); // Use original casing for regex pattern if needed, but 'i' handles it
+                    // Use original raw value for regex to preserve case in capture groups
+                    const match = regex.exec(rawValue !== undefined && rawValue !== null ? String(rawValue) : "");
+                    if (match) {
+                        // Support capture group replacement ($1, $2, etc.)
+                        let result = rule.result;
+                        for (let i = 1; i < match.length; i++) {
+                             result = result.replace(new RegExp(`\\$${i}`, 'g'), match[i] || "");
+                        }
+                        return result;
+                    }
                 } catch (e) {
                     // Invalid regex, ignore
                 }
                 break;
         }
-
-        if (matched) return rule.result;
     }
     return null;
 };

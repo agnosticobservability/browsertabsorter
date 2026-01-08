@@ -392,6 +392,12 @@ function addRuleRow(data?: StrategyRule) {
             <option value="url">URL</option>
             <option value="title">Title</option>
             <option value="domain">Domain</option>
+            <option value="genre">Genre</option>
+            <option value="siteName">Site Name</option>
+            <option value="platform">Platform</option>
+            <option value="context">Context Label</option>
+            <option value="pinned">Pinned (true/false)</option>
+            <option value="active">Active (true/false)</option>
         </select>
         <select class="rule-operator">
             <option value="contains">Contains</option>
@@ -423,12 +429,14 @@ function addRuleRow(data?: StrategyRule) {
 async function saveCustomStrategy() {
     const idInput = document.getElementById('new-strat-id') as HTMLInputElement;
     const labelInput = document.getElementById('new-strat-label') as HTMLInputElement;
+    const fallbackInput = document.getElementById('new-strat-fallback') as HTMLInputElement;
     const rulesList = document.getElementById('rules-list');
 
     if (!idInput || !labelInput || !rulesList) return;
 
     const id = idInput.value.trim();
     const label = labelInput.value.trim();
+    const fallback = fallbackInput ? fallbackInput.value.trim() : undefined;
 
     if (!id || !label) {
         alert("Please enter ID and Label");
@@ -456,7 +464,8 @@ async function saveCustomStrategy() {
         id,
         label,
         type: 'grouping', // Default to grouping for now
-        rules
+        rules,
+        fallback
     };
 
     try {
@@ -482,6 +491,7 @@ async function saveCustomStrategy() {
             // Reset form
             idInput.value = '';
             labelInput.value = '';
+            if (fallbackInput) fallbackInput.value = '';
             rulesList.innerHTML = '';
 
             renderStrategiesList();
@@ -557,6 +567,10 @@ function renderStrategiesList() {
                 // Populate form
                 (document.getElementById('new-strat-id') as HTMLInputElement).value = strat.id;
                 (document.getElementById('new-strat-label') as HTMLInputElement).value = strat.label;
+
+                const fallbackInput = document.getElementById('new-strat-fallback') as HTMLInputElement;
+                if (fallbackInput) fallbackInput.value = strat.fallback || '';
+
                 const rulesList = document.getElementById('rules-list');
                 if (rulesList) {
                     rulesList.innerHTML = '';
@@ -575,6 +589,9 @@ function renderStrategiesList() {
             // Populate form
             (document.getElementById('new-strat-id') as HTMLInputElement).value = id || '';
             (document.getElementById('new-strat-label') as HTMLInputElement).value = label || '';
+
+            const fallbackInput = document.getElementById('new-strat-fallback') as HTMLInputElement;
+            if (fallbackInput) fallbackInput.value = '';
 
             // Clear rules
             const rulesList = document.getElementById('rules-list');
