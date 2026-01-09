@@ -159,10 +159,26 @@ const generateLabel = (
 ): string => {
   const labels = strategies
     .map(s => getLabelComponent(s, tabs, allTabsMap))
-    .filter(l => l && l !== "Unknown" && l !== "Group" && !l.includes("Group") && l !== "Misc");
+    .filter(l => l && l !== "Unknown" && l !== "Group" && l !== "URL Group" && l !== "Time Group" && l !== "Misc");
 
   if (labels.length === 0) return "Group";
   return Array.from(new Set(labels)).join(" - ");
+};
+
+const getStrategyColor = (strategyId: string): string | undefined => {
+    const custom = customStrategies.find(s => s.id === strategyId);
+    if (!custom || !custom.groupingRules) return undefined;
+
+    // Check if any rule has a specific color
+    // We prioritize the last rule that has a color? Or the first?
+    // Let's take the last one as it's the most specific "sub-group" usually.
+    for (let i = custom.groupingRules.length - 1; i >= 0; i--) {
+        const rule = custom.groupingRules[i];
+        if (rule.color && rule.color !== 'random') {
+            return rule.color;
+        }
+    }
+    return undefined;
 };
 
 export const groupTabs = (
@@ -184,11 +200,21 @@ export const groupTabs = (
 
     let group = buckets.get(bucketKey);
     if (!group) {
+      let groupColor = null;
+      for (const sId of effectiveStrategies) {
+        const color = getStrategyColor(sId);
+        if (color) { groupColor = color; break; }
+      }
+
+      if (!groupColor) {
+        groupColor = colorForKey(bucketKey, buckets.size);
+      }
+
       group = {
         id: bucketKey,
         windowId: tab.windowId,
         label: "", // Will be set later
-        color: colorForKey(bucketKey, buckets.size),
+        color: groupColor,
         tabs: [],
         reason: effectiveStrategies.join(" + ")
       };
@@ -241,36 +267,31 @@ export const groupingKey = (tab: TabMetadata, strategy: GroupingStrategy | strin
           }
       }
 
-      // 2. Apply Grouping Rules
+      // 2. Apply Grouping Rules (New Logic)
       if (custom.groupingRules && custom.groupingRules.length > 0) {
           const parts: string[] = [];
           for (const rule of custom.groupingRules) {
-              // Check if rule applies
-              const val = checkConditionAndGetResult(rule, tab);
-              if (val) {
-                  parts.push(val);
+              let val = "";
+              if (rule.source === 'field') {
+                   const raw = getFieldValue(tab, rule.value);
+                   val = raw !== undefined && raw !== null ? String(raw) : "";
+              } else {
+                   val = rule.value;
               }
-              // If we want nested, we continue.
-              // If a rule fails, do we stop? The mock suggests "A > B > C".
-              // If A fails, we can't be in A > B.
-              // So if checkCondition fails, we might break?
-              // However, checkConditionAndGetResult returns null if fail.
-              // If it fails, does it contribute to the key?
-              // If strict hierarchy, failure at level 1 puts you in "Other" for level 1.
-              // But here we are building a string key.
-
-              // Let's assume sequential: if rule matches, add result. If not, ignore or add fallback?
-              // If I ignore, then key is empty?
+              if (val) parts.push(val);
           }
 
           if (parts.length > 0) {
               return parts.join(" - ");
           }
-          // If no rules matched, return fallback
+          // If no rules matched (empty list?), return fallback
           return custom.fallback || "Misc";
 
       } else if (custom.rules) {
-          // Legacy support
+          // Legacy support (Deprecated)
+          // Use legacy evaluation if necessary, but ideally we migrate.
+          // Since we changed the type definition, custom.rules corresponds to 'rules' prop in CustomStrategy.
+          // We can keep evaluateLegacyRules if we want robust backward compat.
           return evaluateLegacyRules(custom.rules, tab) || custom.fallback || "Misc";
       }
 
@@ -311,46 +332,6 @@ export const groupingKey = (tab: TabMetadata, strategy: GroupingStrategy | strin
   }
 };
 
-
-const checkConditionAndGetResult = (rule: GroupingRule, tab: TabMetadata): string | null => {
-    const rawValue = getFieldValue(tab, rule.field);
-    const valueToCheck = rawValue !== undefined && rawValue !== null ? String(rawValue).toLowerCase() : "";
-    const pattern = rule.value.toLowerCase();
-
-    let isMatch = false;
-    let matchObj: RegExpExecArray | null = null;
-
-    switch (rule.operator) {
-        case 'contains': isMatch = valueToCheck.includes(pattern); break;
-        case 'doesNotContain': isMatch = !valueToCheck.includes(pattern); break;
-        case 'equals': isMatch = valueToCheck === pattern; break;
-        case 'startsWith': isMatch = valueToCheck.startsWith(pattern); break;
-        case 'endsWith': isMatch = valueToCheck.endsWith(pattern); break;
-        case 'exists': isMatch = rawValue !== undefined; break;
-        case 'doesNotExist': isMatch = rawValue === undefined; break;
-        case 'isNull': isMatch = rawValue === null; break;
-        case 'isNotNull': isMatch = rawValue !== null; break;
-        case 'matches':
-            try {
-                const regex = new RegExp(rule.value, 'i');
-                matchObj = regex.exec(rawValue !== undefined && rawValue !== null ? String(rawValue) : "");
-                isMatch = !!matchObj;
-            } catch { isMatch = false; }
-            break;
-    }
-
-    if (isMatch) {
-        let result = rule.result;
-        // Support capture group replacement ($1, $2, etc.) for regex matches
-        if (matchObj) {
-            for (let i = 1; i < matchObj.length; i++) {
-                 result = result.replace(new RegExp(`\\$${i}`, 'g'), matchObj[i] || "");
-            }
-        }
-        return result;
-    }
-    return null;
-};
 
 const evaluateLegacyRules = (rules: StrategyRule[], tab: TabMetadata): string | null => {
     for (const rule of rules) {

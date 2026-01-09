@@ -396,10 +396,8 @@ function addBuilderRow(type: 'filter' | 'group' | 'sort', data?: any) {
     div.className = 'builder-row';
     div.dataset.type = type;
 
-    if (type === 'filter' || type === 'group') {
-        const isGroup = type === 'group';
+    if (type === 'filter') {
         div.innerHTML = `
-            ${isGroup ? '<span class="row-number"></span>' : ''}
             <select class="field-select">
                 <optgroup label="Standard Fields">
                     <option value="url">URL</option>
@@ -450,15 +448,81 @@ function addBuilderRow(type: 'filter' | 'group' | 'sort', data?: any) {
                 <option value="isNotNull">is not null</option>
             </select>
             <input type="text" class="value-input" placeholder="Value">
-
-            ${isGroup ? '<span style="margin: 0 5px;">&rarr;</span><input type="text" class="result-input" placeholder="Group Name (e.g. $1 Domains)">' : ''}
-
             <div class="row-actions">
                 <button class="small-btn btn-and">AND</button>
-                <button class="small-btn btn-or">OR</button>
                 <button class="small-btn btn-del" style="background: #ffcccc; color: darkred;">Delete</button>
             </div>
         `;
+    } else if (type === 'group') {
+        div.innerHTML = `
+            <span class="row-number"></span>
+            <select class="source-select" style="margin-right: 5px;">
+                <option value="field">Field</option>
+                <option value="fixed">Fixed Value</option>
+            </select>
+
+            <span class="input-container">
+                 <!-- Will be populated based on source selection -->
+                 <select class="field-select value-input-field">
+                    <optgroup label="Standard Fields">
+                        <option value="domain">Domain</option>
+                        <option value="genre">Genre</option>
+                        <option value="title">Title</option>
+                        <option value="url">URL</option>
+                        <option value="contextData.siteName">Site Name</option>
+                        <option value="context">Context Summary</option>
+                    </optgroup>
+                     <optgroup label="More Fields">
+                        <option value="contextData.objectType">Object Type</option>
+                        <option value="contextData.platform">Platform</option>
+                        <option value="windowId">Window ID</option>
+                     </optgroup>
+                 </select>
+                 <input type="text" class="value-input-text" placeholder="Group Name" style="display:none;">
+            </span>
+
+            <span style="margin-left: 10px;">Color:</span>
+            <input type="color" class="color-input" value="#000000">
+            <label><input type="checkbox" class="random-color-check" checked> Random</label>
+
+            <div class="row-actions">
+                <button class="small-btn btn-del" style="background: #ffcccc; color: darkred;">Delete</button>
+            </div>
+        `;
+
+        // Add specific listeners for Group row
+        const sourceSelect = div.querySelector('.source-select') as HTMLSelectElement;
+        const fieldSelect = div.querySelector('.value-input-field') as HTMLElement;
+        const textInput = div.querySelector('.value-input-text') as HTMLElement;
+        const colorInput = div.querySelector('.color-input') as HTMLInputElement;
+        const randomCheck = div.querySelector('.random-color-check') as HTMLInputElement;
+
+        // Toggle input type
+        const toggleInput = () => {
+            if (sourceSelect.value === 'field') {
+                fieldSelect.style.display = 'inline-block';
+                textInput.style.display = 'none';
+            } else {
+                fieldSelect.style.display = 'none';
+                textInput.style.display = 'inline-block';
+            }
+            updateBreadcrumb();
+        };
+        sourceSelect.addEventListener('change', toggleInput);
+
+        // Toggle color input
+        const toggleColor = () => {
+            if (randomCheck.checked) {
+                colorInput.disabled = true;
+                colorInput.style.opacity = '0.5';
+            } else {
+                colorInput.disabled = false;
+                colorInput.style.opacity = '1';
+            }
+        };
+        randomCheck.addEventListener('change', toggleColor);
+        toggleColor(); // init
+
     } else if (type === 'sort') {
         div.innerHTML = `
             <select class="field-select">
@@ -479,14 +543,43 @@ function addBuilderRow(type: 'filter' | 'group' | 'sort', data?: any) {
 
     // Populate data if provided (for editing)
     if (data) {
-        if (data.field) (div.querySelector('.field-select') as HTMLSelectElement).value = data.field;
-        if (data.operator) (div.querySelector('.operator-select') as HTMLSelectElement).value = data.operator;
-        if (data.value) (div.querySelector('.value-input') as HTMLInputElement).value = data.value;
-        if (data.result && type === 'group') (div.querySelector('.result-input') as HTMLInputElement).value = data.result;
-        if (data.order && type === 'sort') (div.querySelector('.order-select') as HTMLSelectElement).value = data.order;
+        if (type === 'filter') {
+            if (data.field) (div.querySelector('.field-select') as HTMLSelectElement).value = data.field;
+            if (data.operator) (div.querySelector('.operator-select') as HTMLSelectElement).value = data.operator;
+            if (data.value) (div.querySelector('.value-input') as HTMLInputElement).value = data.value;
+        } else if (type === 'group') {
+            const sourceSelect = div.querySelector('.source-select') as HTMLSelectElement;
+            const fieldSelect = div.querySelector('.value-input-field') as HTMLSelectElement;
+            const textInput = div.querySelector('.value-input-text') as HTMLInputElement;
+            const colorInput = div.querySelector('.color-input') as HTMLInputElement;
+            const randomCheck = div.querySelector('.random-color-check') as HTMLInputElement;
+
+            if (data.source) sourceSelect.value = data.source;
+
+            // Trigger toggle to show correct input
+            sourceSelect.dispatchEvent(new Event('change'));
+
+            if (data.source === 'field') {
+                if (data.value) fieldSelect.value = data.value;
+            } else {
+                if (data.value) textInput.value = data.value;
+            }
+
+            if (data.color && data.color !== 'random') {
+                randomCheck.checked = false;
+                colorInput.value = data.color;
+            } else {
+                randomCheck.checked = true;
+            }
+             // Trigger toggle color
+            randomCheck.dispatchEvent(new Event('change'));
+        } else if (type === 'sort') {
+             if (data.field) (div.querySelector('.field-select') as HTMLSelectElement).value = data.field;
+             if (data.order) (div.querySelector('.order-select') as HTMLSelectElement).value = data.order;
+        }
     }
 
-    // Listeners
+    // Listeners (General)
     div.querySelector('.btn-del')?.addEventListener('click', () => {
         div.remove();
         updateBreadcrumb();
@@ -495,12 +588,6 @@ function addBuilderRow(type: 'filter' | 'group' | 'sort', data?: any) {
     // AND / OR listeners (Visual mainly, or appending new rows)
     div.querySelector('.btn-and')?.addEventListener('click', () => {
         addBuilderRow(type); // Just add another row
-    });
-    div.querySelector('.btn-or')?.addEventListener('click', () => {
-        // Complex logic not fully supported by backend yet,
-        // treat as add row for now or alert
-        alert("OR logic for rows is currently simplified to sequential evaluation.");
-        addBuilderRow(type);
     });
 
     div.querySelectorAll('input, select').forEach(el => {
@@ -533,11 +620,15 @@ function updateBreadcrumb() {
     const groups = document.getElementById('group-rows-container')?.querySelectorAll('.builder-row');
     if (groups && groups.length > 0) {
         groups.forEach(row => {
-             const field = (row.querySelector('.field-select') as HTMLSelectElement).value;
-             const op = (row.querySelector('.operator-select') as HTMLSelectElement).value;
-             const val = (row.querySelector('.value-input') as HTMLInputElement).value;
-             const res = (row.querySelector('.result-input') as HTMLInputElement).value;
-             if (val) text += ` > ${field} ${op} ${val} (Group: ${res || '...'})`;
+             const source = (row.querySelector('.source-select') as HTMLSelectElement).value;
+             let val = "";
+             if (source === 'field') {
+                 val = (row.querySelector('.value-input-field') as HTMLSelectElement).value;
+                 text += ` > Group by Field: ${val}`;
+             } else {
+                 val = (row.querySelector('.value-input-text') as HTMLInputElement).value;
+                 text += ` > Group by Name: "${val}"`;
+             }
         });
     }
 
@@ -564,8 +655,6 @@ function getBuilderStrategy(): CustomStrategy | null {
     const fallback = fallbackInput.value.trim();
 
     if (!id || !label) {
-        // Allow temporary strategy for simulation without ID/Label?
-        // But for saving, we need them.
         return null;
     }
 
@@ -579,11 +668,25 @@ function getBuilderStrategy(): CustomStrategy | null {
 
     const groupingRules: GroupingRule[] = [];
     document.getElementById('group-rows-container')?.querySelectorAll('.builder-row').forEach(row => {
-        const field = (row.querySelector('.field-select') as HTMLSelectElement).value;
-        const operator = (row.querySelector('.operator-select') as HTMLSelectElement).value as any;
-        const value = (row.querySelector('.value-input') as HTMLInputElement).value;
-        const result = (row.querySelector('.result-input') as HTMLInputElement).value;
-        if (value && result) groupingRules.push({ field, operator, value, result });
+        const source = (row.querySelector('.source-select') as HTMLSelectElement).value as "field" | "fixed";
+        let value = "";
+        if (source === 'field') {
+            value = (row.querySelector('.value-input-field') as HTMLSelectElement).value;
+        } else {
+            value = (row.querySelector('.value-input-text') as HTMLInputElement).value;
+        }
+
+        const randomCheck = row.querySelector('.random-color-check') as HTMLInputElement;
+        const colorInput = row.querySelector('.color-input') as HTMLInputElement;
+
+        let color = 'random';
+        if (!randomCheck.checked) {
+            color = colorInput.value;
+        }
+
+        if (value) {
+            groupingRules.push({ source, value, color });
+        }
     });
 
     const sortingRules: SortingRule[] = [];
@@ -617,12 +720,7 @@ function runBuilderSimulation() {
         fallback: 'Misc'
     };
 
-    // Extract what we can from DOM if getBuilderStrategy failed due to validation
     if (!strat) {
-        // Manual extraction just for Sim
-        // (Copy paste logic or refactor extraction to be loose)
-        // Let's rely on user filling basics or improve UX later.
-        // For now, alert if missing.
         if (!(document.getElementById('strat-id') as HTMLInputElement).value) {
             alert("Please enter an ID to run simulation.");
             return;
