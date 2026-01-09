@@ -116,13 +116,13 @@ export interface ApplyGroupingPayload {
 // New Strategy Types
 export interface RuleCondition {
   field: string;
-  operator: "contains" | "matches" | "equals" | "startsWith" | "endsWith";
+  operator: "contains" | "doesNotContain" | "matches" | "equals" | "startsWith" | "endsWith" | "exists" | "doesNotExist" | "isNull" | "isNotNull";
   value: string;
 }
 
 export interface GroupingRule {
   field: string;
-  operator: "contains" | "matches" | "equals" | "startsWith" | "endsWith";
+  operator: "contains" | "doesNotContain" | "matches" | "equals" | "startsWith" | "endsWith" | "exists" | "doesNotExist" | "isNull" | "isNotNull";
   value: string;
   result: string; // The format string, e.g. "$1 Domains" or "Facebook Tabs"
 }
@@ -135,7 +135,7 @@ export interface SortingRule {
 // Legacy Interface for compatibility (if needed) or replacement
 export interface StrategyRule {
   field: string;
-  operator: "contains" | "matches" | "equals" | "startsWith" | "endsWith";
+  operator: "contains" | "doesNotContain" | "matches" | "equals" | "startsWith" | "endsWith" | "exists" | "doesNotExist" | "isNull" | "isNotNull";
   value: string;
   result: string;
 }
