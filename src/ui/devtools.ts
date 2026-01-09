@@ -361,6 +361,43 @@ async function loadCustomGenera() {
 
 // ---------------------- STRATEGY BUILDER ----------------------
 
+const FIELD_OPTIONS = `
+                <optgroup label="Standard Fields">
+                    <option value="url">URL</option>
+                    <option value="title">Title</option>
+                    <option value="domain">Domain</option>
+                    <option value="id">ID</option>
+                    <option value="index">Index</option>
+                    <option value="windowId">Window ID</option>
+                    <option value="groupId">Group ID</option>
+                    <option value="active">Active</option>
+                    <option value="pinned">Pinned</option>
+                    <option value="status">Status</option>
+                    <option value="openerTabId">Opener ID</option>
+                    <option value="parentTitle">Parent Title</option>
+                    <option value="lastAccessed">Last Accessed</option>
+                    <option value="genre">Genre</option>
+                    <option value="context">Context Summary</option>
+                </optgroup>
+                <optgroup label="Context Data (JSON)">
+                    <option value="contextData.siteName">Site Name</option>
+                    <option value="contextData.canonicalUrl">Canonical URL</option>
+                    <option value="contextData.normalizedUrl">Normalized URL</option>
+                    <option value="contextData.platform">Platform</option>
+                    <option value="contextData.objectType">Object Type</option>
+                    <option value="contextData.objectId">Object ID</option>
+                    <option value="contextData.title">Extracted Title</option>
+                    <option value="contextData.description">Description</option>
+                    <option value="contextData.authorOrCreator">Author/Creator</option>
+                    <option value="contextData.publishedAt">Published At</option>
+                    <option value="contextData.modifiedAt">Modified At</option>
+                    <option value="contextData.language">Language</option>
+                    <option value="contextData.isAudible">Is Audible</option>
+                    <option value="contextData.isMuted">Is Muted</option>
+                    <option value="contextData.hasUnsavedChangesLikely">Unsaved Changes</option>
+                    <option value="contextData.isAuthenticatedLikely">Authenticated</option>
+                </optgroup>`;
+
 function initStrategyBuilder() {
     const addFilterBtn = document.getElementById('add-filter-btn');
     const addGroupBtn = document.getElementById('add-group-btn');
@@ -399,41 +436,7 @@ function addBuilderRow(type: 'filter' | 'group' | 'sort', data?: any) {
     if (type === 'filter') {
         div.innerHTML = `
             <select class="field-select">
-                <optgroup label="Standard Fields">
-                    <option value="url">URL</option>
-                    <option value="title">Title</option>
-                    <option value="domain">Domain</option>
-                    <option value="id">ID</option>
-                    <option value="index">Index</option>
-                    <option value="windowId">Window ID</option>
-                    <option value="groupId">Group ID</option>
-                    <option value="active">Active</option>
-                    <option value="pinned">Pinned</option>
-                    <option value="status">Status</option>
-                    <option value="openerTabId">Opener ID</option>
-                    <option value="parentTitle">Parent Title</option>
-                    <option value="lastAccessed">Last Accessed</option>
-                    <option value="genre">Genre</option>
-                    <option value="context">Context Summary</option>
-                </optgroup>
-                <optgroup label="Context Data (JSON)">
-                    <option value="contextData.siteName">Site Name</option>
-                    <option value="contextData.canonicalUrl">Canonical URL</option>
-                    <option value="contextData.normalizedUrl">Normalized URL</option>
-                    <option value="contextData.platform">Platform</option>
-                    <option value="contextData.objectType">Object Type</option>
-                    <option value="contextData.objectId">Object ID</option>
-                    <option value="contextData.title">Extracted Title</option>
-                    <option value="contextData.description">Description</option>
-                    <option value="contextData.authorOrCreator">Author/Creator</option>
-                    <option value="contextData.publishedAt">Published At</option>
-                    <option value="contextData.modifiedAt">Modified At</option>
-                    <option value="contextData.language">Language</option>
-                    <option value="contextData.isAudible">Is Audible</option>
-                    <option value="contextData.isMuted">Is Muted</option>
-                    <option value="contextData.hasUnsavedChangesLikely">Unsaved Changes</option>
-                    <option value="contextData.isAuthenticatedLikely">Authenticated</option>
-                </optgroup>
+                ${FIELD_OPTIONS}
             </select>
             <select class="operator-select">
                 <option value="contains">contains</option>
@@ -464,19 +467,7 @@ function addBuilderRow(type: 'filter' | 'group' | 'sort', data?: any) {
             <span class="input-container">
                  <!-- Will be populated based on source selection -->
                  <select class="field-select value-input-field">
-                    <optgroup label="Standard Fields">
-                        <option value="domain">Domain</option>
-                        <option value="genre">Genre</option>
-                        <option value="title">Title</option>
-                        <option value="url">URL</option>
-                        <option value="contextData.siteName">Site Name</option>
-                        <option value="context">Context Summary</option>
-                    </optgroup>
-                     <optgroup label="More Fields">
-                        <option value="contextData.objectType">Object Type</option>
-                        <option value="contextData.platform">Platform</option>
-                        <option value="windowId">Window ID</option>
-                     </optgroup>
+                    ${FIELD_OPTIONS}
                  </select>
                  <input type="text" class="value-input-text" placeholder="Group Name" style="display:none;">
             </span>
@@ -526,10 +517,7 @@ function addBuilderRow(type: 'filter' | 'group' | 'sort', data?: any) {
     } else if (type === 'sort') {
         div.innerHTML = `
             <select class="field-select">
-                <option value="domain">Domain</option>
-                <option value="title">Title</option>
-                <option value="url">URL</option>
-                <option value="lastAccessed">Last Accessed</option>
+                ${FIELD_OPTIONS}
             </select>
             <select class="order-select">
                 <option value="asc">a to z (asc)</option>
