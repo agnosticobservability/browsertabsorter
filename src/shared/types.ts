@@ -121,10 +121,9 @@ export interface RuleCondition {
 }
 
 export interface GroupingRule {
-  field: string;
-  operator: "contains" | "doesNotContain" | "matches" | "equals" | "startsWith" | "endsWith" | "exists" | "doesNotExist" | "isNull" | "isNotNull";
+  source: "field" | "fixed";
   value: string;
-  result: string; // The format string, e.g. "$1 Domains" or "Facebook Tabs"
+  color?: string; // hex code or "random"
 }
 
 export interface SortingRule {
