@@ -40,7 +40,11 @@ export const getFieldValue = (tab: TabMetadata, field: string): any => {
         case 'siteName': return tab.contextData?.siteName;
         // Derived or mapped fields
         case 'domain': return domainFromUrl(tab.url);
-        default: return (tab as any)[field];
+        default:
+            if (field.includes('.')) {
+                 return field.split('.').reduce((obj, key) => (obj && typeof obj === 'object' && obj !== null) ? (obj as any)[key] : undefined, tab);
+            }
+            return (tab as any)[field];
     }
 };
 
@@ -202,6 +206,29 @@ export const groupTabs = (
   return groups;
 };
 
+export const checkCondition = (condition: RuleCondition, tab: TabMetadata): boolean => {
+    const rawValue = getFieldValue(tab, condition.field);
+    const valueToCheck = rawValue !== undefined && rawValue !== null ? String(rawValue).toLowerCase() : "";
+    const pattern = condition.value.toLowerCase();
+
+    switch (condition.operator) {
+        case 'contains': return valueToCheck.includes(pattern);
+        case 'doesNotContain': return !valueToCheck.includes(pattern);
+        case 'equals': return valueToCheck === pattern;
+        case 'startsWith': return valueToCheck.startsWith(pattern);
+        case 'endsWith': return valueToCheck.endsWith(pattern);
+        case 'exists': return rawValue !== undefined;
+        case 'doesNotExist': return rawValue === undefined;
+        case 'isNull': return rawValue === null;
+        case 'isNotNull': return rawValue !== null;
+        case 'matches':
+             try {
+                return new RegExp(condition.value, 'i').test(rawValue !== undefined && rawValue !== null ? String(rawValue) : "");
+             } catch { return false; }
+        default: return false;
+    }
+};
+
 export const groupingKey = (tab: TabMetadata, strategy: GroupingStrategy | string): string => {
   // 1. Check Custom Strategies (Override built-in if ID matches)
   const custom = customStrategies.find(s => s.id === strategy);
@@ -284,23 +311,6 @@ export const groupingKey = (tab: TabMetadata, strategy: GroupingStrategy | strin
   }
 };
 
-const checkCondition = (condition: RuleCondition, tab: TabMetadata): boolean => {
-    const rawValue = getFieldValue(tab, condition.field);
-    const valueToCheck = rawValue !== undefined && rawValue !== null ? String(rawValue).toLowerCase() : "";
-    const pattern = condition.value.toLowerCase();
-
-    switch (condition.operator) {
-        case 'contains': return valueToCheck.includes(pattern);
-        case 'equals': return valueToCheck === pattern;
-        case 'startsWith': return valueToCheck.startsWith(pattern);
-        case 'endsWith': return valueToCheck.endsWith(pattern);
-        case 'matches':
-             try {
-                return new RegExp(condition.value, 'i').test(rawValue !== undefined && rawValue !== null ? String(rawValue) : "");
-             } catch { return false; }
-        default: return false;
-    }
-};
 
 const checkConditionAndGetResult = (rule: GroupingRule, tab: TabMetadata): string | null => {
     const rawValue = getFieldValue(tab, rule.field);
@@ -312,9 +322,14 @@ const checkConditionAndGetResult = (rule: GroupingRule, tab: TabMetadata): strin
 
     switch (rule.operator) {
         case 'contains': isMatch = valueToCheck.includes(pattern); break;
+        case 'doesNotContain': isMatch = !valueToCheck.includes(pattern); break;
         case 'equals': isMatch = valueToCheck === pattern; break;
         case 'startsWith': isMatch = valueToCheck.startsWith(pattern); break;
         case 'endsWith': isMatch = valueToCheck.endsWith(pattern); break;
+        case 'exists': isMatch = rawValue !== undefined; break;
+        case 'doesNotExist': isMatch = rawValue === undefined; break;
+        case 'isNull': isMatch = rawValue === null; break;
+        case 'isNotNull': isMatch = rawValue !== null; break;
         case 'matches':
             try {
                 const regex = new RegExp(rule.value, 'i');
@@ -331,10 +346,6 @@ const checkConditionAndGetResult = (rule: GroupingRule, tab: TabMetadata): strin
             for (let i = 1; i < matchObj.length; i++) {
                  result = result.replace(new RegExp(`\\$${i}`, 'g'), matchObj[i] || "");
             }
-        } else {
-            // For non-regex, maybe we want to support injecting the field value?
-            // e.g. "Group: $value"
-            // For now, simple static result usually, or basic interpolation could be added if requested.
         }
         return result;
     }
@@ -348,32 +359,36 @@ const evaluateLegacyRules = (rules: StrategyRule[], tab: TabMetadata): string | 
         valueToCheck = valueToCheck.toLowerCase();
         const pattern = rule.value.toLowerCase();
 
+        let isMatch = false;
+        let matchObj: RegExpExecArray | null = null;
+
         switch (rule.operator) {
-            case 'contains':
-                if (valueToCheck.includes(pattern)) return rule.result;
-                break;
-            case 'equals':
-                if (valueToCheck === pattern) return rule.result;
-                break;
-            case 'startsWith':
-                if (valueToCheck.startsWith(pattern)) return rule.result;
-                break;
-            case 'endsWith':
-                if (valueToCheck.endsWith(pattern)) return rule.result;
-                break;
+            case 'contains': isMatch = valueToCheck.includes(pattern); break;
+            case 'doesNotContain': isMatch = !valueToCheck.includes(pattern); break;
+            case 'equals': isMatch = valueToCheck === pattern; break;
+            case 'startsWith': isMatch = valueToCheck.startsWith(pattern); break;
+            case 'endsWith': isMatch = valueToCheck.endsWith(pattern); break;
+            case 'exists': isMatch = rawValue !== undefined; break;
+            case 'doesNotExist': isMatch = rawValue === undefined; break;
+            case 'isNull': isMatch = rawValue === null; break;
+            case 'isNotNull': isMatch = rawValue !== null; break;
             case 'matches':
                 try {
                     const regex = new RegExp(rule.value, 'i');
-                    const match = regex.exec(rawValue !== undefined && rawValue !== null ? String(rawValue) : "");
-                    if (match) {
-                        let result = rule.result;
-                        for (let i = 1; i < match.length; i++) {
-                             result = result.replace(new RegExp(`\\$${i}`, 'g'), match[i] || "");
-                        }
-                        return result;
-                    }
+                    matchObj = regex.exec(rawValue !== undefined && rawValue !== null ? String(rawValue) : "");
+                    isMatch = !!matchObj;
                 } catch (e) {}
                 break;
+        }
+
+        if (isMatch) {
+            let result = rule.result;
+            if (matchObj) {
+                for (let i = 1; i < matchObj.length; i++) {
+                     result = result.replace(new RegExp(`\\$${i}`, 'g'), matchObj[i] || "");
+                }
+            }
+            return result;
         }
     }
     return null;
