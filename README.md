@@ -49,6 +49,19 @@ If you encounter the error `UNABLE_TO_GET_ISSUER_CERT_LOCALLY` during `npm insta
 
 To resolve this, you can configure npm to bypass SSL verification for the current project. **Note:** This reduces security and should only be done if you trust your network environment.
 
+For convenience, you can run the helper script for your platform:
+
+**Windows:**
+```pwsh
+scripts/install-unsafe.ps1
+```
+
+**Unix/Linux/macOS:**
+```bash
+./scripts/install-unsafe.sh
+```
+
+Or manually configure npm:
 ```bash
 npm config set strict-ssl false
 ```
