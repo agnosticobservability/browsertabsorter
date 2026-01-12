@@ -41,3 +41,19 @@ The script ensures the repository has a `.git` folder, verifies Git is installed
 - Add new grouping heuristics in `src/background/groupingStrategies.ts` and register them in the UI drop-downs.
 - Add new sorting heuristics in `src/background/sortingStrategies.ts` and expose checkboxes/toggles in `ui/options.html` + `src/ui/options.ts`.
 - Use the logger (`logDebug`, `logInfo`) to keep debugging output structured and privacy-aware.
+
+## Troubleshooting
+
+### Installation Errors
+If you encounter the error `UNABLE_TO_GET_ISSUER_CERT_LOCALLY` during `npm install`, it typically indicates that your machine is behind a corporate proxy or firewall that uses a self-signed certificate, which npm does not trust by default.
+
+To resolve this, you can configure npm to bypass SSL verification for the current project. **Note:** This reduces security and should only be done if you trust your network environment.
+
+```bash
+npm config set strict-ssl false
+```
+
+Alternatively, you can point npm to a specific CA bundle if provided by your organization:
+```bash
+npm config set cafile /path/to/your/ca-bundle.crt
+```
