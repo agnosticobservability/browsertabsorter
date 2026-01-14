@@ -15,7 +15,7 @@ import {
   WindowView,
   GROUP_COLORS
 } from "./common.js";
-import { STRATEGIES, StrategyDefinition } from "../shared/strategyRegistry.js";
+import { getStrategies, STRATEGIES, StrategyDefinition } from "../shared/strategyRegistry.js";
 
 // Elements
 const searchInput = document.getElementById("tabSearch") as HTMLInputElement;
@@ -521,11 +521,13 @@ const loadState = async () => {
   if (preferences) {
     const s = preferences.sorting || [];
 
+    const allStrategies = getStrategies(preferences.customStrategies);
+
     // Render Strategy Lists
-    const groupingStrategies = STRATEGIES.filter(st => st.isGrouping);
+    const groupingStrategies = allStrategies.filter(st => st.isGrouping);
     renderStrategyList(groupingListContainer, groupingStrategies, s);
 
-    const sortingStrategies = STRATEGIES.filter(st => st.isSorting);
+    const sortingStrategies = allStrategies.filter(st => st.isSorting);
     renderStrategyList(sortingListContainer, sortingStrategies, s);
 
     // Initial theme load
