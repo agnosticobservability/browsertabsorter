@@ -125,6 +125,8 @@ export const calculateTabGroups = async (
   return grouped;
 };
 
+const VALID_COLORS = ["grey", "blue", "red", "yellow", "green", "pink", "purple", "cyan", "orange"];
+
 export const applyTabGroups = async (groups: TabGroup[]) => {
   for (const group of groups) {
     const tabsByWindow = group.tabs.reduce<Map<number, TabMetadata[]>>((acc, tab) => {
@@ -136,9 +138,13 @@ export const applyTabGroups = async (groups: TabGroup[]) => {
 
     for (const tabs of tabsByWindow.values()) {
       const groupId = await chrome.tabs.group({ tabIds: tabs.map((t) => t.id) });
-      await chrome.tabGroups.update(groupId, {
+      const updateProps: chrome.tabGroups.UpdateProperties = {
         title: group.label
-      });
+      };
+      if (VALID_COLORS.includes(group.color)) {
+          updateProps.color = group.color as chrome.tabGroups.ColorEnum;
+      }
+      await chrome.tabGroups.update(groupId, updateProps);
     }
   }
 };
