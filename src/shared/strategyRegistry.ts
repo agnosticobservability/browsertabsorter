@@ -5,6 +5,8 @@ export interface StrategyDefinition {
     label: string;
     isGrouping: boolean;
     isSorting: boolean;
+    autoRun?: boolean;
+    isCustom?: boolean;
 }
 
 // Old strategies deleted as requested.
@@ -25,7 +27,9 @@ export const getStrategies = (customStrategies?: CustomStrategy[]): StrategyDefi
             id: custom.id,
             label: custom.label,
             isGrouping: true, // New Custom Strategies are always grouping capable
-            isSorting: true   // And sorting capable
+            isSorting: true,   // And sorting capable
+            autoRun: custom.autoRun,
+            isCustom: true
         };
 
         if (existingIndex !== -1) {

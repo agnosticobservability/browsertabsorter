@@ -423,6 +423,38 @@ function renderStrategyList(container: HTMLElement, strategies: StrategyDefiniti
             <span class="strategy-label">${strategy.label}</span>
         `;
 
+        if (strategy.isCustom) {
+            const autoRunBtn = document.createElement("button");
+            autoRunBtn.className = `action-btn auto-run ${strategy.autoRun ? 'active' : ''}`;
+            autoRunBtn.innerHTML = ICONS.autoRun;
+            autoRunBtn.title = `Auto Run: ${strategy.autoRun ? 'ON' : 'OFF'}`;
+            autoRunBtn.style.marginLeft = "auto";
+            autoRunBtn.style.opacity = strategy.autoRun ? "1" : "0.3";
+
+            autoRunBtn.onclick = async (e) => {
+                e.stopPropagation();
+                if (!preferences?.customStrategies) return;
+
+                const customStratIndex = preferences.customStrategies.findIndex(s => s.id === strategy.id);
+                if (customStratIndex !== -1) {
+                    const strat = preferences.customStrategies[customStratIndex];
+                    strat.autoRun = !strat.autoRun;
+
+                    // Update UI immediately
+                    const isActive = !!strat.autoRun;
+                    autoRunBtn.classList.toggle('active', isActive);
+                    autoRunBtn.style.opacity = isActive ? "1" : "0.3";
+                    autoRunBtn.title = `Auto Run: ${isActive ? 'ON' : 'OFF'}`;
+
+                    // Save
+                    await sendMessage("savePreferences", { customStrategies: preferences.customStrategies });
+                    // No need to reload state entirely for this, but if we wanted to reflect changes that depend on it...
+                    // loadState();
+                }
+            };
+            row.appendChild(autoRunBtn);
+        }
+
         // Add listeners
         const checkbox = row.querySelector('input[type="checkbox"]');
         checkbox?.addEventListener('change', async (e) => {
@@ -441,6 +473,7 @@ function renderStrategyList(container: HTMLElement, strategies: StrategyDefiniti
 
         // Basic Click to toggle (for better UX)
         row.addEventListener('click', (e) => {
+            if ((e.target as HTMLElement).closest('.action-btn')) return;
             if (e.target !== checkbox) {
                 (checkbox as HTMLElement).click();
             }

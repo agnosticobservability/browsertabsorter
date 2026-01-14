@@ -1,94 +1,147 @@
+import http.server
+import socketserver
+import threading
+import os
+import time
 from playwright.sync_api import sync_playwright
 
-def verify_strategy_manager():
+# Define the port
+PORT = 8000
+
+# Set directory to app root
+os.chdir('/app')
+
+# Create a handler
+Handler = http.server.SimpleHTTPRequestHandler
+
+# Create the server
+with socketserver.TCPServer(("", PORT), Handler) as httpd:
+    print(f"Serving at port {PORT}")
+
+    # Run the server in a separate thread
+    server_thread = threading.Thread(target=httpd.serve_forever)
+    server_thread.daemon = True
+    server_thread.start()
+
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
-        # Create context with storage permissions if needed (though we mock chrome.runtime)
-        context = browser.new_context()
-        page = context.new_page()
+        page = browser.new_page()
 
-        # Inject mock chrome object
+        # Capture console logs
+        page.on("console", lambda msg: print(f"CONSOLE: {msg.text}"))
+        page.on("pageerror", lambda err: print(f"PAGE ERROR: {err}"))
+
+        # Mock chrome API
         page.add_init_script("""
-            window.chrome = {
-                runtime: {
-                    sendMessage: async (msg) => {
-                        console.log('Message sent:', msg);
-                        if (msg.type === 'loadPreferences') {
-                            return {
-                                ok: true,
-                                data: {
-                                    sorting: ['domain'],
-                                    customStrategies: [
-                                        {
-                                            id: 'existing_strat',
-                                            label: 'Existing Custom Strategy',
-                                            type: 'grouping',
-                                            rules: [{field: 'url', operator: 'contains', value: 'foo', result: 'FooGroup'}]
+        window.chrome = {
+            runtime: {
+                sendMessage: (msg, callback) => {
+                    // console.log('Message sent:', JSON.stringify(msg));
+
+                    const handleMessage = (cb) => {
+                        if (msg.type === 'getState') {
+                            setTimeout(() => {
+                                cb({
+                                    ok: true,
+                                    data: {
+                                        groups: [],
+                                        preferences: {
+                                            sorting: [],
+                                            customStrategies: [
+                                                { id: 'custom-1', label: 'My Custom Strategy', autoRun: true, filters: [], groupingRules: [], sortingRules: [], isCustom: true },
+                                                { id: 'custom-2', label: 'Another Strategy', autoRun: false, filters: [], groupingRules: [], sortingRules: [], isCustom: true }
+                                            ]
                                         }
-                                    ]
-                                }
-                            };
+                                    }
+                                });
+                            }, 100);
+                        } else if (msg.type === 'savePreferences') {
+                             // console.log('Saved prefs:', JSON.stringify(msg.payload));
+                             cb({ ok: true, data: {} });
+                        } else {
+                            cb({ ok: true });
                         }
-                        if (msg.type === 'savePreferences') {
-                            return { ok: true, data: {} };
-                        }
-                        if (msg.type === 'applyGrouping') {
-                            return { ok: true };
-                        }
-                        return { ok: false };
-                    },
-                    onMessage: { addListener: () => {} }
+                    };
+
+                    if (callback) {
+                        handleMessage(callback);
+                    } else {
+                        return new Promise(resolve => handleMessage(resolve));
+                    }
                 },
-                tabs: {
-                    query: async () => [
-                        { id: 1, windowId: 1, url: "https://example.com", title: "Example", index: 0, active: true },
-                        { id: 2, windowId: 1, url: "https://google.com", title: "Google", index: 1 }
-                    ],
-                    onUpdated: { addListener: () => {} },
-                    onRemoved: { addListener: () => {} }
-                },
-                windows: {
-                    update: async () => {}
+                getURL: (path) => path,
+                onMessage: { addListener: () => {} },
+                onInstalled: { addListener: () => {} }
+            },
+            windows: {
+                getCurrent: () => Promise.resolve({ id: 1, type: 'popup' }),
+                getAll: () => Promise.resolve([{ id: 1, tabs: [] }]),
+                update: () => Promise.resolve(),
+                create: () => Promise.resolve(),
+                onRemoved: { addListener: () => {} }
+            },
+            tabs: {
+                query: () => Promise.resolve([]),
+                group: () => Promise.resolve(1),
+                ungroup: () => Promise.resolve(),
+                move: () => Promise.resolve(),
+                remove: () => Promise.resolve(),
+                update: () => Promise.resolve(),
+                onUpdated: { addListener: () => {} },
+                onRemoved: { addListener: () => {} },
+                onCreated: { addListener: () => {} }
+            },
+            tabGroups: {
+                query: () => Promise.resolve([]),
+                update: () => Promise.resolve(),
+                onRemoved: { addListener: () => {} },
+                onUpdated: { addListener: () => {} }
+            },
+            storage: {
+                local: {
+                    get: (keys, cb) => cb({}),
+                    set: (items, cb) => cb && cb()
                 }
-            };
+            }
+        };
         """)
 
-        # Navigate to devtools page
-        # Note: We need to serve the root directory to access modules properly
-        page.goto("http://localhost:8000/ui/devtools.html")
+        try:
+            # Navigate to popup
+            page.goto(f"http://localhost:{PORT}/ui/popup.html")
 
-        # Wait for page load
-        page.wait_for_selector("button[data-target='view-algorithms']")
+            # Wait for strategies to load
+            print("Waiting for strategy list...")
+            page.wait_for_selector(".strategy-row", timeout=5000)
 
-        # Click Algorithms tab
-        page.click("button[data-target='view-algorithms']")
+            print("Waiting for My Custom Strategy...")
+            page.wait_for_selector("text=My Custom Strategy", timeout=5000)
 
-        # Check if Strategy Manager is visible
-        page.wait_for_selector("#custom-strategies-container")
+            # Check for the auto-run button
+            print("Checking for auto-run button...")
+            # We look for the button with the auto-run class inside the row for 'custom-1'
+            # Since 'custom-1' appears in both grouping and sorting lists, there are two elements.
+            # We pick the first one (grouping list).
+            custom_row = page.locator('.strategy-row[data-id="custom-1"]').first
+            auto_run_btn = custom_row.locator('.action-btn.auto-run')
 
-        # Check if existing strategy is rendered
-        page.wait_for_selector("#custom-strategies-list .edit-strat-btn")
+            if auto_run_btn.count() > 0:
+                print("Auto run button found!")
+                # Verify it is active
+                if "active" in auto_run_btn.get_attribute("class"):
+                    print("Auto run button is ACTIVE (Correct)")
+                else:
+                    print("Auto run button is NOT active (Incorrect)")
+            else:
+                print("Auto run button NOT found!")
 
-        # Take screenshot of the UI with existing strategy
-        page.screenshot(path="verification_ui_initial.png")
+            # Take screenshot
+            page.screenshot(path="verification_popup.png")
+            print("Screenshot saved to verification_popup.png")
 
-        # Fill form to add new strategy
-        page.fill("#new-strat-id", "new_strat")
-        page.fill("#new-strat-label", "New Strategy")
-
-        # Add a rule
-        page.click("#add-rule-btn")
-        # Since rule row is added dynamically, wait for it
-        page.wait_for_selector(".rule-row")
-
-        # Fill rule (default is URL contains)
-        page.fill(".rule-value", "test")
-        page.fill(".rule-result", "Test Group")
-
-        # Take screenshot of filled form
-        page.screenshot(path="verification_ui_filled.png")
+        except Exception as e:
+            print(f"Verification failed: {e}")
+            page.screenshot(path="verification_failed.png")
+            print("Saved verification_failed.png")
 
         browser.close()
-
-if __name__ == "__main__":
-    verify_strategy_manager()
