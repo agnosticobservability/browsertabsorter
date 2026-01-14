@@ -149,6 +149,7 @@ export interface CustomStrategy {
   sortingRules: SortingRule[];
 
   fallback?: string;
+  autoRun?: boolean;
 
   // Legacy fields (optional during migration or if we want to support old style)
   type?: "grouping" | "sorting";

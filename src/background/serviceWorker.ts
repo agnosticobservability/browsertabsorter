@@ -142,3 +142,34 @@ chrome.runtime.onMessage.addListener(
 chrome.tabGroups.onRemoved.addListener(async (group) => {
   logInfo("Tab group removed", { group });
 });
+
+let autoRunTimeout: ReturnType<typeof setTimeout> | null = null;
+
+const triggerAutoRun = () => {
+  if (autoRunTimeout) clearTimeout(autoRunTimeout);
+  autoRunTimeout = setTimeout(async () => {
+    try {
+      const prefs = await loadPreferences();
+      setCustomStrategies(prefs.customStrategies || []);
+
+      const autoRunStrats = prefs.customStrategies?.filter(s => s.autoRun);
+      if (autoRunStrats && autoRunStrats.length > 0) {
+        logInfo("Auto-running strategies", { strategies: autoRunStrats.map(s => s.id) });
+        const ids = autoRunStrats.map(s => s.id);
+
+        // We apply grouping using these strategies
+        const groups = await calculateTabGroups({ ...prefs, sorting: ids });
+        await applyTabGroups(groups);
+      }
+    } catch (e) {
+      console.error("Auto-run failed", e);
+    }
+  }, 1000);
+};
+
+chrome.tabs.onCreated.addListener(() => triggerAutoRun());
+chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+  if (changeInfo.url || changeInfo.status === 'complete') {
+    triggerAutoRun();
+  }
+});
