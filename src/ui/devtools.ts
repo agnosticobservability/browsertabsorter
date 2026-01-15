@@ -473,7 +473,17 @@ function addBuilderRow(type: 'filter' | 'group' | 'sort', data?: any) {
             </span>
 
             <span style="margin-left: 10px;">Color:</span>
-            <input type="color" class="color-input" value="#000000">
+            <select class="color-input">
+                <option value="grey">Grey</option>
+                <option value="blue">Blue</option>
+                <option value="red">Red</option>
+                <option value="yellow">Yellow</option>
+                <option value="green">Green</option>
+                <option value="pink">Pink</option>
+                <option value="purple">Purple</option>
+                <option value="cyan">Cyan</option>
+                <option value="orange">Orange</option>
+            </select>
             <label><input type="checkbox" class="random-color-check" checked> Random</label>
 
             <div class="row-actions">
@@ -485,7 +495,7 @@ function addBuilderRow(type: 'filter' | 'group' | 'sort', data?: any) {
         const sourceSelect = div.querySelector('.source-select') as HTMLSelectElement;
         const fieldSelect = div.querySelector('.value-input-field') as HTMLElement;
         const textInput = div.querySelector('.value-input-text') as HTMLElement;
-        const colorInput = div.querySelector('.color-input') as HTMLInputElement;
+        const colorInput = div.querySelector('.color-input') as HTMLSelectElement;
         const randomCheck = div.querySelector('.random-color-check') as HTMLInputElement;
 
         // Toggle input type
@@ -539,7 +549,7 @@ function addBuilderRow(type: 'filter' | 'group' | 'sort', data?: any) {
             const sourceSelect = div.querySelector('.source-select') as HTMLSelectElement;
             const fieldSelect = div.querySelector('.value-input-field') as HTMLSelectElement;
             const textInput = div.querySelector('.value-input-text') as HTMLInputElement;
-            const colorInput = div.querySelector('.color-input') as HTMLInputElement;
+            const colorInput = div.querySelector('.color-input') as HTMLSelectElement;
             const randomCheck = div.querySelector('.random-color-check') as HTMLInputElement;
 
             if (data.source) sourceSelect.value = data.source;
@@ -665,7 +675,7 @@ function getBuilderStrategy(): CustomStrategy | null {
         }
 
         const randomCheck = row.querySelector('.random-color-check') as HTMLInputElement;
-        const colorInput = row.querySelector('.color-input') as HTMLInputElement;
+        const colorInput = row.querySelector('.color-input') as HTMLSelectElement;
 
         let color = 'random';
         if (!randomCheck.checked) {
@@ -779,6 +789,12 @@ async function saveCustomStrategyFromBuilder() {
         if (response && response.ok && response.data) {
             const prefs = response.data as Preferences;
             let currentStrategies = prefs.customStrategies || [];
+
+            // Find existing to preserve props (like autoRun)
+            const existing = currentStrategies.find(s => s.id === strat.id);
+            if (existing) {
+                strat.autoRun = existing.autoRun;
+            }
 
             // Remove existing if same ID
             currentStrategies = currentStrategies.filter(s => s.id !== strat.id);
