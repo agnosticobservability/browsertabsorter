@@ -150,6 +150,7 @@ export interface CustomStrategy {
 
   fallback?: string;
   autoRun?: boolean;
+  sortGroups?: boolean;
 
   // Legacy fields (optional during migration or if we want to support old style)
   type?: "grouping" | "sorting";
