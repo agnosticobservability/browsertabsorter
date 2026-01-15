@@ -1,16 +1,12 @@
 from playwright.sync_api import sync_playwright
+import time
 
 def verify_ui():
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
-        # Create a context with mock chrome object injection
         context = browser.new_context()
 
-        # Inject mock chrome object
-        # We need to mock chrome.runtime.sendMessage and chrome.tabs.query/onUpdated/onRemoved
-        # Also chrome.storage.local if needed.
-        # DevTools logic relies on chrome.runtime.sendMessage to load preferences.
-
+        # Inject mock
         init_script = """
         window.chrome = {
             runtime: {
@@ -39,38 +35,45 @@ def verify_ui():
             }
         };
         """
-
         context.add_init_script(init_script)
         page = context.new_page()
 
-        # Load the devtools HTML file
-        # We assume the server is not needed if we open file directly,
-        # but module imports in devtools.ts (which is compiled to JS) might fail if not served or if paths are weird.
-        # Since I compiled typescript to dist/, I should open the html that references dist/
-        # devtools.html is in ui/ and references ../dist/ui/devtools.js.
+        page.on("console", lambda msg: print(f"CONSOLE: {msg.text}"))
+        page.on("pageerror", lambda exc: print(f"PAGE ERROR: {exc}"))
 
-        # Absolute path to devtools.html
-        import os
-        cwd = os.getcwd()
-        filepath = f"file://{cwd}/ui/devtools.html"
+        # Navigate
+        page.goto("http://localhost:8000/ui/devtools.html")
 
-        page.goto(filepath)
+        # Wait for JS to initialize (e.g. loadPreferences call)
+        # We can wait for a console log or just wait a bit
+        try:
+            page.wait_for_selector('button[data-target="view-strategies"]', state="visible")
+            print("Buttons visible")
+        except:
+            print("Buttons not visible")
 
-        # Wait for content
-        page.wait_for_selector('h1:has-text("Tab Sorter Developer Tools")')
-
-        # Navigate to Strategy Manager
+        # Click
+        print("Clicking Strategy Manager...")
         page.click('button[data-target="view-strategies"]')
 
-        # Check if the "Sort Groups" checkbox exists
-        # It should be near "Auto Run"
+        # Wait for section to be active
+        try:
+            # The JS toggles .active class on the section
+            page.wait_for_selector('#view-strategies.active', timeout=2000)
+            print("Strategy Manager section is active")
+        except:
+            print("Strategy Manager section did NOT become active")
+            # Take screenshot of failure
+            page.screenshot(path="/home/jules/verification/failure.png")
+
+        # Check checkbox
         checkbox = page.get_by_label("Sort Groups")
         if checkbox.is_visible():
             print("Sort Groups checkbox is visible")
         else:
             print("Sort Groups checkbox NOT found")
 
-        page.screenshot(path="/home/jules/verification/verification_ui.png")
+        page.screenshot(path="/home/jules/verification/verification_ui_improved.png")
         browser.close()
 
 if __name__ == "__main__":

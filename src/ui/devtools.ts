@@ -651,6 +651,7 @@ function getBuilderStrategy(): CustomStrategy | null {
     const id = idInput.value.trim();
     const label = labelInput.value.trim();
     const fallback = fallbackInput.value.trim();
+    const sortGroups = (document.getElementById('strat-sortgroups') as HTMLInputElement).checked;
 
     if (!id || !label) {
         return null;
@@ -700,7 +701,8 @@ function getBuilderStrategy(): CustomStrategy | null {
         filters,
         groupingRules,
         sortingRules,
-        fallback
+        fallback,
+        sortGroups
     };
 }
 
@@ -794,6 +796,9 @@ async function saveCustomStrategyFromBuilder() {
             const existing = currentStrategies.find(s => s.id === strat.id);
             if (existing) {
                 strat.autoRun = existing.autoRun;
+                // sortGroups is now handled in builder, but if we wanted to preserve it from hidden state we would do it here.
+                // Since it's in the UI, we don't overwrite it from existing unless the UI didn't capture it.
+                // But getBuilderStrategy captures it.
             }
 
             // Remove existing if same ID
@@ -867,6 +872,7 @@ function renderStrategiesList() {
                 (document.getElementById('strat-id') as HTMLInputElement).value = strat.id;
                 (document.getElementById('strat-label') as HTMLInputElement).value = strat.label;
                 (document.getElementById('strat-fallback') as HTMLInputElement).value = strat.fallback || '';
+                (document.getElementById('strat-sortgroups') as HTMLInputElement).checked = !!strat.sortGroups;
 
                 // Clear lists
                 ['filter-rows-container', 'group-rows-container', 'sort-rows-container'].forEach(id => {

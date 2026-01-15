@@ -1,5 +1,5 @@
-import { groupTabs } from "./groupingStrategies.js";
-import { sortTabs } from "./sortingStrategies.js";
+import { groupTabs, getCustomStrategies } from "./groupingStrategies.js";
+import { sortTabs, compareBy } from "./sortingStrategies.js";
 import { analyzeTabContext } from "./contextAnalysis.js";
 import { logDebug, logError, logInfo } from "./logger.js";
 import { GroupingSelection, Preferences, TabGroup, TabMetadata } from "../shared/types.js";
@@ -222,7 +222,98 @@ export const applyTabSorting = async (
         // Move to index 0 (top of window)
         await chrome.tabs.move(sortedIds, { index: 0 });
       }
+
+      // 3. Sort Groups (if enabled)
+      await sortGroupsIfEnabled(windowId, preferences.sorting, tabsByGroup);
   }
+};
+
+const sortGroupsIfEnabled = async (
+    windowId: number,
+    sortingPreferences: string[],
+    tabsByGroup: Map<number, TabMetadata[]>
+) => {
+    // Check if any active strategy has sortGroups: true
+    const customStrats = getCustomStrategies();
+    let groupSorterStrategyId: string | null = null;
+
+    for (const id of sortingPreferences) {
+        const strategy = customStrats.find(s => s.id === id);
+        if (strategy && strategy.sortGroups) {
+            groupSorterStrategyId = id;
+            break;
+        }
+    }
+
+    if (!groupSorterStrategyId) return;
+
+    // Get group details
+    const groups = await chrome.tabGroups.query({ windowId });
+    if (groups.length <= 1) return;
+
+    // We sort groups based on the strategy.
+    // Since compareBy expects TabMetadata, we need to create a representative TabMetadata for each group.
+    // We'll use the first tab of the group (sorted) as the representative.
+
+    const groupReps: { group: chrome.tabGroups.TabGroup; rep: TabMetadata }[] = [];
+
+    for (const group of groups) {
+        const tabs = tabsByGroup.get(group.id);
+        if (tabs && tabs.length > 0) {
+            // tabs are already sorted by sortTabs in previous step if that strategy was applied
+            // or we just take the first one.
+            // Ideally we use the "best" tab.
+            // But since we already sorted tabs within groups, tabs[0] is the first one.
+            groupReps.push({ group, rep: tabs[0] });
+        }
+    }
+
+    // Sort the groups
+    groupReps.sort((a, b) => compareBy(groupSorterStrategyId!, a.rep, b.rep));
+
+    // Apply the order
+    // chrome.tabGroups.move(groupId, { index: ... })
+    // We want them to be after ungrouped tabs (which are at index 0..N).
+    // Actually, chrome.tabGroups.move index is the tab index where the group starts.
+    // If we want to strictly order groups, we should calculate the target index.
+    // But since groups are contiguous blocks of tabs, we just need to place them in order.
+
+    // Calculate the starting index for groups.
+    // Ungrouped tabs are at the start (index 0).
+    // So the first group should start after the last ungrouped tab.
+    // Wait, earlier we moved ungrouped tabs to index 0.
+    // But we need to know how many ungrouped tabs there are in this window.
+
+    // Let's get current tabs again or track count?
+    // We can assume ungrouped tabs are at the top.
+    // But `tabsByGroup` only contains grouped tabs.
+    // We need to know where to start placing groups.
+    // The safest way is to move them one by one to the end (or specific index).
+
+    // If we just move them in order to index -1, they will append to the end.
+    // If we want them after ungrouped tabs, we need to find the index.
+
+    // Let's use index = -1 to push to end, sequentially.
+    // But wait, if we push to end, the order is preserved?
+    // No, if we iterate sorted groups and move each to -1, the last one moved will be at the end.
+    // So we should iterate in order and move to -1? No, that would reverse them if we consider "end".
+    // Actually, if we move Group A to -1, it goes to end. Then Group B to -1, it goes after A.
+    // So iterating in sorted order and moving to -1 works to arrange them at the end of the window.
+
+    // However, if there are pinned tabs or ungrouped tabs, they should stay at top?
+    // Ungrouped tabs were moved to index 0.
+    // Pinned tabs: `chrome.tabs.move` handles pinned constraint (pinned tabs must be first).
+    // Groups cannot contain pinned tabs.
+    // So groups will be after pinned tabs.
+    // If we move to -1, they go to the very end.
+
+    // What if we want them specifically arranged?
+    // If we move them sequentially to -1, they will be ordered A, B, C... at the bottom.
+    // This seems correct for "sorting groups".
+
+    for (const item of groupReps) {
+        await chrome.tabGroups.move(item.group.id, { index: -1 });
+    }
 };
 
 export const closeGroup = async (group: TabGroup) => {
