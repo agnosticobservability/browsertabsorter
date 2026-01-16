@@ -132,7 +132,7 @@
                     <input type="checkbox" id="strat-autorun"> Auto Run
                 </label>
                 <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; margin-left: 10px;">
-                    <input type="checkbox" id="strat-sortgroups"> Sort Groups
+                    <input type="checkbox" id="strat-separate-window"> Move groups to new window
                 </label>
             </div>
 
@@ -153,12 +153,19 @@
                     </div>
                 </div>
                 <div id="group-rows-container"></div>
+
+                <div style="margin-top: 15px; border-top: 1px dashed #ddd; padding-top: 10px;">
+                    <h4 style="margin: 0 0 10px 0;">Group Sorting</h4>
+                    <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                        <input type="checkbox" id="strat-sortgroups"> Sort Groups Alphabetically (by Label/Color/Key)
+                    </label>
+                </div>
             </div>
 
             <!-- 3. SORT -->
             <div class="builder-section">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <h3>Sort results by the following fields</h3>
+                    <h3>Sort tabs within groups by the following fields</h3>
                      <div>
                          <button id="add-sort-btn" class="add-row-btn">Add Sort</button>
                     </div>
