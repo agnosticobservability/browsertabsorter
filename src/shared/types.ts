@@ -144,13 +144,16 @@ export interface CustomStrategy {
   label: string;
 
   // New Structure
-  filters: RuleCondition[];
+  filters?: RuleCondition[]; // Legacy (AND)
+  filterGroups?: RuleCondition[][]; // New (OR of ANDs)
+
   groupingRules: GroupingRule[];
   sortingRules: SortingRule[];
+  groupSortingRules?: SortingRule[];
 
   fallback?: string;
   autoRun?: boolean;
-  sortGroups?: boolean;
+  sortGroups?: boolean; // Legacy
 
   // Legacy fields (optional during migration or if we want to support old style)
   type?: "grouping" | "sorting";
