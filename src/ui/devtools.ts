@@ -608,7 +608,7 @@ function addBuilderRow(type: 'group' | 'sort' | 'groupSort', data?: any) {
         randomCheck.addEventListener('change', toggleColor);
         toggleColor(); // init
 
-    } else if (type === 'sort') {
+    } else if (type === 'sort' || type === 'groupSort') {
         div.innerHTML = `
             <select class="field-select">
                 ${FIELD_OPTIONS}
@@ -651,7 +651,7 @@ function addBuilderRow(type: 'group' | 'sort' | 'groupSort', data?: any) {
             }
              // Trigger toggle color
             randomCheck.dispatchEvent(new Event('change'));
-        } else if (type === 'sort') {
+        } else if (type === 'sort' || type === 'groupSort') {
              if (data.field) (div.querySelector('.field-select') as HTMLSelectElement).value = data.field;
              if (data.order) (div.querySelector('.order-select') as HTMLSelectElement).value = data.order;
         }
@@ -710,6 +710,16 @@ function updateBreadcrumb() {
         });
     }
 
+    // Group Sorts
+    const groupSorts = document.getElementById('group-sort-rows-container')?.querySelectorAll('.builder-row');
+    if (groupSorts && groupSorts.length > 0) {
+        groupSorts.forEach(row => {
+            const field = (row.querySelector('.field-select') as HTMLSelectElement).value;
+            const order = (row.querySelector('.order-select') as HTMLSelectElement).value;
+            text += ` > Group sort by ${field} (${order})`;
+        });
+    }
+
     // Sorts
     const sorts = document.getElementById('sort-rows-container')?.querySelectorAll('.builder-row');
     if (sorts && sorts.length > 0) {
@@ -731,7 +741,7 @@ function getBuilderStrategy(): CustomStrategy | null {
     const id = idInput.value.trim();
     const label = labelInput.value.trim();
     const fallback = fallbackInput.value.trim();
-    const sortGroups = (document.getElementById('strat-sortgroups') as HTMLInputElement).checked;
+    const sortGroups = (document.getElementById('strat-sortgroups-check') as HTMLInputElement).checked;
 
     if (!id || !label) {
         return null;
@@ -775,12 +785,21 @@ function getBuilderStrategy(): CustomStrategy | null {
         sortingRules.push({ field, order });
     });
 
+    const groupSortingRules: SortingRule[] = [];
+    document.getElementById('group-sort-rows-container')?.querySelectorAll('.builder-row').forEach(row => {
+        const field = (row.querySelector('.field-select') as HTMLSelectElement).value;
+        const order = (row.querySelector('.order-select') as HTMLSelectElement).value as any;
+        groupSortingRules.push({ field, order });
+    });
+    const appliedGroupSortingRules = sortGroups ? groupSortingRules : [];
+
     return {
         id,
         label,
         filters,
         groupingRules,
         sortingRules,
+        groupSortingRules: appliedGroupSortingRules,
         fallback,
         sortGroups
     };

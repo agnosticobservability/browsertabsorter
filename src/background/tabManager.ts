@@ -1,8 +1,8 @@
-import { groupTabs, getCustomStrategies } from "./groupingStrategies.js";
+import { groupTabs, getCustomStrategies, getFieldValue } from "./groupingStrategies.js";
 import { sortTabs, compareBy } from "./sortingStrategies.js";
 import { analyzeTabContext } from "./contextAnalysis.js";
 import { logDebug, logError, logInfo } from "./logger.js";
-import { GroupingSelection, Preferences, TabGroup, TabMetadata } from "../shared/types.js";
+import { GroupingSelection, Preferences, TabGroup, TabMetadata, SortingRule } from "../shared/types.js";
 import { getStoredValue, setStoredValue } from "./storage.js";
 
 const mapChromeTab = (tab: chrome.tabs.Tab): TabMetadata | null => {
@@ -228,6 +228,23 @@ export const applyTabSorting = async (
   }
 };
 
+const compareBySortingRules = (rules: SortingRule[], a: TabMetadata, b: TabMetadata): number => {
+  for (const rule of rules) {
+    const valA = getFieldValue(a, rule.field);
+    const valB = getFieldValue(b, rule.field);
+
+    let result = 0;
+    if (valA < valB) result = -1;
+    else if (valA > valB) result = 1;
+
+    if (result !== 0) {
+      return rule.order === "desc" ? -result : result;
+    }
+  }
+
+  return 0;
+};
+
 const sortGroupsIfEnabled = async (
     windowId: number,
     sortingPreferences: string[],
@@ -235,17 +252,17 @@ const sortGroupsIfEnabled = async (
 ) => {
     // Check if any active strategy has sortGroups: true
     const customStrats = getCustomStrategies();
-    let groupSorterStrategyId: string | null = null;
+    let groupSorterStrategy: ReturnType<typeof customStrats.find> | null = null;
 
     for (const id of sortingPreferences) {
         const strategy = customStrats.find(s => s.id === id);
-        if (strategy && strategy.sortGroups) {
-            groupSorterStrategyId = id;
+        if (strategy && (strategy.sortGroups || (strategy.groupSortingRules && strategy.groupSortingRules.length > 0))) {
+            groupSorterStrategy = strategy;
             break;
         }
     }
 
-    if (!groupSorterStrategyId) return;
+    if (!groupSorterStrategy) return;
 
     // Get group details
     const groups = await chrome.tabGroups.query({ windowId });
@@ -269,7 +286,11 @@ const sortGroupsIfEnabled = async (
     }
 
     // Sort the groups
-    groupReps.sort((a, b) => compareBy(groupSorterStrategyId!, a.rep, b.rep));
+    if (groupSorterStrategy.groupSortingRules && groupSorterStrategy.groupSortingRules.length > 0) {
+        groupReps.sort((a, b) => compareBySortingRules(groupSorterStrategy.groupSortingRules!, a.rep, b.rep));
+    } else {
+        groupReps.sort((a, b) => compareBy(groupSorterStrategy!.id, a.rep, b.rep));
+    }
 
     // Apply the order
     // chrome.tabGroups.move(groupId, { index: ... })
