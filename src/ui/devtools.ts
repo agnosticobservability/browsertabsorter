@@ -734,13 +734,12 @@ function updateBreadcrumb() {
 }
 
 function getBuilderStrategy(): CustomStrategy | null {
-    const idInput = document.getElementById('strat-id') as HTMLInputElement;
-    const labelInput = document.getElementById('strat-label') as HTMLInputElement;
-    const fallbackInput = document.getElementById('strat-fallback') as HTMLInputElement;
+    const idInput = document.getElementById('strat-name') as HTMLInputElement;
+    const labelInput = document.getElementById('strat-desc') as HTMLInputElement;
 
-    const id = idInput.value.trim();
-    const label = labelInput.value.trim();
-    const fallback = fallbackInput.value.trim();
+    const id = idInput ? idInput.value.trim() : '';
+    const label = labelInput ? labelInput.value.trim() : '';
+    const fallback = 'Misc'; // Fallback removed from UI, default to Misc
     const sortGroups = (document.getElementById('strat-sortgroups-check') as HTMLInputElement).checked;
 
     if (!id || !label) {
@@ -820,7 +819,7 @@ function runBuilderSimulation() {
     };
 
     if (!strat) {
-        if (!(document.getElementById('strat-id') as HTMLInputElement).value) {
+        if (!(document.getElementById('strat-name') as HTMLInputElement).value) {
             alert("Please enter an ID to run simulation.");
             return;
         }
