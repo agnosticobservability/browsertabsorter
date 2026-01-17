@@ -399,41 +399,82 @@ const FIELD_OPTIONS = `
                 </optgroup>`;
 
 function initStrategyBuilder() {
-    const addFilterBtn = document.getElementById('add-filter-btn');
+    const addFilterGroupBtn = document.getElementById('add-filter-group-btn');
     const addGroupBtn = document.getElementById('add-group-btn');
     const addSortBtn = document.getElementById('add-sort-btn');
+
+    // New: Group Sorting
+    const addGroupSortBtn = document.getElementById('add-group-sort-btn');
+    const groupSortCheck = document.getElementById('strat-sortgroups-check');
+
     const saveBtn = document.getElementById('builder-save-btn');
     const runBtn = document.getElementById('builder-run-btn');
 
-    if (addFilterBtn) addFilterBtn.addEventListener('click', () => addBuilderRow('filter'));
+    if (addFilterGroupBtn) addFilterGroupBtn.addEventListener('click', () => addFilterGroupRow());
     if (addGroupBtn) addGroupBtn.addEventListener('click', () => addBuilderRow('group'));
     if (addSortBtn) addSortBtn.addEventListener('click', () => addBuilderRow('sort'));
+    if (addGroupSortBtn) addGroupSortBtn.addEventListener('click', () => addBuilderRow('groupSort'));
+
+    if (groupSortCheck) {
+        groupSortCheck.addEventListener('change', (e) => {
+            const checked = (e.target as HTMLInputElement).checked;
+            const container = document.getElementById('group-sort-rows-container');
+            const addBtn = document.getElementById('add-group-sort-btn');
+            if (container && addBtn) {
+                container.style.display = checked ? 'block' : 'none';
+                addBtn.style.display = checked ? 'block' : 'none';
+            }
+        });
+    }
 
     if (saveBtn) saveBtn.addEventListener('click', saveCustomStrategyFromBuilder);
     if (runBtn) runBtn.addEventListener('click', runBuilderSimulation);
 
-    // Initial Empty Rows? Maybe not.
-    // addBuilderRow('filter');
-    // addBuilderRow('group');
-    // addBuilderRow('sort');
+    // Initial Live View
+    renderLiveView();
+    const refreshLiveBtn = document.getElementById('refresh-live-view-btn');
+    if (refreshLiveBtn) refreshLiveBtn.addEventListener('click', renderLiveView);
 
     renderStrategiesList();
 }
 
-function addBuilderRow(type: 'filter' | 'group' | 'sort', data?: any) {
-    let containerId = '';
-    if (type === 'filter') containerId = 'filter-rows-container';
-    else if (type === 'group') containerId = 'group-rows-container';
-    else if (type === 'sort') containerId = 'sort-rows-container';
-
-    const container = document.getElementById(containerId);
+function addFilterGroupRow(conditions?: RuleCondition[]) {
+    const container = document.getElementById('filter-rows-container');
     if (!container) return;
 
-    const div = document.createElement('div');
-    div.className = 'builder-row';
-    div.dataset.type = type;
+    const groupDiv = document.createElement('div');
+    groupDiv.className = 'filter-group-row';
+    groupDiv.style.border = '1px solid #e0e0e0';
+    groupDiv.style.borderRadius = '5px';
+    groupDiv.style.padding = '10px';
+    groupDiv.style.marginBottom = '10px';
+    groupDiv.style.backgroundColor = '#fafafa';
 
-    if (type === 'filter') {
+    groupDiv.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+            <span style="font-weight: bold; color: #555; font-size: 0.9em;">Group (AND)</span>
+            <button class="small-btn btn-del-group" style="background: #ffcccc; color: darkred;">Delete Group</button>
+        </div>
+        <div class="conditions-container"></div>
+        <button class="small-btn btn-add-condition" style="margin-top: 5px;">+ Add Condition</button>
+    `;
+
+    groupDiv.querySelector('.btn-del-group')?.addEventListener('click', () => {
+        groupDiv.remove();
+        updateBreadcrumb();
+    });
+
+    const conditionsContainer = groupDiv.querySelector('.conditions-container') as HTMLElement;
+    const addConditionBtn = groupDiv.querySelector('.btn-add-condition');
+
+    const addCondition = (data?: RuleCondition) => {
+        const div = document.createElement('div');
+        div.className = 'builder-row condition-row';
+        div.style.display = 'flex';
+        div.style.gap = '5px';
+        div.style.marginBottom = '5px';
+        div.style.alignItems = 'center';
+
         div.innerHTML = `
             <select class="field-select">
                 ${FIELD_OPTIONS}
@@ -451,12 +492,55 @@ function addBuilderRow(type: 'filter' | 'group' | 'sort', data?: any) {
                 <option value="isNotNull">is not null</option>
             </select>
             <input type="text" class="value-input" placeholder="Value">
-            <div class="row-actions">
-                <button class="small-btn btn-and">AND</button>
-                <button class="small-btn btn-del" style="background: #ffcccc; color: darkred;">Delete</button>
-            </div>
+            <button class="small-btn btn-del-condition" style="background: none; border: none; color: red;">&times;</button>
         `;
-    } else if (type === 'group') {
+
+        if (data) {
+            (div.querySelector('.field-select') as HTMLSelectElement).value = data.field;
+            (div.querySelector('.operator-select') as HTMLSelectElement).value = data.operator;
+            (div.querySelector('.value-input') as HTMLInputElement).value = data.value;
+        }
+
+        div.querySelector('.btn-del-condition')?.addEventListener('click', () => {
+            div.remove();
+            updateBreadcrumb();
+        });
+
+        div.querySelectorAll('input, select').forEach(el => {
+            el.addEventListener('change', updateBreadcrumb);
+            el.addEventListener('input', updateBreadcrumb);
+        });
+
+        conditionsContainer.appendChild(div);
+    };
+
+    addConditionBtn?.addEventListener('click', () => addCondition());
+
+    if (conditions && conditions.length > 0) {
+        conditions.forEach(c => addCondition(c));
+    } else {
+        // Add one empty condition by default
+        addCondition();
+    }
+
+    container.appendChild(groupDiv);
+    updateBreadcrumb();
+}
+
+function addBuilderRow(type: 'group' | 'sort' | 'groupSort', data?: any) {
+    let containerId = '';
+    if (type === 'group') containerId = 'group-rows-container';
+    else if (type === 'sort') containerId = 'sort-rows-container';
+    else if (type === 'groupSort') containerId = 'group-sort-rows-container';
+
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    const div = document.createElement('div');
+    div.className = 'builder-row';
+    div.dataset.type = type;
+
+    if (type === 'group') {
         div.innerHTML = `
             <span class="row-number"></span>
             <select class="source-select">
@@ -541,11 +625,7 @@ function addBuilderRow(type: 'filter' | 'group' | 'sort', data?: any) {
 
     // Populate data if provided (for editing)
     if (data) {
-        if (type === 'filter') {
-            if (data.field) (div.querySelector('.field-select') as HTMLSelectElement).value = data.field;
-            if (data.operator) (div.querySelector('.operator-select') as HTMLSelectElement).value = data.operator;
-            if (data.value) (div.querySelector('.value-input') as HTMLInputElement).value = data.value;
-        } else if (type === 'group') {
+        if (type === 'group') {
             const sourceSelect = div.querySelector('.source-select') as HTMLSelectElement;
             const fieldSelect = div.querySelector('.value-input-field') as HTMLSelectElement;
             const textInput = div.querySelector('.value-input-text') as HTMLInputElement;
@@ -869,23 +949,43 @@ function renderStrategiesList() {
             const strat = localCustomStrategies.find(s => s.id === id);
             if (strat) {
                 // Populate fields
-                (document.getElementById('strat-id') as HTMLInputElement).value = strat.id;
-                (document.getElementById('strat-label') as HTMLInputElement).value = strat.label;
-                (document.getElementById('strat-fallback') as HTMLInputElement).value = strat.fallback || '';
-                (document.getElementById('strat-sortgroups') as HTMLInputElement).checked = !!strat.sortGroups;
+                (document.getElementById('strat-name') as HTMLInputElement).value = strat.id;
+                (document.getElementById('strat-desc') as HTMLInputElement).value = strat.label;
+
+                // Set Sort Groups Checkbox
+                const sortGroupsCheck = (document.getElementById('strat-sortgroups-check') as HTMLInputElement);
+                const hasGroupSort = !!(strat.groupSortingRules && strat.groupSortingRules.length > 0) || !!strat.sortGroups;
+                sortGroupsCheck.checked = hasGroupSort;
+                // Trigger change to toggle visibility
+                sortGroupsCheck.dispatchEvent(new Event('change'));
+
+                const autoRunCheck = (document.getElementById('strat-autorun') as HTMLInputElement);
+                autoRunCheck.checked = !!strat.autoRun;
 
                 // Clear lists
-                ['filter-rows-container', 'group-rows-container', 'sort-rows-container'].forEach(id => {
+                ['filter-rows-container', 'group-rows-container', 'sort-rows-container', 'group-sort-rows-container'].forEach(id => {
                     const el = document.getElementById(id);
                     if (el) el.innerHTML = '';
                 });
 
                 // Populate rows
-                strat.filters?.forEach(f => addBuilderRow('filter', f));
+
+                // Filters
+                if (strat.filterGroups && strat.filterGroups.length > 0) {
+                    strat.filterGroups.forEach(g => addFilterGroupRow(g));
+                } else if (strat.filters && strat.filters.length > 0) {
+                    // Legacy: one group
+                    addFilterGroupRow(strat.filters);
+                } else {
+                    // Empty logic, maybe add empty row?
+                    // initStrategyBuilder doesn't add rows by default, so maybe fine.
+                }
+
                 strat.groupingRules?.forEach(g => addBuilderRow('group', g));
                 strat.sortingRules?.forEach(s => addBuilderRow('sort', s));
+                strat.groupSortingRules?.forEach(gs => addBuilderRow('groupSort', gs));
 
-                document.querySelector('.strategy-builder-section')?.scrollIntoView({ behavior: 'smooth' });
+                document.querySelector('#view-strategies')?.scrollIntoView({ behavior: 'smooth' });
                 updateBreadcrumb();
             }
         });
@@ -1610,4 +1710,74 @@ function escapeHtml(text: string): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
+}
+
+async function renderLiveView() {
+    const container = document.getElementById('live-view-container');
+    if (!container) return;
+
+    // We can use fetchCurrentTabGroups from tabManager logic, but that is backend code.
+    // In frontend, we should use chrome.tabs and chrome.tabGroups.
+
+    try {
+        const tabs = await chrome.tabs.query({});
+        const groups = await chrome.tabGroups.query({});
+        const groupMap = new Map(groups.map(g => [g.id, g]));
+
+        const windows = new Set(tabs.map(t => t.windowId));
+        const windowIds = Array.from(windows).sort((a, b) => a - b);
+
+        let html = '';
+
+        for (const winId of windowIds) {
+            html += `<div style="margin-bottom: 15px;">`;
+            html += `<div style="font-weight: bold; padding: 5px; background: #eee; border-radius: 4px;">Window ${winId}</div>`;
+
+            const winTabs = tabs.filter(t => t.windowId === winId);
+
+            // Organize by group
+            const winGroups = new Map<number, chrome.tabs.Tab[]>();
+            const ungrouped: chrome.tabs.Tab[] = [];
+
+            winTabs.forEach(t => {
+                if (t.groupId !== -1) {
+                    if (!winGroups.has(t.groupId)) winGroups.set(t.groupId, []);
+                    winGroups.get(t.groupId)!.push(t);
+                } else {
+                    ungrouped.push(t);
+                }
+            });
+
+            // Render Ungrouped
+            if (ungrouped.length > 0) {
+                 html += `<div style="margin-left: 10px; margin-top: 5px;">`;
+                 html += `<div style="font-size: 0.9em; color: #555;">Ungrouped (${ungrouped.length})</div>`;
+                 ungrouped.forEach(t => {
+                     html += `<div style="margin-left: 10px; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">- ${escapeHtml(t.title || 'Untitled')}</div>`;
+                 });
+                 html += `</div>`;
+            }
+
+            // Render Groups
+            for (const [groupId, gTabs] of winGroups) {
+                const groupInfo = groupMap.get(groupId);
+                const color = groupInfo?.color || 'grey';
+                const title = groupInfo?.title || 'Untitled Group';
+
+                html += `<div style="margin-left: 10px; margin-top: 5px; border-left: 3px solid ${color}; padding-left: 5px;">`;
+                html += `<div style="font-weight: bold; font-size: 0.9em;">${escapeHtml(title)} (${gTabs.length})</div>`;
+                gTabs.forEach(t => {
+                     html += `<div style="margin-left: 10px; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">- ${escapeHtml(t.title || 'Untitled')}</div>`;
+                });
+                html += `</div>`;
+            }
+
+            html += `</div>`;
+        }
+
+        container.innerHTML = html;
+
+    } catch (e) {
+        container.innerHTML = `<p style="color:red">Error loading live view: ${e}</p>`;
+    }
 }
