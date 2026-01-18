@@ -13,7 +13,12 @@ import {
 export const sendMessage = async <TData>(type: RuntimeMessage["type"], payload?: any): Promise<RuntimeResponse<TData>> => {
   return new Promise((resolve) => {
     chrome.runtime.sendMessage({ type, payload }, (response) => {
-      resolve(response);
+      if (chrome.runtime.lastError) {
+        console.error("Runtime error:", chrome.runtime.lastError);
+        resolve({ ok: false, error: chrome.runtime.lastError.message });
+      } else {
+        resolve(response || { ok: false, error: "No response from background" });
+      }
     });
   });
 };
@@ -59,8 +64,7 @@ export const GROUP_COLORS: Record<string, string> = {
 export const getGroupColor = (name: string) => GROUP_COLORS[name] || "#cbd5e1";
 
 export const fetchState = async () => {
-  const response = await chrome.runtime.sendMessage({ type: "getState" });
-  return response as RuntimeResponse<{ groups: TabGroup[]; preferences: Preferences }>;
+  return sendMessage<{ groups: TabGroup[]; preferences: Preferences }>("getState");
 };
 
 export const applyGrouping = async (payload: ApplyGroupingPayload) => {

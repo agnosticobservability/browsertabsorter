@@ -541,46 +541,53 @@ function getDragAfterElement(container: HTMLElement, y: number) {
 }
 
 const loadState = async () => {
-  const [state, currentWindow, chromeWindows] = await Promise.all([
-    fetchState(),
-    chrome.windows.getCurrent(),
-    chrome.windows.getAll({ windowTypes: ["normal"], populate: true })
-  ]);
+  try {
+    const [state, currentWindow, chromeWindows] = await Promise.all([
+      fetchState(),
+      chrome.windows.getCurrent(),
+      chrome.windows.getAll({ windowTypes: ["normal"], populate: true })
+    ]);
 
-  if (!state.ok || !state.data) return;
-
-  preferences = state.data.preferences;
-
-  if (preferences) {
-    const s = preferences.sorting || [];
-
-    const allStrategies = getStrategies(preferences.customStrategies);
-
-    // Render Strategy Lists
-    const groupingStrategies = allStrategies.filter(st => st.isGrouping);
-    renderStrategyList(groupingListContainer, groupingStrategies, s);
-
-    const sortingStrategies = allStrategies.filter(st => st.isSorting);
-    renderStrategyList(sortingListContainer, sortingStrategies, s);
-
-    // Initial theme load
-    if (preferences.theme) {
-        applyTheme(preferences.theme, false);
+    if (!state || !state.ok || !state.data) {
+        console.error("Failed to load state:", state?.error);
+        return;
     }
+
+    preferences = state.data.preferences;
+
+    if (preferences) {
+      const s = preferences.sorting || [];
+
+      const allStrategies = getStrategies(preferences.customStrategies);
+
+      // Render Strategy Lists
+      const groupingStrategies = allStrategies.filter(st => st.isGrouping);
+      renderStrategyList(groupingListContainer, groupingStrategies, s);
+
+      const sortingStrategies = allStrategies.filter(st => st.isSorting);
+      renderStrategyList(sortingListContainer, sortingStrategies, s);
+
+      // Initial theme load
+      if (preferences.theme) {
+          applyTheme(preferences.theme, false);
+      }
+    }
+
+    focusedWindowId = currentWindow?.id ?? null;
+    const windowTitles = new Map<number, string>();
+    chromeWindows.forEach((win) => {
+      if (!win.id) return;
+      const activeTabTitle = win.tabs?.find((tab) => tab.active)?.title;
+      const title = activeTabTitle ?? `Window ${win.id}`;
+      windowTitles.set(win.id, title);
+    });
+
+    windowState = mapWindows(state.data.groups, windowTitles);
+
+    renderTree();
+  } catch (e) {
+    console.error("Error loading state:", e);
   }
-
-  focusedWindowId = currentWindow?.id ?? null;
-  const windowTitles = new Map<number, string>();
-  chromeWindows.forEach((win) => {
-    if (!win.id) return;
-    const activeTabTitle = win.tabs?.find((tab) => tab.active)?.title;
-    const title = activeTabTitle ?? `Window ${win.id}`;
-    windowTitles.set(win.id, title);
-  });
-
-  windowState = mapWindows(state.data.groups, windowTitles);
-
-  renderTree();
 };
 
 const getStrategyIds = (container: HTMLElement): SortingStrategy[] => {
@@ -846,4 +853,4 @@ const adjustForWindowType = async () => {
 };
 
 adjustForWindowType();
-loadState();
+loadState().catch(e => console.error("Load state failed", e));
