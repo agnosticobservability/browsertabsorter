@@ -160,6 +160,19 @@ table {
   table-layout: fixed; /* Important for resizing */
 }
 
+.strategy-table {
+  table-layout: auto;
+}
+
+.strategy-table-container {
+  overflow-x: auto;
+}
+
+.strategy-table td,
+.strategy-table th {
+  white-space: nowrap;
+}
+
 th, td {
   padding: 8px 12px;
   text-align: left;
