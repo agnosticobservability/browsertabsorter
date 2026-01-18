@@ -278,6 +278,34 @@ export const groupingKey = (tab: TabMetadata, strategy: GroupingStrategy | strin
               } else {
                    val = rule.value;
               }
+
+              // Apply Transformation
+              if (val && rule.transform && rule.transform !== 'none') {
+                  switch (rule.transform) {
+                      case 'stripTld':
+                          val = stripTld(val);
+                          break;
+                      case 'lowercase':
+                          val = val.toLowerCase();
+                          break;
+                      case 'uppercase':
+                          val = val.toUpperCase();
+                          break;
+                      case 'firstChar':
+                          val = val.charAt(0);
+                          break;
+                      case 'domain':
+                          // Assumes val is a URL
+                          val = domainFromUrl(val);
+                          break;
+                      case 'hostname':
+                          try {
+                            val = new URL(val).hostname;
+                          } catch { /* keep as is */ }
+                          break;
+                  }
+              }
+
               if (val) parts.push(val);
           }
 

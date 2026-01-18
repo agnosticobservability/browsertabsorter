@@ -124,6 +124,7 @@ export interface GroupingRule {
   source: "field" | "fixed";
   value: string;
   color?: string; // hex code or "random"
+  transform?: "none" | "stripTld" | "lowercase" | "uppercase" | "firstChar" | "domain" | "hostname";
 }
 
 export interface SortingRule {
