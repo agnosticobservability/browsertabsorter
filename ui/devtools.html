@@ -18,6 +18,8 @@
       <button class="tab-btn active" data-target="view-tabs">Tab Data</button>
       <button class="tab-btn" data-target="view-algorithms">Algorithms & Simulation</button>
       <button class="tab-btn" data-target="view-strategies">Strategy Manager</button>
+      <button class="tab-btn" data-target="view-strategy-list">Strategy List</button>
+      <button class="tab-btn" data-target="view-custom-genera">Custom Genera</button>
     </nav>
 
     <main>
@@ -129,7 +131,9 @@
             <div class="strat-header-grid">
                 <input type="text" id="strat-name" placeholder="Name (e.g. social_workflow)">
                 <input type="text" id="strat-desc" placeholder="Description (e.g. Social Workflow Strategy)">
-                <!-- Fallback removed -->
+                <select id="strategy-load-select">
+                  <option value="">Load saved strategy...</option>
+                </select>
             </div>
 
             <div class="strat-options-row">
@@ -189,30 +193,9 @@
             </div>
 
             <!-- Builder Simulation Results -->
-             <div id="builder-results" style="margin-top: 20px; border-top: 1px solid #eee; padding-top: 10px;">
+            <div id="builder-results" style="margin-top: 20px; border-top: 1px solid #eee; padding-top: 10px;">
                 <!-- Simulation results appear here -->
              </div>
-
-
-            <hr style="margin: 25px 0;">
-
-            <h4>Existing Custom Strategies</h4>
-            <div id="custom-strategies-list" style="max-height: 400px; overflow-y: auto;">
-                <!-- All strategies populated by JS -->
-            </div>
-
-            <div id="custom-genera-container" style="margin-top: 40px; border-top: 1px solid #eee; padding-top: 15px;">
-              <h3>Custom Genera</h3>
-              <p>Map specific domains to categories.</p>
-              <div style="display: flex; gap: 10px; margin-bottom: 10px;">
-                <input type="text" id="new-genera-domain" placeholder="Domain (e.g. example.com)" style="flex: 1; padding: 5px;">
-                <input type="text" id="new-genera-category" placeholder="Category (e.g. Work)" style="flex: 1; padding: 5px;">
-                <button id="add-genera-btn" style="padding: 5px 15px;">Add</button>
-              </div>
-              <div id="custom-genera-list" style="max-height: 200px; overflow-y: auto;">
-                <!-- Custom entries populated by JS -->
-              </div>
-            </div>
 
           </div>
 
@@ -228,6 +211,50 @@
             </div>
           </div>
 
+        </div>
+      </section>
+
+      <section id="view-strategy-list" class="view-section">
+        <div class="algo-container">
+          <div class="algo-card">
+            <h2>Strategy List</h2>
+            <p>Review all built-in and custom strategies.</p>
+            <div class="strategy-table-container">
+              <table class="strategy-table">
+                <thead>
+                  <tr>
+                    <th>Strategy</th>
+                    <th>ID</th>
+                    <th>Source</th>
+                    <th>Capabilities</th>
+                    <th>Configuration</th>
+                    <th>Auto Run</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="strategy-table-body">
+                  <!-- Populated by JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="view-custom-genera" class="view-section">
+        <div class="algo-container">
+          <div class="algo-card">
+            <h2>Custom Genera</h2>
+            <p>Map specific domains to categories.</p>
+            <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+              <input type="text" id="new-genera-domain" placeholder="Domain (e.g. example.com)" style="flex: 1; padding: 5px;">
+              <input type="text" id="new-genera-category" placeholder="Category (e.g. Work)" style="flex: 1; padding: 5px;">
+              <button id="add-genera-btn" style="padding: 5px 15px;">Add</button>
+            </div>
+            <div id="custom-genera-list" style="max-height: 400px; overflow-y: auto;">
+              <!-- Custom entries populated by JS -->
+            </div>
+          </div>
         </div>
       </section>
     </main>

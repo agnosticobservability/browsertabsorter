@@ -82,6 +82,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       // If switching to algorithms, populate reference if empty
       if (targetId === 'view-algorithms') {
          renderAlgorithmsView();
+      } else if (targetId === 'view-strategy-list') {
+         renderStrategyListTable();
       }
     });
   });
@@ -338,6 +340,8 @@ async function loadPreferencesAndInit() {
             const prefs = response.data as Preferences;
             localCustomStrategies = prefs.customStrategies || [];
             setCustomStrategies(localCustomStrategies);
+            renderStrategyLoadOptions();
+            renderStrategyListTable();
         }
     } catch (e) {
         console.error("Failed to load preferences", e);
@@ -402,6 +406,7 @@ function initStrategyBuilder() {
     const addFilterGroupBtn = document.getElementById('add-filter-group-btn');
     const addGroupBtn = document.getElementById('add-group-btn');
     const addSortBtn = document.getElementById('add-sort-btn');
+    const loadSelect = document.getElementById('strategy-load-select') as HTMLSelectElement | null;
 
     // New: Group Sorting
     const addGroupSortBtn = document.getElementById('add-group-sort-btn');
@@ -430,12 +435,21 @@ function initStrategyBuilder() {
     if (saveBtn) saveBtn.addEventListener('click', saveCustomStrategyFromBuilder);
     if (runBtn) runBtn.addEventListener('click', runBuilderSimulation);
 
+    if (loadSelect) {
+        loadSelect.addEventListener('change', () => {
+            const selectedId = loadSelect.value;
+            if (!selectedId) return;
+            const strat = localCustomStrategies.find(s => s.id === selectedId);
+            if (strat) {
+                populateBuilderFromStrategy(strat);
+            }
+        });
+    }
+
     // Initial Live View
     renderLiveView();
     const refreshLiveBtn = document.getElementById('refresh-live-view-btn');
     if (refreshLiveBtn) refreshLiveBtn.addEventListener('click', renderLiveView);
-
-    renderStrategiesList();
 }
 
 function addFilterGroupRow(conditions?: RuleCondition[]) {
@@ -911,7 +925,8 @@ async function saveCustomStrategyFromBuilder() {
             localCustomStrategies = currentStrategies;
             setCustomStrategies(localCustomStrategies);
 
-            renderStrategiesList();
+            renderStrategyLoadOptions();
+            renderStrategyListTable();
             renderAlgorithmsView();
             alert("Strategy saved!");
         }
@@ -921,90 +936,104 @@ async function saveCustomStrategyFromBuilder() {
     }
 }
 
-function renderStrategiesList() {
-    const container = document.getElementById('custom-strategies-list');
-    if (!container) return;
+function populateBuilderFromStrategy(strat: CustomStrategy) {
+    (document.getElementById('strat-name') as HTMLInputElement).value = strat.id;
+    (document.getElementById('strat-desc') as HTMLInputElement).value = strat.label;
 
-    // Filter to only user-defined ones from preferences
-    const strategies = localCustomStrategies;
+    const sortGroupsCheck = (document.getElementById('strat-sortgroups-check') as HTMLInputElement);
+    const hasGroupSort = !!(strat.groupSortingRules && strat.groupSortingRules.length > 0) || !!strat.sortGroups;
+    sortGroupsCheck.checked = hasGroupSort;
+    sortGroupsCheck.dispatchEvent(new Event('change'));
 
-    if (strategies.length === 0) {
-        container.innerHTML = '<p style="color: #888;">No custom strategies found.</p>';
+    const autoRunCheck = (document.getElementById('strat-autorun') as HTMLInputElement);
+    autoRunCheck.checked = !!strat.autoRun;
+
+    ['filter-rows-container', 'group-rows-container', 'sort-rows-container', 'group-sort-rows-container'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.innerHTML = '';
+    });
+
+    if (strat.filterGroups && strat.filterGroups.length > 0) {
+        strat.filterGroups.forEach(g => addFilterGroupRow(g));
+    } else if (strat.filters && strat.filters.length > 0) {
+        addFilterGroupRow(strat.filters);
+    }
+
+    strat.groupingRules?.forEach(g => addBuilderRow('group', g));
+    strat.sortingRules?.forEach(s => addBuilderRow('sort', s));
+    strat.groupSortingRules?.forEach(gs => addBuilderRow('groupSort', gs));
+
+    document.querySelector('#view-strategies')?.scrollIntoView({ behavior: 'smooth' });
+    updateBreadcrumb();
+}
+
+function renderStrategyLoadOptions() {
+    const select = document.getElementById('strategy-load-select') as HTMLSelectElement | null;
+    if (!select) return;
+
+    const options = localCustomStrategies
+        .slice()
+        .sort((a, b) => a.label.localeCompare(b.label));
+
+    select.innerHTML = `<option value="">Load saved strategy...</option>` + options.map(strategy => `
+        <option value="${escapeHtml(strategy.id)}">${escapeHtml(strategy.label)} (${escapeHtml(strategy.id)})</option>
+    `).join('');
+}
+
+function renderStrategyListTable() {
+    const tableBody = document.getElementById('strategy-table-body');
+    if (!tableBody) return;
+
+    const customIds = new Set(localCustomStrategies.map(strategy => strategy.id));
+    const builtInRows = STRATEGIES.map(strategy => ({
+        ...strategy,
+        sourceLabel: 'Built-in',
+        configSummary: '—',
+        autoRunLabel: '—',
+        actions: ''
+    }));
+
+    const customRows = localCustomStrategies.map(strategy => {
+        const overridesBuiltIn = customIds.has(strategy.id) && STRATEGIES.some(builtIn => builtIn.id === strategy.id);
+        return {
+            id: strategy.id,
+            label: strategy.label,
+            isGrouping: true,
+            isSorting: true,
+            sourceLabel: overridesBuiltIn ? 'Custom (overrides built-in)' : 'Custom',
+            configSummary: `Filters: ${strategy.filters?.length || 0}, Groups: ${strategy.groupingRules?.length || 0}, Sorts: ${strategy.sortingRules?.length || 0}`,
+            autoRunLabel: strategy.autoRun ? 'Yes' : 'No',
+            actions: `<button class="delete-strategy-row" data-id="${escapeHtml(strategy.id)}" style="color: red;">Delete</button>`
+        };
+    });
+
+    const allRows = [...builtInRows, ...customRows];
+
+    if (allRows.length === 0) {
+        tableBody.innerHTML = '<tr><td colspan="7" style="color: #888;">No strategies found.</td></tr>';
         return;
     }
 
-    container.innerHTML = strategies.map(s => {
+    tableBody.innerHTML = allRows.map(row => {
+        const capabilities = [row.isGrouping ? 'Grouping' : null, row.isSorting ? 'Sorting' : null].filter(Boolean).join(', ');
         return `
-        <div style="border: 1px solid #ddd; padding: 10px; margin-bottom: 5px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; background-color: #f9faff;">
-            <div>
-                <strong>${escapeHtml(s.label)}</strong> (${escapeHtml(String(s.id))})
-                <div style="font-size: 0.8em; color: #666;">
-                    Filters: ${s.filters?.length || 0},
-                    Groups: ${s.groupingRules?.length || 0},
-                    Sorts: ${s.sortingRules?.length || 0}
-                </div>
-            </div>
-            <div>
-                <button class="edit-strat-btn" data-id="${escapeHtml(String(s.id))}">Edit</button>
-                <button class="delete-strat-btn" data-id="${escapeHtml(String(s.id))}" style="color: red;">Delete</button>
-            </div>
-        </div>
+        <tr>
+            <td>${escapeHtml(row.label)}</td>
+            <td>${escapeHtml(String(row.id))}</td>
+            <td>${escapeHtml(row.sourceLabel)}</td>
+            <td>${escapeHtml(capabilities)}</td>
+            <td>${escapeHtml(row.configSummary)}</td>
+            <td>${escapeHtml(row.autoRunLabel)}</td>
+            <td>${row.actions}</td>
+        </tr>
         `;
     }).join('');
 
-    container.querySelectorAll('.delete-strat-btn').forEach(btn => {
+    tableBody.querySelectorAll('.delete-strategy-row').forEach(btn => {
         btn.addEventListener('click', async (e) => {
             const id = (e.target as HTMLElement).dataset.id;
             if (id && confirm(`Delete strategy "${id}"?`)) {
                 await deleteCustomStrategy(id);
-            }
-        });
-    });
-
-    container.querySelectorAll('.edit-strat-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const id = (e.target as HTMLElement).dataset.id;
-            const strat = localCustomStrategies.find(s => s.id === id);
-            if (strat) {
-                // Populate fields
-                (document.getElementById('strat-name') as HTMLInputElement).value = strat.id;
-                (document.getElementById('strat-desc') as HTMLInputElement).value = strat.label;
-
-                // Set Sort Groups Checkbox
-                const sortGroupsCheck = (document.getElementById('strat-sortgroups-check') as HTMLInputElement);
-                const hasGroupSort = !!(strat.groupSortingRules && strat.groupSortingRules.length > 0) || !!strat.sortGroups;
-                sortGroupsCheck.checked = hasGroupSort;
-                // Trigger change to toggle visibility
-                sortGroupsCheck.dispatchEvent(new Event('change'));
-
-                const autoRunCheck = (document.getElementById('strat-autorun') as HTMLInputElement);
-                autoRunCheck.checked = !!strat.autoRun;
-
-                // Clear lists
-                ['filter-rows-container', 'group-rows-container', 'sort-rows-container', 'group-sort-rows-container'].forEach(id => {
-                    const el = document.getElementById(id);
-                    if (el) el.innerHTML = '';
-                });
-
-                // Populate rows
-
-                // Filters
-                if (strat.filterGroups && strat.filterGroups.length > 0) {
-                    strat.filterGroups.forEach(g => addFilterGroupRow(g));
-                } else if (strat.filters && strat.filters.length > 0) {
-                    // Legacy: one group
-                    addFilterGroupRow(strat.filters);
-                } else {
-                    // Empty logic, maybe add empty row?
-                    // initStrategyBuilder doesn't add rows by default, so maybe fine.
-                }
-
-                strat.groupingRules?.forEach(g => addBuilderRow('group', g));
-                strat.sortingRules?.forEach(s => addBuilderRow('sort', s));
-                strat.groupSortingRules?.forEach(gs => addBuilderRow('groupSort', gs));
-
-                document.querySelector('#view-strategies')?.scrollIntoView({ behavior: 'smooth' });
-                updateBreadcrumb();
             }
         });
     });
@@ -1024,7 +1053,8 @@ async function deleteCustomStrategy(id: string) {
 
             localCustomStrategies = newStrategies;
             setCustomStrategies(localCustomStrategies);
-            renderStrategiesList();
+            renderStrategyLoadOptions();
+            renderStrategyListTable();
             renderAlgorithmsView();
         }
     } catch (e) {
