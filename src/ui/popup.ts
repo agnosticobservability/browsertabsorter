@@ -542,18 +542,19 @@ function getDragAfterElement(container: HTMLElement, y: number) {
 
 const loadState = async () => {
   try {
-    const [state, currentWindow, chromeWindows] = await Promise.all([
+    const [stateResult, currentWindowResult, chromeWindowsResult] = await Promise.allSettled([
       fetchState(),
       chrome.windows.getCurrent(),
       chrome.windows.getAll({ windowTypes: ["normal"], populate: true })
     ]);
 
-    if (!state || !state.ok || !state.data) {
-        console.error("Failed to load state:", state?.error);
-        return;
+    if (stateResult.status !== "fulfilled" || !stateResult.value || !stateResult.value.ok || !stateResult.value.data) {
+      const error = stateResult.status === "rejected" ? stateResult.reason : stateResult.value?.error;
+      console.error("Failed to load state:", error ?? "Unknown error");
+      return;
     }
 
-    preferences = state.data.preferences;
+    preferences = stateResult.value.data.preferences;
 
     if (preferences) {
       const s = preferences.sorting || [];
@@ -569,12 +570,25 @@ const loadState = async () => {
 
       // Initial theme load
       if (preferences.theme) {
-          applyTheme(preferences.theme, false);
+        applyTheme(preferences.theme, false);
       }
     }
 
-    focusedWindowId = currentWindow?.id ?? null;
+    if (currentWindowResult.status === "fulfilled") {
+      focusedWindowId = currentWindowResult.value?.id ?? null;
+    } else {
+      focusedWindowId = null;
+      console.warn("Failed to get current window:", currentWindowResult.reason);
+    }
+
     const windowTitles = new Map<number, string>();
+    const chromeWindows = chromeWindowsResult.status === "fulfilled" && Array.isArray(chromeWindowsResult.value)
+      ? chromeWindowsResult.value
+      : [];
+    if (chromeWindowsResult.status === "rejected") {
+      console.warn("Failed to get window list:", chromeWindowsResult.reason);
+    }
+
     chromeWindows.forEach((win) => {
       if (!win.id) return;
       const activeTabTitle = win.tabs?.find((tab) => tab.active)?.title;
@@ -582,7 +596,7 @@ const loadState = async () => {
       windowTitles.set(win.id, title);
     });
 
-    windowState = mapWindows(state.data.groups, windowTitles);
+    windowState = mapWindows(stateResult.value.data.groups, windowTitles);
 
     renderTree();
   } catch (e) {
