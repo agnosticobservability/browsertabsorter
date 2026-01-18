@@ -9,9 +9,18 @@ export interface StrategyDefinition {
     isCustom?: boolean;
 }
 
-// Old strategies deleted as requested.
-
+// Restored strategies matching background capabilities.
 export const STRATEGIES: StrategyDefinition[] = [
+    { id: "domain", label: "Domain", isGrouping: true, isSorting: true },
+    { id: "domain_full", label: "Full Domain", isGrouping: true, isSorting: true },
+    { id: "topic", label: "Topic", isGrouping: true, isSorting: true },
+    { id: "context", label: "Context", isGrouping: true, isSorting: true },
+    { id: "lineage", label: "Lineage", isGrouping: true, isSorting: true },
+    { id: "pinned", label: "Pinned", isGrouping: true, isSorting: true },
+    { id: "recency", label: "Recency", isGrouping: true, isSorting: true },
+    { id: "age", label: "Age", isGrouping: true, isSorting: true },
+    { id: "url", label: "URL", isGrouping: true, isSorting: true },
+    { id: "nesting", label: "Nesting", isGrouping: true, isSorting: true },
     { id: "title", label: "Title", isGrouping: true, isSorting: true },
 ];
 
