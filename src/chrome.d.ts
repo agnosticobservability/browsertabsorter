@@ -103,7 +103,9 @@ declare namespace chrome {
   namespace storage {
     namespace local {
       function get(keys: string | string[], callback: (items: Record<string, any>) => void): void;
+      function get(keys: string | string[]): Promise<Record<string, any>>;
       function set(items: Record<string, any>, callback: () => void): void;
+      function set(items: Record<string, any>): Promise<void>;
     }
   }
 }
