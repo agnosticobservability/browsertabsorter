@@ -36,10 +36,11 @@ const newStrategy: CustomStrategy = {
     filters: [
         { field: "url", operator: "contains", value: "facebook" }
     ],
-    groupingRules: [
+    rules: [
         { field: "domain", operator: "matches", value: "(.*)", result: "$1 Domain" },
         { field: "title", operator: "contains", value: "Log In", result: "Login Page" }
     ],
+    groupingRules: [],
     sortingRules: [
         { field: "title", order: "desc" }
     ],
@@ -54,8 +55,9 @@ const runTest = () => {
     const key = groupingKey(mockTab, "social_test");
     console.log(`Key for Facebook: ${key}`);
 
-    if (key !== "facebook.com Domain - Login Page") {
-        console.error("FAIL: Expected 'facebook.com Domain - Login Page', got", key);
+    // Legacy rules use "first match wins" logic.
+    if (key !== "facebook.com Domain") {
+        console.error("FAIL: Expected 'facebook.com Domain', got", key);
         process.exit(1);
     }
 

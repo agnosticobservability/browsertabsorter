@@ -2,7 +2,7 @@ import { TabMetadata, PageContext } from "../shared/types.js";
 import { logDebug, logError } from "./logger.js";
 import { extractPageContext } from "./extraction/index.js";
 
-const HF_API_URL = "https://api-inference.huggingface.co/models/facebook/bart-large-mnli";
+const HF_API_URL = "https://router.huggingface.co/hf-inference/models/facebook/bart-large-mnli";
 
 // We will categorize tabs into these contexts:
 const CONTEXT_LABELS = [
@@ -95,7 +95,11 @@ const fetchContextForTab = async (tab: TabMetadata): Promise<ContextResult> => {
 
   // 4. Fallback to AI (LLM)
   // Only if we have no clue from extraction or heuristics
-  if (context === "Uncategorized") {
+  // NOTE: Disabled because the HF API now requires a token (which we don't have)
+  // and the old public endpoint is 410 Gone.
+  const ENABLE_LLM_FALLBACK = false;
+
+  if (context === "Uncategorized" && ENABLE_LLM_FALLBACK) {
       const textToClassify = `${tab.title} ${tab.url}`;
       const payload = {
         inputs: textToClassify,
