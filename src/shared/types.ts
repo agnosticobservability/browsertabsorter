@@ -65,6 +65,7 @@ export interface TabMetadata {
   index: number;
   active: boolean;
   status?: string;
+  subdomain?: string;
 }
 
 export interface TabGroup {
