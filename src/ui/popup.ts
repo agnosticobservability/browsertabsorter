@@ -16,6 +16,7 @@ import {
   GROUP_COLORS
 } from "./common.js";
 import { getStrategies, STRATEGIES, StrategyDefinition } from "../shared/strategyRegistry.js";
+import { normalizePreferences } from "../shared/preferences.js";
 import { TabGroup, TabMetadata } from "../shared/types.js";
 
 // Elements

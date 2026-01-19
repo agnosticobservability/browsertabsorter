@@ -425,6 +425,7 @@ const FIELD_OPTIONS = `
                     <option value="url">URL</option>
                     <option value="title">Title</option>
                     <option value="domain">Domain</option>
+                    <option value="subdomain">Subdomain</option>
                     <option value="id">ID</option>
                     <option value="index">Index</option>
                     <option value="windowId">Window ID</option>
