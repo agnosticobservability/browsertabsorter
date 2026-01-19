@@ -2,14 +2,6 @@ import { TabMetadata, PageContext } from "../shared/types.js";
 import { logDebug, logError } from "./logger.js";
 import { extractPageContext } from "./extraction/index.js";
 
-const HF_API_URL = "https://router.huggingface.co/hf-inference/models/facebook/bart-large-mnli";
-
-// We will categorize tabs into these contexts:
-const CONTEXT_LABELS = [
-  "Work", "Personal", "Social", "News", "Development", "Shopping", "Entertainment", "Finance",
-  "Education", "Travel", "Health", "Sports", "Technology", "Science", "Gaming", "Music", "Art"
-];
-
 export interface ContextResult {
   context: string;
   source: 'AI' | 'Heuristic' | 'Extraction';
@@ -93,41 +85,9 @@ const fetchContextForTab = async (tab: TabMetadata): Promise<ContextResult> => {
       }
   }
 
-  // 4. Fallback to AI (LLM)
-  // Only if we have no clue from extraction or heuristics
-  // NOTE: Disabled because the HF API now requires a token (which we don't have)
-  // and the old public endpoint is 410 Gone.
-  const ENABLE_LLM_FALLBACK = false;
-
-  if (context === "Uncategorized" && ENABLE_LLM_FALLBACK) {
-      const textToClassify = `${tab.title} ${tab.url}`;
-      const payload = {
-        inputs: textToClassify,
-        parameters: { candidate_labels: CONTEXT_LABELS }
-      };
-
-      try {
-        const response = await fetch(HF_API_URL, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(payload)
-        });
-
-        if (response.ok) {
-            const result = await response.json();
-            if (result && result.labels && result.labels.length > 0) {
-              context = result.labels[0];
-              source = 'AI';
-            }
-        } else {
-             logDebug("LLM API failed", { status: response.status });
-        }
-      } catch (e) {
-        logDebug("LLM API error", { error: String(e) });
-      }
-  }
+  // 4. Fallback to AI (LLM) - REMOVED
+  // The HuggingFace API endpoint is 410 Gone and/or requires authentication which we do not have.
+  // The code has been removed to prevent errors.
 
   if (context !== "Uncategorized" && source !== "Extraction") {
     error = undefined;
