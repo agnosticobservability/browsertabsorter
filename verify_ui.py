@@ -1,77 +1,65 @@
+import os
 from playwright.sync_api import sync_playwright
 
-def verify_ui():
+def verify_devtools_ui():
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
-        # Create a context with mock chrome object injection
-        context = browser.new_context()
+        page = browser.new_page()
 
-        # Inject mock chrome object
-        # We need to mock chrome.runtime.sendMessage and chrome.tabs.query/onUpdated/onRemoved
-        # Also chrome.storage.local if needed.
-        # DevTools logic relies on chrome.runtime.sendMessage to load preferences.
-
-        init_script = """
-        window.chrome = {
-            runtime: {
-                sendMessage: async (msg) => {
-                    console.log('Message sent:', msg);
-                    if (msg.type === 'loadPreferences') {
-                        return { ok: true, data: { customStrategies: [] } };
-                    }
-                    if (msg.type === 'savePreferences') {
-                        return { ok: true };
-                    }
-                    return { ok: false };
+        # Mock chrome API
+        page.add_init_script("""
+            window.chrome = {
+                runtime: {
+                    sendMessage: (msg) => {
+                        console.log('Message sent:', msg);
+                        if (msg.type === 'loadPreferences') {
+                            return Promise.resolve({ ok: true, data: { customStrategies: [] } });
+                        }
+                        return Promise.resolve({ ok: true });
+                    },
+                    onMessage: { addListener: () => {} }
                 },
-                onMessage: { addListener: () => {} }
-            },
-            tabs: {
-                query: async () => [],
-                onUpdated: { addListener: () => {} },
-                onRemoved: { addListener: () => {} }
-            },
-            storage: {
-                local: {
-                    get: async () => ({}),
-                    set: async () => {}
+                tabs: {
+                    query: () => Promise.resolve([]),
+                    onUpdated: { addListener: () => {} },
+                    onRemoved: { addListener: () => {} }
+                },
+                tabGroups: {
+                    query: () => Promise.resolve([]),
+                    onRemoved: { addListener: () => {} }
                 }
-            }
-        };
-        """
+            };
+        """)
 
-        context.add_init_script(init_script)
-        page = context.new_page()
+        # Go to the local server
+        page.goto("http://localhost:8000/ui/devtools.html")
 
-        # Load the devtools HTML file
-        # We assume the server is not needed if we open file directly,
-        # but module imports in devtools.ts (which is compiled to JS) might fail if not served or if paths are weird.
-        # Since I compiled typescript to dist/, I should open the html that references dist/
-        # devtools.html is in ui/ and references ../dist/ui/devtools.js.
+        # Click on Strategy Manager tab to reveal the builder
+        page.click("button[data-target='view-strategies']")
 
-        # Absolute path to devtools.html
-        import os
-        cwd = os.getcwd()
-        filepath = f"file://{cwd}/ui/devtools.html"
+        # Wait for the builder to be visible
+        # Sometimes class toggle might be async or transition, but usually instant.
+        # Check if the section itself is visible regardless of active class for a moment
+        page.wait_for_selector("#view-strategies")
 
-        page.goto(filepath)
+        # Take a screenshot of the Strategy Builder Header where the buttons are
+        # We focus on the element containing the buttons
+        # The id 'builder-run-btn' is inside the header div of the builder card
+        page.screenshot(path="verification_ui_buttons.png")
 
-        # Wait for content
-        page.wait_for_selector('h1:has-text("Tab Sorter Developer Tools")')
+        # Verify button text
+        run_btn_text = page.locator("#builder-run-btn").inner_text()
+        print(f"Run button text: {run_btn_text}")
 
-        # Navigate to Strategy Manager
-        page.click('button[data-target="view-strategies"]')
-
-        # Check if the "Sort Groups" checkbox exists
-        # It should be near "Auto Run"
-        checkbox = page.get_by_label("Sort Groups")
-        if checkbox.is_visible():
-            print("Sort Groups checkbox is visible")
+        # Verify Run Live button existence
+        run_live_btn = page.locator("#builder-run-live-btn")
+        if run_live_btn.is_visible():
+            print("Run Live button is visible")
+            print(f"Run Live button text: {run_live_btn.inner_text()}")
         else:
-            print("Sort Groups checkbox NOT found")
+            print("Run Live button is NOT visible")
 
-        page.screenshot(path="/home/jules/verification/verification_ui.png")
         browser.close()
 
 if __name__ == "__main__":
-    verify_ui()
+    verify_devtools_ui()
