@@ -20,7 +20,7 @@ export const compareBy = (strategy: SortingStrategy | string, a: TabMetadata, b:
   // 1. Check Custom Strategies for Sorting Rules
   const customStrats = getCustomStrategies();
   const custom = customStrats.find(s => s.id === strategy);
-  if (custom && custom.sortingRules && custom.sortingRules.length > 0) {
+  if (custom && custom.sortingRules && Array.isArray(custom.sortingRules) && custom.sortingRules.length > 0) {
       // Evaluate custom sorting rules in order
       for (const rule of custom.sortingRules) {
           const valA = getFieldValue(a, rule.field);

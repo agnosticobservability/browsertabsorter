@@ -293,7 +293,7 @@ export const groupingKey = (tab: TabMetadata, strategy: GroupingStrategy | strin
       }
 
       // 2. Apply Grouping Rules (New Logic)
-      if (custom.groupingRules && custom.groupingRules.length > 0) {
+      if (custom.groupingRules && Array.isArray(custom.groupingRules) && custom.groupingRules.length > 0) {
           const parts: string[] = [];
           for (const rule of custom.groupingRules) {
               let val = "";
@@ -340,7 +340,7 @@ export const groupingKey = (tab: TabMetadata, strategy: GroupingStrategy | strin
           // If no rules matched (empty list?), return fallback
           return custom.fallback || "Misc";
 
-      } else if (custom.rules) {
+      } else if (custom.rules && Array.isArray(custom.rules)) {
           // Legacy support (Deprecated)
           // Use legacy evaluation if necessary, but ideally we migrate.
           // Since we changed the type definition, custom.rules corresponds to 'rules' prop in CustomStrategy.
