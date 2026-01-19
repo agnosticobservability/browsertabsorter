@@ -286,7 +286,7 @@ const sortGroupsIfEnabled = async (
     }
 
     // Sort the groups
-    if (groupSorterStrategy.groupSortingRules && groupSorterStrategy.groupSortingRules.length > 0) {
+    if (groupSorterStrategy.groupSortingRules && Array.isArray(groupSorterStrategy.groupSortingRules) && groupSorterStrategy.groupSortingRules.length > 0) {
         groupReps.sort((a, b) => compareBySortingRules(groupSorterStrategy.groupSortingRules!, a.rep, b.rep));
     } else {
         groupReps.sort((a, b) => compareBy(groupSorterStrategy!.id, a.rep, b.rep));
