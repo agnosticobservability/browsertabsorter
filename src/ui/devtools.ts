@@ -365,6 +365,61 @@ async function loadCustomGenera() {
 
 // ---------------------- STRATEGY BUILDER ----------------------
 
+function getBuiltInStrategyConfig(id: string): CustomStrategy | null {
+    const base: CustomStrategy = {
+        id: id,
+        label: STRATEGIES.find(s => s.id === id)?.label || id,
+        filters: [],
+        groupingRules: [],
+        sortingRules: [],
+        groupSortingRules: [],
+        fallback: 'Misc',
+        sortGroups: false,
+        autoRun: false
+    };
+
+    switch (id) {
+        case 'domain':
+            base.groupingRules = [{ source: 'field', value: 'domain', transform: 'stripTld', color: 'random' }];
+            base.sortingRules = [{ field: 'domain', order: 'asc' }];
+            break;
+        case 'domain_full':
+             base.groupingRules = [{ source: 'field', value: 'domain', transform: 'none', color: 'random' }];
+             base.sortingRules = [{ field: 'domain', order: 'asc' }];
+             break;
+        case 'topic':
+            base.groupingRules = [{ source: 'field', value: 'genre', color: 'random' }];
+            break;
+        case 'context':
+            base.groupingRules = [{ source: 'field', value: 'context', color: 'random' }];
+            break;
+        case 'lineage':
+            base.groupingRules = [{ source: 'field', value: 'parentTitle', color: 'random' }];
+            break;
+        case 'pinned':
+             base.sortingRules = [{ field: 'pinned', order: 'desc' }];
+             base.groupingRules = [{ source: 'field', value: 'pinned', color: 'random' }];
+             break;
+        case 'recency':
+            base.sortingRules = [{ field: 'lastAccessed', order: 'desc' }];
+            break;
+        case 'age':
+             base.sortingRules = [{ field: 'lastAccessed', order: 'desc' }];
+             break;
+        case 'url':
+            base.sortingRules = [{ field: 'url', order: 'asc' }];
+            break;
+        case 'title':
+            base.sortingRules = [{ field: 'title', order: 'asc' }];
+            break;
+        case 'nesting':
+             base.sortingRules = [{ field: 'parentTitle', order: 'asc' }];
+             break;
+    }
+
+    return base;
+}
+
 const FIELD_OPTIONS = `
                 <optgroup label="Standard Fields">
                     <option value="url">URL</option>
@@ -439,7 +494,12 @@ function initStrategyBuilder() {
         loadSelect.addEventListener('change', () => {
             const selectedId = loadSelect.value;
             if (!selectedId) return;
-            const strat = localCustomStrategies.find(s => s.id === selectedId);
+
+            let strat = localCustomStrategies.find(s => s.id === selectedId);
+            if (!strat) {
+                strat = getBuiltInStrategyConfig(selectedId) || undefined;
+            }
+
             if (strat) {
                 populateBuilderFromStrategy(strat);
             }
