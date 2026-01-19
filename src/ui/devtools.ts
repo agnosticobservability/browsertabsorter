@@ -470,6 +470,7 @@ function initStrategyBuilder() {
 
     const saveBtn = document.getElementById('builder-save-btn');
     const runBtn = document.getElementById('builder-run-btn');
+    const runLiveBtn = document.getElementById('builder-run-live-btn');
     const clearBtn = document.getElementById('builder-clear-btn');
 
     if (addFilterGroupBtn) addFilterGroupBtn.addEventListener('click', () => addFilterGroupRow());
@@ -489,8 +490,9 @@ function initStrategyBuilder() {
         });
     }
 
-    if (saveBtn) saveBtn.addEventListener('click', saveCustomStrategyFromBuilder);
+    if (saveBtn) saveBtn.addEventListener('click', () => saveCustomStrategyFromBuilder(true));
     if (runBtn) runBtn.addEventListener('click', runBuilderSimulation);
+    if (runLiveBtn) runLiveBtn.addEventListener('click', runBuilderLive);
     if (clearBtn) clearBtn.addEventListener('click', clearBuilder);
 
     if (loadSelect) {
@@ -999,13 +1001,16 @@ function runBuilderSimulation() {
   `).join('');
 }
 
-async function saveCustomStrategyFromBuilder() {
+async function saveCustomStrategyFromBuilder(showSuccess = true): Promise<boolean> {
     const strat = getBuilderStrategy();
     if (!strat) {
         alert("Please fill in ID and Label.");
-        return;
+        return false;
     }
+    return saveStrategy(strat, showSuccess);
+}
 
+async function saveStrategy(strat: CustomStrategy, showSuccess: boolean): Promise<boolean> {
     try {
         const response = await chrome.runtime.sendMessage({ type: 'loadPreferences' });
         if (response && response.ok && response.data) {
@@ -1016,9 +1021,6 @@ async function saveCustomStrategyFromBuilder() {
             const existing = currentStrategies.find(s => s.id === strat.id);
             if (existing) {
                 strat.autoRun = existing.autoRun;
-                // sortGroups is now handled in builder, but if we wanted to preserve it from hidden state we would do it here.
-                // Since it's in the UI, we don't overwrite it from existing unless the UI didn't capture it.
-                // But getBuilderStrategy captures it.
             }
 
             // Remove existing if same ID
@@ -1036,11 +1038,45 @@ async function saveCustomStrategyFromBuilder() {
             renderStrategyLoadOptions();
             renderStrategyListTable();
             renderAlgorithmsView();
-            alert("Strategy saved!");
+            if (showSuccess) alert("Strategy saved!");
+            return true;
         }
+        return false;
     } catch (e) {
         console.error("Failed to save strategy", e);
         alert("Error saving strategy");
+        return false;
+    }
+}
+
+async function runBuilderLive() {
+    const strat = getBuilderStrategy();
+    if (!strat) {
+        alert("Please fill in ID and Label to run live.");
+        return;
+    }
+
+    // Save silently first to ensure backend has the definition
+    const saved = await saveStrategy(strat, false);
+    if (!saved) return;
+
+    try {
+        const response = await chrome.runtime.sendMessage({
+            type: 'applyGrouping',
+            payload: {
+                sorting: [strat.id]
+            }
+        });
+
+        if (response && response.ok) {
+            alert("Applied successfully!");
+            loadTabs();
+        } else {
+            alert("Failed to apply: " + (response.error || 'Unknown error'));
+        }
+    } catch (e) {
+        console.error("Apply failed", e);
+        alert("Apply failed: " + e);
     }
 }
 
