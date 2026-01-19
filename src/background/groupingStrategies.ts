@@ -22,6 +22,30 @@ export const domainFromUrl = (url: string): string => {
   }
 };
 
+export const subdomainFromUrl = (url: string): string => {
+    try {
+        const parsed = new URL(url);
+        let hostname = parsed.hostname;
+        // Remove www.
+        hostname = hostname.replace(/^www\./, "");
+
+        // Simple logic: everything before the last two parts is subdomain?
+        // e.g. docs.google.com -> docs
+        // api.staging.example.com -> api.staging
+        // google.com -> (empty)
+
+        const parts = hostname.split('.');
+        if (parts.length > 2) {
+             // Return everything except the last two parts
+             // This is naive and fails for co.uk etc, but matches existing simplistic logic in stripTld
+             return parts.slice(0, parts.length - 2).join('.');
+        }
+        return "";
+    } catch {
+        return "";
+    }
+}
+
 export const getFieldValue = (tab: TabMetadata, field: string): any => {
     switch(field) {
         case 'id': return tab.id;
@@ -40,6 +64,7 @@ export const getFieldValue = (tab: TabMetadata, field: string): any => {
         case 'siteName': return tab.contextData?.siteName;
         // Derived or mapped fields
         case 'domain': return domainFromUrl(tab.url);
+        case 'subdomain': return subdomainFromUrl(tab.url);
         default:
             if (field.includes('.')) {
                  return field.split('.').reduce((obj, key) => (obj && typeof obj === 'object' && obj !== null) ? (obj as any)[key] : undefined, tab);
