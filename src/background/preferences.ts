@@ -1,34 +1,9 @@
-import { Preferences, SortingStrategy } from "../shared/types.js";
+import { Preferences } from "../shared/types.js";
 import { getStoredValue, setStoredValue } from "./storage.js";
 import { setLoggerPreferences } from "./logger.js";
+import { normalizePreferences } from "../shared/preferences.js";
 
 const PREFERENCES_KEY = "preferences";
-
-export const defaultPreferences: Preferences = {
-  sorting: ["pinned", "recency"],
-  debug: false,
-  theme: "dark",
-  customGenera: {}
-};
-
-const normalizeSorting = (sorting: unknown): SortingStrategy[] => {
-  if (Array.isArray(sorting)) {
-    return sorting.filter((value): value is SortingStrategy => typeof value === "string");
-  }
-  if (typeof sorting === "string") {
-    return [sorting];
-  }
-  return [...defaultPreferences.sorting];
-};
-
-const normalizePreferences = (prefs?: Partial<Preferences> | null): Preferences => {
-  const merged = { ...defaultPreferences, ...(prefs ?? {}) };
-  return {
-    ...merged,
-    sorting: normalizeSorting(merged.sorting),
-    customStrategies: Array.isArray(merged.customStrategies) ? merged.customStrategies : undefined
-  };
-};
 
 export const loadPreferences = async (): Promise<Preferences> => {
   const stored = await getStoredValue<Preferences>(PREFERENCES_KEY);
