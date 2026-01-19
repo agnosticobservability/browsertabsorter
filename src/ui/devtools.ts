@@ -570,6 +570,17 @@ function addBuilderRow(type: 'group' | 'sort' | 'groupSort', data?: any) {
                  <input type="text" class="value-input-text" placeholder="Group Name" style="display:none;">
             </span>
 
+            <span style="margin-left: 10px;">Transform:</span>
+            <select class="transform-select">
+                <option value="none">None</option>
+                <option value="stripTld">Strip TLD</option>
+                <option value="domain">Get Domain</option>
+                <option value="hostname">Get Hostname</option>
+                <option value="lowercase">Lowercase</option>
+                <option value="uppercase">Uppercase</option>
+                <option value="firstChar">First Char</option>
+            </select>
+
             <span style="margin-left: 10px;">Color:</span>
             <select class="color-input">
                 <option value="grey">Grey</option>
@@ -643,6 +654,7 @@ function addBuilderRow(type: 'group' | 'sort' | 'groupSort', data?: any) {
             const sourceSelect = div.querySelector('.source-select') as HTMLSelectElement;
             const fieldSelect = div.querySelector('.value-input-field') as HTMLSelectElement;
             const textInput = div.querySelector('.value-input-text') as HTMLInputElement;
+            const transformSelect = div.querySelector('.transform-select') as HTMLSelectElement;
             const colorInput = div.querySelector('.color-input') as HTMLSelectElement;
             const randomCheck = div.querySelector('.random-color-check') as HTMLInputElement;
 
@@ -656,6 +668,8 @@ function addBuilderRow(type: 'group' | 'sort' | 'groupSort', data?: any) {
             } else {
                 if (data.value) textInput.value = data.value;
             }
+
+            if (data.transform) transformSelect.value = data.transform;
 
             if (data.color && data.color !== 'random') {
                 randomCheck.checked = false;
@@ -778,6 +792,8 @@ function getBuilderStrategy(): CustomStrategy | null {
             value = (row.querySelector('.value-input-text') as HTMLInputElement).value;
         }
 
+        const transform = (row.querySelector('.transform-select') as HTMLSelectElement).value as any;
+
         const randomCheck = row.querySelector('.random-color-check') as HTMLInputElement;
         const colorInput = row.querySelector('.color-input') as HTMLSelectElement;
 
@@ -787,7 +803,7 @@ function getBuilderStrategy(): CustomStrategy | null {
         }
 
         if (value) {
-            groupingRules.push({ source, value, color });
+            groupingRules.push({ source, value, color, transform });
         }
     });
 
