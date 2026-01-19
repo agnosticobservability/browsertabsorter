@@ -115,10 +115,10 @@
       </section>
 
       <section id="view-strategies" class="view-section">
-        <div class="algo-container" style="display: flex; gap: 20px; width: 100%;">
+        <div class="algo-container" style="display: flex; flex-direction: row; gap: 20px; width: 100%; height: calc(100vh - 120px); overflow: hidden;">
 
           <!-- LEFT: Builder -->
-          <div class="algo-card" style="flex: 2; min-width: 0;">
+          <div class="algo-card" style="flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden;">
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <h2>Strategy Builder</h2>
                 <div>
@@ -128,87 +128,94 @@
                 </div>
             </div>
 
-            <!-- Header Inputs -->
-            <div class="strat-header-grid">
-                <input type="text" id="strat-name" placeholder="Name (e.g. social_workflow)">
-                <input type="text" id="strat-desc" placeholder="Description (e.g. Social Workflow Strategy)">
-                <select id="strategy-load-select">
-                  <option value="">Load saved strategy...</option>
-                </select>
-            </div>
-
-            <div class="strat-options-row">
-                <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
-                    <input type="checkbox" id="strat-autorun"> Auto Run
-                </label>
-                <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
-                    <input type="checkbox" id="strat-separate-window"> Move groups to new window
-                </label>
-            </div>
-
-            <!-- 1. FILTER -->
-            <div class="builder-section">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <h3>Filter Conditions</h3>
-                    <button id="add-filter-group-btn" class="add-row-btn">+ Add Filter Group (OR)</button>
+            <div style="flex: 1; overflow-y: auto; padding-right: 5px;">
+                <!-- Header Inputs -->
+                <div class="strat-header-grid">
+                    <input type="text" id="strat-name" placeholder="Name (e.g. social_workflow)">
+                    <input type="text" id="strat-desc" placeholder="Description (e.g. Social Workflow Strategy)">
+                    <select id="strategy-load-select">
+                      <option value="">Load saved strategy...</option>
+                    </select>
                 </div>
-                <div id="filter-rows-container">
-                    <!-- Groups injected here -->
-                </div>
-            </div>
 
-            <!-- 2. GROUP -->
-            <div class="builder-section">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <h3>Group Rules</h3>
-                    <button id="add-group-btn" class="add-row-btn">Add Group</button>
+                <div class="strat-options-row">
+                    <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                        <input type="checkbox" id="strat-autorun"> Auto Run
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                        <input type="checkbox" id="strat-separate-window"> Move groups to new window
+                    </label>
                 </div>
-                <div id="group-rows-container"></div>
 
-                <div style="margin-top: 15px; border-top: 1px dashed #ddd; padding-top: 10px;">
+                <!-- 1. FILTER -->
+                <div class="builder-section">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; font-weight: bold;">
-                            <input type="checkbox" id="strat-sortgroups-check"> Group Sorting
-                        </label>
-                        <button id="add-group-sort-btn" class="add-row-btn" style="display: none; font-size: 0.8em;">Add Sort Rule</button>
+                        <h3>Filter Conditions</h3>
+                        <button id="add-filter-group-btn" class="add-row-btn">+ Add Filter Group (OR)</button>
                     </div>
-
-                    <div id="group-sort-rows-container" style="display: none; margin-left: 20px; margin-top: 10px; border-left: 2px solid #eee; padding-left: 10px;">
-                        <!-- Group Sorting Rules -->
+                    <div id="filter-rows-container">
+                        <!-- Groups injected here -->
                     </div>
                 </div>
-            </div>
 
-            <!-- 3. SORT -->
-            <div class="builder-section">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <h3>Tab Sorting</h3>
-                    <button id="add-sort-btn" class="add-row-btn">Add Sort</button>
+                <!-- 2. GROUP -->
+                <div class="builder-section">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <h3>Group Rules</h3>
+                        <button id="add-group-btn" class="add-row-btn">Add Group</button>
+                    </div>
+                    <div id="group-rows-container"></div>
+
+                    <div style="margin-top: 15px; border-top: 1px dashed #ddd; padding-top: 10px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; font-weight: bold;">
+                                <input type="checkbox" id="strat-sortgroups-check"> Group Sorting
+                            </label>
+                            <button id="add-group-sort-btn" class="add-row-btn" style="display: none; font-size: 0.8em;">Add Sort Rule</button>
+                        </div>
+
+                        <div id="group-sort-rows-container" style="display: none; margin-left: 20px; margin-top: 10px; border-left: 2px solid #eee; padding-left: 10px;">
+                            <!-- Group Sorting Rules -->
+                        </div>
+                    </div>
                 </div>
-                <div id="sort-rows-container"></div>
-            </div>
 
-            <!-- Breadcrumb -->
-            <div class="breadcrumb-container">
-                <p id="strategy-breadcrumb">All ></p>
-            </div>
+                <!-- 3. SORT -->
+                <div class="builder-section">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <h3>Tab Sorting</h3>
+                        <button id="add-sort-btn" class="add-row-btn">Add Sort</button>
+                    </div>
+                    <div id="sort-rows-container"></div>
+                </div>
 
-            <!-- Builder Simulation Results -->
-            <div id="builder-results" style="margin-top: 20px; border-top: 1px solid #eee; padding-top: 10px;">
-                <!-- Simulation results appear here -->
-             </div>
+                <!-- Breadcrumb -->
+                <div class="breadcrumb-container" style="padding-bottom: 10px;">
+                    <p id="strategy-breadcrumb">All ></p>
+                </div>
+            </div>
 
           </div>
 
-          <!-- RIGHT: Live View -->
-          <div class="algo-card" style="flex: 1; min-width: 300px; background-color: #fcfcfc;">
-            <h3>Current Browser State</h3>
-            <div style="margin-bottom: 10px; font-size: 0.85em; color: #666;">
-                Windows & Groups > Tabs
-                <button id="refresh-live-view-btn" class="small-btn" style="float: right;">Refresh</button>
+          <!-- RIGHT: States -->
+          <div class="algo-card" style="flex: 1; min-width: 300px; background-color: #fcfcfc; display: flex; flex-direction: column; overflow: hidden;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-shrink: 0;">
+                 <h3 style="margin: 0;">Browser State</h3>
+                 <button id="refresh-live-view-btn" class="small-btn">Refresh Current</button>
             </div>
-            <div id="live-view-container" style="font-family: monospace; font-size: 12px; height: 100%; overflow-y: auto;">
-                <!-- Tree populated by JS -->
+
+            <div id="states-container" style="display: flex; gap: 10px; flex: 1; overflow: hidden;">
+                <!-- Current State -->
+                <div id="current-state-panel" style="flex: 1; display: flex; flex-direction: column; height: 100%;">
+                    <h4 style="margin: 0 0 5px 0; font-size: 1em; color: #555;">Current</h4>
+                    <div id="live-view-container" style="flex: 1; overflow-y: auto; border: 1px solid #eee; background: white; padding: 5px; font-family: monospace; font-size: 12px;"></div>
+                </div>
+
+                <!-- New State (Hidden initially) -->
+                <div id="new-state-panel" style="flex: 1; display: none; flex-direction: column; height: 100%;">
+                    <h4 style="margin: 0 0 5px 0; font-size: 1em; color: #007bff;">Simulation</h4>
+                    <div id="builder-results" style="flex: 1; overflow-y: auto; border: 1px solid #eee; background: white; padding: 5px; font-family: monospace; font-size: 12px;"></div>
+                </div>
             </div>
           </div>
 
