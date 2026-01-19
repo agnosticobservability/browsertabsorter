@@ -669,11 +669,6 @@ const loadState = async () => {
       }
     }
 
-    if (!statePayload?.data) {
-      console.error("State payload missing data");
-      return;
-    }
-
     preferences = statePayload.data.preferences;
 
     if (preferences) {
