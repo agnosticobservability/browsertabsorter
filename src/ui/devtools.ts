@@ -987,13 +987,22 @@ function renderStrategyLoadOptions() {
     const select = document.getElementById('strategy-load-select') as HTMLSelectElement | null;
     if (!select) return;
 
-    const options = localCustomStrategies
+    const customOptions = localCustomStrategies
         .slice()
-        .sort((a, b) => a.label.localeCompare(b.label));
+        .sort((a, b) => a.label.localeCompare(b.label))
+        .map(strategy => `
+            <option value="${escapeHtml(strategy.id)}">${escapeHtml(strategy.label)} (${escapeHtml(strategy.id)})</option>
+        `).join('');
 
-    select.innerHTML = `<option value="">Load saved strategy...</option>` + options.map(strategy => `
-        <option value="${escapeHtml(strategy.id)}">${escapeHtml(strategy.label)} (${escapeHtml(strategy.id)})</option>
-    `).join('');
+    const builtInOptions = STRATEGIES
+        .filter(s => !localCustomStrategies.some(cs => cs.id === s.id))
+        .map(strategy => `
+            <option value="${escapeHtml(strategy.id as string)}">${escapeHtml(strategy.label)} (Built-in)</option>
+        `).join('');
+
+    select.innerHTML = `<option value="">Load saved strategy...</option>` +
+        (customOptions ? `<optgroup label="Custom Strategies">${customOptions}</optgroup>` : '') +
+        (builtInOptions ? `<optgroup label="Built-in Strategies">${builtInOptions}</optgroup>` : '');
 }
 
 function renderStrategyListTable() {
