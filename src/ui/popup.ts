@@ -54,31 +54,6 @@ const TREE_ICONS = {
 };
 
 const PREFERENCES_KEY = "preferences";
-const DEFAULT_PREFERENCES: Preferences = {
-  sorting: ["pinned", "recency"],
-  debug: false,
-  theme: "dark",
-  customGenera: {}
-};
-
-const normalizeSorting = (sorting: unknown): SortingStrategy[] => {
-  if (Array.isArray(sorting)) {
-    return sorting.filter((value): value is SortingStrategy => typeof value === "string");
-  }
-  if (typeof sorting === "string") {
-    return [sorting];
-  }
-  return [...DEFAULT_PREFERENCES.sorting];
-};
-
-const normalizePreferences = (prefs?: Partial<Preferences> | null): Preferences => {
-  const merged = { ...DEFAULT_PREFERENCES, ...(prefs ?? {}) };
-  return {
-    ...merged,
-    sorting: normalizeSorting(merged.sorting),
-    customStrategies: Array.isArray(merged.customStrategies) ? merged.customStrategies : undefined
-  };
-};
 
 const mapChromeTab = (tab: chrome.tabs.Tab): TabMetadata | null => {
   if (!tab.id || !tab.windowId || !tab.url || !tab.title) return null;
