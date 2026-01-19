@@ -386,10 +386,13 @@ export const groupingKey = (tab: TabMetadata, strategy: GroupingStrategy | strin
 };
 
 
-const evaluateLegacyRules = (rules: StrategyRule[], tab: TabMetadata): string | null => {
-    for (const rule of rules) {
-        const rawValue = getFieldValue(tab, rule.field);
-        let valueToCheck = rawValue !== undefined && rawValue !== null ? String(rawValue) : "";
+const evaluateLegacyRules = (legacyRules: StrategyRule[], tab: TabMetadata): string | null => {
+    if (!legacyRules || !Array.isArray(legacyRules)) return null;
+
+    try {
+        for (const rule of legacyRules) {
+            const rawValue = getFieldValue(tab, rule.field);
+            let valueToCheck = rawValue !== undefined && rawValue !== null ? String(rawValue) : "";
         valueToCheck = valueToCheck.toLowerCase();
         const pattern = rule.value.toLowerCase();
 
@@ -415,15 +418,18 @@ const evaluateLegacyRules = (rules: StrategyRule[], tab: TabMetadata): string | 
                 break;
         }
 
-        if (isMatch) {
-            let result = rule.result;
-            if (matchObj) {
-                for (let i = 1; i < matchObj.length; i++) {
-                     result = result.replace(new RegExp(`\\$${i}`, 'g'), matchObj[i] || "");
+            if (isMatch) {
+                let result = rule.result;
+                if (matchObj) {
+                    for (let i = 1; i < matchObj.length; i++) {
+                         result = result.replace(new RegExp(`\\$${i}`, 'g'), matchObj[i] || "");
+                    }
                 }
+                return result;
             }
-            return result;
         }
+    } catch (error) {
+        logDebug("Error evaluating legacy rules", { error: String(error) });
     }
     return null;
 };

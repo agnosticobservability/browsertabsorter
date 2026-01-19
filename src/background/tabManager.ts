@@ -228,18 +228,23 @@ export const applyTabSorting = async (
   }
 };
 
-const compareBySortingRules = (rules: SortingRule[], a: TabMetadata, b: TabMetadata): number => {
-  for (const rule of rules) {
-    const valA = getFieldValue(a, rule.field);
-    const valB = getFieldValue(b, rule.field);
+const compareBySortingRules = (sortingRulesArg: SortingRule[], a: TabMetadata, b: TabMetadata): number => {
+  if (!sortingRulesArg || !Array.isArray(sortingRulesArg)) return 0;
+  try {
+    for (const rule of sortingRulesArg) {
+      const valA = getFieldValue(a, rule.field);
+      const valB = getFieldValue(b, rule.field);
 
-    let result = 0;
-    if (valA < valB) result = -1;
-    else if (valA > valB) result = 1;
+      let result = 0;
+      if (valA < valB) result = -1;
+      else if (valA > valB) result = 1;
 
-    if (result !== 0) {
-      return rule.order === "desc" ? -result : result;
+      if (result !== 0) {
+        return rule.order === "desc" ? -result : result;
+      }
     }
+  } catch (error) {
+    logError("Error evaluating sorting rules", { error: String(error) });
   }
 
   return 0;
