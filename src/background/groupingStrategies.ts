@@ -345,13 +345,7 @@ export const groupingKey = (tab: TabMetadata, strategy: GroupingStrategy | strin
           // Use legacy evaluation if necessary, but ideally we migrate.
           // Since we changed the type definition, custom.rules corresponds to 'rules' prop in CustomStrategy.
           // We can keep evaluateLegacyRules if we want robust backward compat.
-          if (!Array.isArray(custom.rules)) {
-              console.warn("Custom strategy rules are not an array; skipping legacy evaluation.", {
-                  id: custom.id
-              });
-          } else {
-              return evaluateLegacyRules(custom.rules, tab) || custom.fallback || "Misc";
-          }
+          return evaluateLegacyRules(custom.rules, tab) || custom.fallback || "Misc";
       }
 
       return custom.fallback || "Misc";
