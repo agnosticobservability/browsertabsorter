@@ -414,6 +414,7 @@ function initStrategyBuilder() {
 
     const saveBtn = document.getElementById('builder-save-btn');
     const runBtn = document.getElementById('builder-run-btn');
+    const clearBtn = document.getElementById('builder-clear-btn');
 
     if (addFilterGroupBtn) addFilterGroupBtn.addEventListener('click', () => addFilterGroupRow());
     if (addGroupBtn) addGroupBtn.addEventListener('click', () => addBuilderRow('group'));
@@ -434,6 +435,7 @@ function initStrategyBuilder() {
 
     if (saveBtn) saveBtn.addEventListener('click', saveCustomStrategyFromBuilder);
     if (runBtn) runBtn.addEventListener('click', runBuilderSimulation);
+    if (clearBtn) clearBtn.addEventListener('click', clearBuilder);
 
     if (loadSelect) {
         loadSelect.addEventListener('change', () => {
@@ -702,6 +704,35 @@ function addBuilderRow(type: 'group' | 'sort' | 'groupSort', data?: any) {
     });
 
     container.appendChild(div);
+    updateBreadcrumb();
+}
+
+function clearBuilder() {
+    (document.getElementById('strat-name') as HTMLInputElement).value = '';
+    (document.getElementById('strat-desc') as HTMLInputElement).value = '';
+
+    (document.getElementById('strat-autorun') as HTMLInputElement).checked = false;
+    (document.getElementById('strat-separate-window') as HTMLInputElement).checked = false;
+
+    const sortGroupsCheck = (document.getElementById('strat-sortgroups-check') as HTMLInputElement);
+    if (sortGroupsCheck) {
+        sortGroupsCheck.checked = false;
+        // Trigger change to hide container
+        sortGroupsCheck.dispatchEvent(new Event('change'));
+    }
+
+    const loadSelect = document.getElementById('strategy-load-select') as HTMLSelectElement;
+    if (loadSelect) loadSelect.value = '';
+
+    ['filter-rows-container', 'group-rows-container', 'sort-rows-container', 'group-sort-rows-container'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.innerHTML = '';
+    });
+
+    const builderResults = document.getElementById('builder-results');
+    if (builderResults) builderResults.innerHTML = '';
+
+    addFilterGroupRow(); // Reset with one empty filter group
     updateBreadcrumb();
 }
 
