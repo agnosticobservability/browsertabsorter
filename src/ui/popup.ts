@@ -16,6 +16,8 @@ import {
   GROUP_COLORS
 } from "./common.js";
 import { getStrategies, STRATEGIES, StrategyDefinition } from "../shared/strategyRegistry.js";
+import { normalizePreferences } from "../shared/preferences.js";
+import { TabGroup, TabMetadata } from "../shared/types.js";
 
 // Elements
 const searchInput = document.getElementById("tabSearch") as HTMLInputElement;
@@ -49,6 +51,88 @@ const expandedNodes = new Set<string>(); // Default empty = all collapsed
 const TREE_ICONS = {
   chevronRight: `<svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>`,
   folder: `<svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>`
+};
+
+const PREFERENCES_KEY = "preferences";
+
+const mapChromeTab = (tab: chrome.tabs.Tab): TabMetadata | null => {
+  if (!tab.id || !tab.windowId || !tab.url || !tab.title) return null;
+  return {
+    id: tab.id,
+    windowId: tab.windowId,
+    title: tab.title,
+    url: tab.url,
+    pinned: Boolean(tab.pinned),
+    lastAccessed: tab.lastAccessed,
+    openerTabId: tab.openerTabId ?? undefined,
+    favIconUrl: tab.favIconUrl,
+    groupId: tab.groupId,
+    index: tab.index,
+    active: tab.active,
+    status: tab.status
+  };
+};
+
+const loadPreferencesFallback = async () => {
+  const stored = await chrome.storage.local.get(PREFERENCES_KEY);
+  return normalizePreferences(stored?.[PREFERENCES_KEY]);
+};
+
+const fetchLocalState = async (): Promise<{ groups: TabGroup[]; preferences: Preferences }> => {
+  const [tabs, groups, prefs] = await Promise.all([
+    chrome.tabs.query({}),
+    chrome.tabGroups.query({}),
+    loadPreferencesFallback()
+  ]);
+  const groupMap = new Map(groups.map(group => [group.id, group]));
+  const mappedTabs = tabs
+    .map(mapChromeTab)
+    .filter((tab): tab is TabMetadata => Boolean(tab))
+    .sort((a, b) => a.index - b.index);
+
+  const resultGroups: TabGroup[] = [];
+  const tabsByGroupId = new Map<number, TabMetadata[]>();
+  const tabsByWindowUngrouped = new Map<number, TabMetadata[]>();
+
+  mappedTabs.forEach(tab => {
+    const groupId = tab.groupId ?? -1;
+    if (groupId !== -1) {
+      const existing = tabsByGroupId.get(groupId) ?? [];
+      existing.push(tab);
+      tabsByGroupId.set(groupId, existing);
+    } else {
+      const existing = tabsByWindowUngrouped.get(tab.windowId) ?? [];
+      existing.push(tab);
+      tabsByWindowUngrouped.set(tab.windowId, existing);
+    }
+  });
+
+  for (const [groupId, groupTabs] of tabsByGroupId) {
+    const browserGroup = groupMap.get(groupId);
+    if (browserGroup) {
+      resultGroups.push({
+        id: `group-${groupId}`,
+        windowId: browserGroup.windowId,
+        label: browserGroup.title || "Untitled Group",
+        color: browserGroup.color,
+        tabs: groupTabs,
+        reason: "Manual"
+      });
+    }
+  }
+
+  for (const [windowId, tabsForWindow] of tabsByWindowUngrouped) {
+    resultGroups.push({
+      id: `ungrouped-${windowId}`,
+      windowId,
+      label: "Ungrouped",
+      color: "grey",
+      tabs: tabsForWindow,
+      reason: "Ungrouped"
+    });
+  }
+
+  return { groups: resultGroups, preferences: prefs };
 };
 
 const hexToRgba = (hex: string, alpha: number) => {
@@ -548,13 +632,19 @@ const loadState = async () => {
       chrome.windows.getAll({ windowTypes: ["normal"], populate: true })
     ]);
 
-    if (stateResult.status !== "fulfilled" || !stateResult.value || !stateResult.value.ok || !stateResult.value.data) {
-      const error = stateResult.status === "rejected" ? stateResult.reason : stateResult.value?.error;
-      console.error("Failed to load state:", error ?? "Unknown error");
-      return;
+    let statePayload = stateResult.status === "fulfilled" ? stateResult.value : null;
+    if (!statePayload?.ok || !statePayload.data) {
+      const error = stateResult.status === "rejected" ? stateResult.reason : statePayload?.error;
+      console.warn("Failed to load state from background, using local fallback.", error ?? "Unknown error");
+      try {
+        statePayload = { ok: true, data: await fetchLocalState() };
+      } catch (fallbackError) {
+        console.error("Failed to load local fallback state:", fallbackError);
+        return;
+      }
     }
 
-    preferences = stateResult.value.data.preferences;
+    preferences = statePayload.data.preferences;
 
     if (preferences) {
       const s = preferences.sorting || [];
@@ -596,7 +686,7 @@ const loadState = async () => {
       windowTitles.set(win.id, title);
     });
 
-    windowState = mapWindows(stateResult.value.data.groups, windowTitles);
+    windowState = mapWindows(statePayload.data.groups, windowTitles);
 
     renderTree();
   } catch (e) {
