@@ -26,6 +26,7 @@ const mapChromeTab = (tab: chrome.tabs.Tab): TabMetadata | null => {
 export const fetchCurrentTabGroups = async (
   preferences: Preferences
 ): Promise<TabGroup[]> => {
+  try {
   const tabs = await chrome.tabs.query({});
   const groups = await chrome.tabGroups.query({});
   const groupMap = new Map(groups.map(g => [g.id, g]));
@@ -90,6 +91,10 @@ export const fetchCurrentTabGroups = async (
 
   logInfo("Fetched current tab groups", { groups: resultGroups.length, tabs: mapped.length });
   return resultGroups;
+  } catch (e) {
+    logError("Error in fetchCurrentTabGroups", { error: String(e) });
+    throw e;
+  }
 };
 
 export const calculateTabGroups = async (

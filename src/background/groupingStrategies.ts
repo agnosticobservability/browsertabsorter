@@ -293,7 +293,10 @@ export const groupingKey = (tab: TabMetadata, strategy: GroupingStrategy | strin
       }
 
       // 2. Apply Grouping Rules (New Logic)
-      if (custom.groupingRules && Array.isArray(custom.groupingRules) && custom.groupingRules.length > 0) {
+      if (custom.groupingRules) {
+        if (!Array.isArray(custom.groupingRules)) {
+             logDebug("GroupingKey: custom.groupingRules is not an array", { id: custom.id, type: typeof custom.groupingRules });
+        } else if (custom.groupingRules.length > 0) {
           const parts: string[] = [];
           for (const rule of custom.groupingRules) {
               let val = "";
@@ -339,7 +342,7 @@ export const groupingKey = (tab: TabMetadata, strategy: GroupingStrategy | strin
           }
           // If no rules matched (empty list?), return fallback
           return custom.fallback || "Misc";
-
+        }
       } else if (custom.rules && Array.isArray(custom.rules)) {
           // Legacy support (Deprecated)
           // Use legacy evaluation if necessary, but ideally we migrate.
@@ -387,7 +390,11 @@ export const groupingKey = (tab: TabMetadata, strategy: GroupingStrategy | strin
 
 
 const evaluateLegacyRules = (legacyRules: StrategyRule[], tab: TabMetadata): string | null => {
-    if (!legacyRules || !Array.isArray(legacyRules)) return null;
+    if (!legacyRules) return null;
+    if (!Array.isArray(legacyRules)) {
+        logDebug("EvaluateLegacyRules: rules is not an array", { type: typeof legacyRules });
+        return null;
+    }
 
     try {
         for (const rule of legacyRules) {

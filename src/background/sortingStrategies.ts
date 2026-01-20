@@ -1,5 +1,6 @@
 import { SortingStrategy, TabMetadata, CustomStrategy, SortingRule } from "../shared/types.js";
 import { domainFromUrl, semanticBucket, navigationKey, groupingKey, getFieldValue, getCustomStrategies } from "./groupingStrategies.js";
+import { logDebug } from "./logger.js";
 
 export const recencyScore = (tab: TabMetadata) => tab.lastAccessed ?? 0;
 export const hierarchyScore = (tab: TabMetadata) => (tab.openerTabId !== undefined ? 1 : 0);
@@ -20,7 +21,10 @@ export const compareBy = (strategy: SortingStrategy | string, a: TabMetadata, b:
   // 1. Check Custom Strategies for Sorting Rules
   const customStrats = getCustomStrategies();
   const custom = customStrats.find(s => s.id === strategy);
-  if (custom && custom.sortingRules && Array.isArray(custom.sortingRules) && custom.sortingRules.length > 0) {
+  if (custom && custom.sortingRules) {
+      if (!Array.isArray(custom.sortingRules)) {
+        logDebug("CompareBy: custom.sortingRules is not an array", { id: custom.id, type: typeof custom.sortingRules });
+      } else if (custom.sortingRules.length > 0) {
       // Evaluate custom sorting rules in order
       for (const rule of custom.sortingRules) {
           const valA = getFieldValue(a, rule.field);
@@ -36,6 +40,7 @@ export const compareBy = (strategy: SortingStrategy | string, a: TabMetadata, b:
       }
       // If all rules equal, continue to next strategy (return 0)
       return 0;
+    }
   }
 
   // 2. Built-in or fallback
