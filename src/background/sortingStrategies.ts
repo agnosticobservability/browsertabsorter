@@ -26,17 +26,21 @@ export const compareBy = (strategy: SortingStrategy | string, a: TabMetadata, b:
         logDebug("CompareBy: custom.sortingRules is not an array", { id: custom.id, type: typeof custom.sortingRules });
       } else if (custom.sortingRules.length > 0) {
       // Evaluate custom sorting rules in order
-      for (const rule of custom.sortingRules) {
-          const valA = getFieldValue(a, rule.field);
-          const valB = getFieldValue(b, rule.field);
+      try {
+          for (const rule of custom.sortingRules) {
+              const valA = getFieldValue(a, rule.field);
+              const valB = getFieldValue(b, rule.field);
 
-          let result = 0;
-          if (valA < valB) result = -1;
-          else if (valA > valB) result = 1;
+              let result = 0;
+              if (valA < valB) result = -1;
+              else if (valA > valB) result = 1;
 
-          if (result !== 0) {
-              return rule.order === 'desc' ? -result : result;
+              if (result !== 0) {
+                  return rule.order === 'desc' ? -result : result;
+              }
           }
+      } catch (e) {
+          logDebug("Error evaluating custom sorting rules", { error: String(e) });
       }
       // If all rules equal, continue to next strategy (return 0)
       return 0;
