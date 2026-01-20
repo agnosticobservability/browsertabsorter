@@ -931,6 +931,7 @@ function getBuilderStrategy(): CustomStrategy | null {
 function runBuilderSimulation() {
     const strat = getBuilderStrategy();
     const resultContainer = document.getElementById('builder-results');
+    const newStatePanel = document.getElementById('new-state-panel');
 
     // For simulation, we can mock an ID/Label if missing
     const simStrat: CustomStrategy = strat || {
@@ -949,7 +950,10 @@ function runBuilderSimulation() {
         }
     }
 
-    if (!resultContainer) return;
+    if (!resultContainer || !newStatePanel) return;
+
+    // Show the panel
+    newStatePanel.style.display = 'flex';
 
     // Update localCustomStrategies temporarily for Sim
     const originalStrategies = [...localCustomStrategies];
@@ -985,15 +989,18 @@ function runBuilderSimulation() {
     }
 
     resultContainer.innerHTML = groups.map(group => `
-    <div class="group-result">
-      <div class="group-header" style="border-left: 5px solid ${group.color}">
+    <div class="group-result" style="margin-bottom: 10px; border: 1px solid #ddd; border-radius: 4px; overflow: hidden;">
+      <div class="group-header" style="border-left: 5px solid ${group.color}; padding: 5px; background: #f8f9fa; font-size: 0.9em; font-weight: bold; display: flex; justify-content: space-between;">
         <span>${escapeHtml(group.label || 'Ungrouped')}</span>
-        <span class="group-meta">${group.tabs.length} tabs</span>
+        <span class="group-meta" style="font-weight: normal; font-size: 0.8em; color: #666;">${group.tabs.length}</span>
       </div>
-      <ul class="group-tabs">
+      <ul class="group-tabs" style="list-style: none; margin: 0; padding: 0;">
         ${group.tabs.map(tab => `
-          <li class="group-tab-item">
-            <span class="title-cell" title="${escapeHtml(tab.title)}">${escapeHtml(tab.title)}</span>
+          <li class="group-tab-item" style="padding: 4px 5px; border-top: 1px solid #eee; display: flex; gap: 5px; align-items: center; font-size: 0.85em;">
+            <div style="width: 12px; height: 12px; background: #eee; border-radius: 2px; flex-shrink: 0;">
+                ${tab.favIconUrl ? `<img src="${tab.favIconUrl}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.style.display='none'">` : ''}
+            </div>
+            <span class="title-cell" title="${escapeHtml(tab.title)}" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(tab.title)}</span>
           </li>
         `).join('')}
       </ul>
