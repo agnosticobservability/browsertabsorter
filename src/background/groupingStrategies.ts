@@ -298,43 +298,47 @@ export const groupingKey = (tab: TabMetadata, strategy: GroupingStrategy | strin
              logDebug("GroupingKey: custom.groupingRules is not an array", { id: custom.id, type: typeof custom.groupingRules });
         } else if (custom.groupingRules.length > 0) {
           const parts: string[] = [];
-          for (const rule of custom.groupingRules) {
-              let val = "";
-              if (rule.source === 'field') {
-                   const raw = getFieldValue(tab, rule.value);
-                   val = raw !== undefined && raw !== null ? String(raw) : "";
-              } else {
-                   val = rule.value;
-              }
+          try {
+            for (const rule of custom.groupingRules) {
+                let val = "";
+                if (rule.source === 'field') {
+                     const raw = getFieldValue(tab, rule.value);
+                     val = raw !== undefined && raw !== null ? String(raw) : "";
+                } else {
+                     val = rule.value;
+                }
 
-              // Apply Transformation
-              if (val && rule.transform && rule.transform !== 'none') {
-                  switch (rule.transform) {
-                      case 'stripTld':
-                          val = stripTld(val);
-                          break;
-                      case 'lowercase':
-                          val = val.toLowerCase();
-                          break;
-                      case 'uppercase':
-                          val = val.toUpperCase();
-                          break;
-                      case 'firstChar':
-                          val = val.charAt(0);
-                          break;
-                      case 'domain':
-                          // Assumes val is a URL
-                          val = domainFromUrl(val);
-                          break;
-                      case 'hostname':
-                          try {
-                            val = new URL(val).hostname;
-                          } catch { /* keep as is */ }
-                          break;
-                  }
-              }
+                // Apply Transformation
+                if (val && rule.transform && rule.transform !== 'none') {
+                    switch (rule.transform) {
+                        case 'stripTld':
+                            val = stripTld(val);
+                            break;
+                        case 'lowercase':
+                            val = val.toLowerCase();
+                            break;
+                        case 'uppercase':
+                            val = val.toUpperCase();
+                            break;
+                        case 'firstChar':
+                            val = val.charAt(0);
+                            break;
+                        case 'domain':
+                            // Assumes val is a URL
+                            val = domainFromUrl(val);
+                            break;
+                        case 'hostname':
+                            try {
+                              val = new URL(val).hostname;
+                            } catch { /* keep as is */ }
+                            break;
+                    }
+                }
 
-              if (val) parts.push(val);
+                if (val) parts.push(val);
+            }
+          } catch (e) {
+             logDebug("Error applying grouping rules", { error: String(e) });
           }
 
           if (parts.length > 0) {
