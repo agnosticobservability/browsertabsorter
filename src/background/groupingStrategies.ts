@@ -56,6 +56,7 @@ export const getFieldValue = (tab: TabMetadata, field: string): any => {
         case 'url': return tab.url;
         case 'status': return tab.status;
         case 'active': return tab.active;
+        case 'selected': return tab.selected;
         case 'pinned': return tab.pinned;
         case 'openerTabId': return tab.openerTabId;
         case 'lastAccessed': return tab.lastAccessed;

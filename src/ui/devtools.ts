@@ -34,6 +34,7 @@ let currentContextMap = new Map<number, ContextResult>();
 let tabTitles = new Map<number, string>();
 let sortKey: string | null = null;
 let sortDirection: 'asc' | 'desc' = 'asc';
+let simulatedSelection = new Set<number>();
 
 // Modern Table State
 let globalSearchQuery = '';
@@ -431,6 +432,7 @@ const FIELD_OPTIONS = `
                     <option value="windowId">Window ID</option>
                     <option value="groupId">Group ID</option>
                     <option value="active">Active</option>
+                    <option value="selected">Selected</option>
                     <option value="pinned">Pinned</option>
                     <option value="status">Status</option>
                     <option value="openerTabId">Opener ID</option>
@@ -515,6 +517,58 @@ function initStrategyBuilder() {
     renderLiveView();
     const refreshLiveBtn = document.getElementById('refresh-live-view-btn');
     if (refreshLiveBtn) refreshLiveBtn.addEventListener('click', renderLiveView);
+
+    const liveContainer = document.getElementById('live-view-container');
+    if (liveContainer) {
+        liveContainer.addEventListener('click', (e) => {
+            const target = e.target as HTMLElement;
+            const item = target.closest('.selectable-item') as HTMLElement;
+            if (!item) return;
+
+            const type = item.dataset.type;
+            const id = Number(item.dataset.id);
+            if (!type || isNaN(id)) return;
+
+            if (type === 'tab') {
+                if (simulatedSelection.has(id)) simulatedSelection.delete(id);
+                else simulatedSelection.add(id);
+            } else if (type === 'group') {
+                // Toggle all tabs in group
+                // We need to know which tabs are in the group.
+                // We can find them in DOM or refetch. DOM is easier.
+                // Or better, logic in renderLiveView handles rendering, here we handle data.
+                // Let's rely on DOM structure or re-query.
+                // Re-querying is robust.
+                chrome.tabs.query({}).then(tabs => {
+                   const groupTabs = tabs.filter(t => t.groupId === id);
+                   const allSelected = groupTabs.every(t => t.id && simulatedSelection.has(t.id));
+                   groupTabs.forEach(t => {
+                       if (t.id) {
+                           if (allSelected) simulatedSelection.delete(t.id);
+                           else simulatedSelection.add(t.id);
+                       }
+                   });
+                   renderLiveView();
+                });
+                return; // async update
+            } else if (type === 'window') {
+                chrome.tabs.query({}).then(tabs => {
+                   const winTabs = tabs.filter(t => t.windowId === id);
+                   const allSelected = winTabs.every(t => t.id && simulatedSelection.has(t.id));
+                   winTabs.forEach(t => {
+                       if (t.id) {
+                           if (allSelected) simulatedSelection.delete(t.id);
+                           else simulatedSelection.add(t.id);
+                       }
+                   });
+                   renderLiveView();
+                });
+                return; // async update
+            }
+
+            renderLiveView();
+        });
+    }
 }
 
 function addFilterGroupRow(conditions?: RuleCondition[]) {
@@ -970,6 +1024,14 @@ function runBuilderSimulation() {
     // Run Logic
     let tabs = getMappedTabs();
 
+    // Apply Simulated Selection Override
+    if (simulatedSelection.size > 0) {
+        tabs = tabs.map(t => ({
+            ...t,
+            selected: simulatedSelection.has(t.id)
+        }));
+    }
+
     // Sort using this strategy?
     // sortTabs expects SortingStrategy[].
     // If we use this strategy for sorting...
@@ -1365,7 +1427,8 @@ function getMappedTabs(): TabMetadata[] {
         contextData: contextResult?.data,
         index: tab.index,
         active: tab.active,
-        status: tab.status
+        status: tab.status,
+        selected: tab.highlighted
       };
     });
 }
@@ -1924,9 +1987,6 @@ async function renderLiveView() {
     const container = document.getElementById('live-view-container');
     if (!container) return;
 
-    // We can use fetchCurrentTabGroups from tabManager logic, but that is backend code.
-    // In frontend, we should use chrome.tabs and chrome.tabGroups.
-
     try {
         const tabs = await chrome.tabs.query({});
         const groups = await chrome.tabGroups.query({});
@@ -1935,13 +1995,14 @@ async function renderLiveView() {
         const windows = new Set(tabs.map(t => t.windowId));
         const windowIds = Array.from(windows).sort((a, b) => a - b);
 
-        let html = '';
+        let html = '<div style="font-size: 0.9em; color: #666; margin-bottom: 10px;">Select items below to simulate specific selection states.</div>';
 
         for (const winId of windowIds) {
-            html += `<div style="margin-bottom: 15px;">`;
-            html += `<div style="font-weight: bold; padding: 5px; background: #eee; border-radius: 4px;">Window ${winId}</div>`;
-
             const winTabs = tabs.filter(t => t.windowId === winId);
+            const winSelected = winTabs.every(t => t.id && simulatedSelection.has(t.id));
+
+            html += `<div class="selectable-item ${winSelected ? 'selected' : ''}" data-type="window" data-id="${winId}" style="margin-bottom: 15px; border-radius: 4px; padding: 5px;">`;
+            html += `<div style="font-weight: bold;">Window ${winId}</div>`;
 
             // Organize by group
             const winGroups = new Map<number, chrome.tabs.Tab[]>();
@@ -1961,7 +2022,8 @@ async function renderLiveView() {
                  html += `<div style="margin-left: 10px; margin-top: 5px;">`;
                  html += `<div style="font-size: 0.9em; color: #555;">Ungrouped (${ungrouped.length})</div>`;
                  ungrouped.forEach(t => {
-                     html += `<div style="margin-left: 10px; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">- ${escapeHtml(t.title || 'Untitled')}</div>`;
+                     const isSelected = t.id && simulatedSelection.has(t.id);
+                     html += `<div class="selectable-item ${isSelected ? 'selected' : ''}" data-type="tab" data-id="${t.id}" style="margin-left: 10px; padding: 2px 5px; border-radius: 3px; cursor: pointer; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">- ${escapeHtml(t.title || 'Untitled')}</div>`;
                  });
                  html += `</div>`;
             }
@@ -1971,11 +2033,13 @@ async function renderLiveView() {
                 const groupInfo = groupMap.get(groupId);
                 const color = groupInfo?.color || 'grey';
                 const title = groupInfo?.title || 'Untitled Group';
+                const groupSelected = gTabs.every(t => t.id && simulatedSelection.has(t.id));
 
-                html += `<div style="margin-left: 10px; margin-top: 5px; border-left: 3px solid ${color}; padding-left: 5px;">`;
+                html += `<div class="selectable-item ${groupSelected ? 'selected' : ''}" data-type="group" data-id="${groupId}" style="margin-left: 10px; margin-top: 5px; border-left: 3px solid ${color}; padding-left: 5px; padding: 5px; border-radius: 3px;">`;
                 html += `<div style="font-weight: bold; font-size: 0.9em;">${escapeHtml(title)} (${gTabs.length})</div>`;
                 gTabs.forEach(t => {
-                     html += `<div style="margin-left: 10px; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">- ${escapeHtml(t.title || 'Untitled')}</div>`;
+                     const isSelected = t.id && simulatedSelection.has(t.id);
+                     html += `<div class="selectable-item ${isSelected ? 'selected' : ''}" data-type="tab" data-id="${t.id}" style="margin-left: 10px; padding: 2px 5px; border-radius: 3px; cursor: pointer; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">- ${escapeHtml(t.title || 'Untitled')}</div>`;
                 });
                 html += `</div>`;
             }

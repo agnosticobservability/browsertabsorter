@@ -19,7 +19,8 @@ const mapChromeTab = (tab: chrome.tabs.Tab): TabMetadata | null => {
     groupId: tab.groupId,
     index: tab.index,
     active: tab.active,
-    status: tab.status
+    status: tab.status,
+    selected: tab.highlighted
   };
 };
 
