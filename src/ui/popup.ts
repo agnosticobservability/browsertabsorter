@@ -551,6 +551,10 @@ const loadState = async () => {
     if (stateResult.status !== "fulfilled" || !stateResult.value || !stateResult.value.ok || !stateResult.value.data) {
       const error = stateResult.status === "rejected" ? stateResult.reason : stateResult.value?.error;
       console.error("Failed to load state:", error ?? "Unknown error");
+      windowsContainer.innerHTML = `<div class="error-state" style="padding: 20px; color: var(--error-color, red); text-align: center;">
+          Failed to load tabs: ${error ?? "Unknown error"}.<br>
+          Please reload the extension or check permissions.
+      </div>`;
       return;
     }
 

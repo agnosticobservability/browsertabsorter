@@ -9,6 +9,7 @@ import {
   TabGroup,
   TabMetadata
 } from "../shared/types.js";
+import { fetchLocalState } from "./localState.js";
 
 export const sendMessage = async <TData>(type: RuntimeMessage["type"], payload?: any): Promise<RuntimeResponse<TData>> => {
   return new Promise((resolve) => {
@@ -64,7 +65,17 @@ export const GROUP_COLORS: Record<string, string> = {
 export const getGroupColor = (name: string) => GROUP_COLORS[name] || "#cbd5e1";
 
 export const fetchState = async () => {
-  return sendMessage<{ groups: TabGroup[]; preferences: Preferences }>("getState");
+  try {
+    const response = await sendMessage<{ groups: TabGroup[]; preferences: Preferences }>("getState");
+    if (response.ok && response.data) {
+      return response;
+    }
+    console.warn("fetchState failed, using fallback:", response.error);
+    return await fetchLocalState();
+  } catch (e) {
+    console.warn("fetchState threw exception, using fallback:", e);
+    return await fetchLocalState();
+  }
 };
 
 export const applyGrouping = async (payload: ApplyGroupingPayload) => {
