@@ -4,25 +4,7 @@ import { analyzeTabContext } from "./contextAnalysis.js";
 import { logDebug, logError, logInfo } from "./logger.js";
 import { GroupingSelection, Preferences, TabGroup, TabMetadata, SortingRule } from "../shared/types.js";
 import { getStoredValue, setStoredValue } from "./storage.js";
-
-export const mapChromeTab = (tab: chrome.tabs.Tab): TabMetadata | null => {
-  if (!tab.id || !tab.windowId) return null;
-  return {
-    id: tab.id,
-    windowId: tab.windowId,
-    title: tab.title || "Untitled",
-    url: tab.url || "about:blank",
-    pinned: Boolean(tab.pinned),
-    lastAccessed: tab.lastAccessed,
-    openerTabId: tab.openerTabId ?? undefined,
-    favIconUrl: tab.favIconUrl,
-    groupId: tab.groupId,
-    index: tab.index,
-    active: tab.active,
-    status: tab.status,
-    selected: tab.highlighted
-  };
-};
+import { mapChromeTab } from "../shared/utils.js";
 
 export const fetchCurrentTabGroups = async (
   preferences: Preferences
