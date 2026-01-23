@@ -460,6 +460,18 @@ const FIELD_OPTIONS = `
                     <option value="contextData.isAuthenticatedLikely">Authenticated</option>
                 </optgroup>`;
 
+const OPERATOR_OPTIONS = `
+                <option value="contains">contains</option>
+                <option value="doesNotContain">does not contain</option>
+                <option value="matches">matches regex</option>
+                <option value="equals">equals</option>
+                <option value="startsWith">starts with</option>
+                <option value="endsWith">ends with</option>
+                <option value="exists">exists</option>
+                <option value="doesNotExist">does not exist</option>
+                <option value="isNull">is null</option>
+                <option value="isNotNull">is not null</option>`;
+
 function initStrategyBuilder() {
     const addFilterGroupBtn = document.getElementById('add-filter-group-btn');
     const addGroupBtn = document.getElementById('add-group-btn');
@@ -612,36 +624,72 @@ function addFilterGroupRow(conditions?: RuleCondition[]) {
             <select class="field-select">
                 ${FIELD_OPTIONS}
             </select>
-            <select class="operator-select">
-                <option value="contains">contains</option>
-                <option value="doesNotContain">does not contain</option>
-                <option value="matches">matches regex</option>
-                <option value="equals">equals</option>
-                <option value="startsWith">starts with</option>
-                <option value="endsWith">ends with</option>
-                <option value="exists">exists</option>
-                <option value="doesNotExist">does not exist</option>
-                <option value="isNull">is null</option>
-                <option value="isNotNull">is not null</option>
-            </select>
-            <input type="text" class="value-input" placeholder="Value">
+            <span class="operator-container">
+                <select class="operator-select">
+                    ${OPERATOR_OPTIONS}
+                </select>
+            </span>
+            <span class="value-container">
+                <input type="text" class="value-input" placeholder="Value">
+            </span>
             <button class="small-btn btn-del-condition" style="background: none; border: none; color: red;">&times;</button>
         `;
 
+        const fieldSelect = div.querySelector('.field-select') as HTMLSelectElement;
+        const operatorContainer = div.querySelector('.operator-container') as HTMLElement;
+        const valueContainer = div.querySelector('.value-container') as HTMLElement;
+
+        const updateState = (initialOp?: string, initialVal?: string) => {
+            const val = fieldSelect.value;
+            // Handle boolean fields
+            if (['selected', 'pinned'].includes(val)) {
+                operatorContainer.innerHTML = `<select class="operator-select" disabled style="background: #eee; color: #555;"><option value="equals">is</option></select>`;
+                valueContainer.innerHTML = `
+                    <select class="value-input">
+                        <option value="true">True</option>
+                        <option value="false">False</option>
+                    </select>
+                `;
+            } else {
+                // Check if already in standard mode to avoid unnecessary DOM thrashing
+                if (!operatorContainer.querySelector('select:not([disabled])')) {
+                    operatorContainer.innerHTML = `<select class="operator-select">${OPERATOR_OPTIONS}</select>`;
+                    valueContainer.innerHTML = `<input type="text" class="value-input" placeholder="Value">`;
+                }
+            }
+
+            // Restore values if provided (especially when switching back or initializing)
+            if (initialOp || initialVal) {
+                 const opEl = div.querySelector('.operator-select') as HTMLInputElement | HTMLSelectElement;
+                 const valEl = div.querySelector('.value-input') as HTMLInputElement | HTMLSelectElement;
+                 if (opEl && initialOp) opEl.value = initialOp;
+                 if (valEl && initialVal) valEl.value = initialVal;
+            }
+
+            // Re-attach listeners to new elements
+            div.querySelectorAll('input, select').forEach(el => {
+                el.removeEventListener('change', updateBreadcrumb);
+                el.removeEventListener('input', updateBreadcrumb);
+                el.addEventListener('change', updateBreadcrumb);
+                el.addEventListener('input', updateBreadcrumb);
+            });
+        };
+
+        fieldSelect.addEventListener('change', () => {
+            updateState();
+            updateBreadcrumb();
+        });
+
         if (data) {
-            (div.querySelector('.field-select') as HTMLSelectElement).value = data.field;
-            (div.querySelector('.operator-select') as HTMLSelectElement).value = data.operator;
-            (div.querySelector('.value-input') as HTMLInputElement).value = data.value;
+            fieldSelect.value = data.field;
+            updateState(data.operator, data.value);
+        } else {
+            updateState();
         }
 
         div.querySelector('.btn-del-condition')?.addEventListener('click', () => {
             div.remove();
             updateBreadcrumb();
-        });
-
-        div.querySelectorAll('input, select').forEach(el => {
-            el.addEventListener('change', updateBreadcrumb);
-            el.addEventListener('input', updateBreadcrumb);
         });
 
         conditionsContainer.appendChild(div);
