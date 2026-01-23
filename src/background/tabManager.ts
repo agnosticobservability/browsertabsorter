@@ -5,13 +5,13 @@ import { logDebug, logError, logInfo } from "./logger.js";
 import { GroupingSelection, Preferences, TabGroup, TabMetadata, SortingRule } from "../shared/types.js";
 import { getStoredValue, setStoredValue } from "./storage.js";
 
-const mapChromeTab = (tab: chrome.tabs.Tab): TabMetadata | null => {
-  if (!tab.id || !tab.windowId || !tab.url || !tab.title) return null;
+export const mapChromeTab = (tab: chrome.tabs.Tab): TabMetadata | null => {
+  if (!tab.id || !tab.windowId) return null;
   return {
     id: tab.id,
     windowId: tab.windowId,
-    title: tab.title,
-    url: tab.url,
+    title: tab.title || "Untitled",
+    url: tab.url || "about:blank",
     pinned: Boolean(tab.pinned),
     lastAccessed: tab.lastAccessed,
     openerTabId: tab.openerTabId ?? undefined,
