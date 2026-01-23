@@ -256,6 +256,22 @@ tr.selected {
     background-color: #e2e6ea;
 }
 
+.selectable-item {
+    cursor: pointer;
+    transition: background-color 0.2s;
+    border: 1px solid transparent;
+}
+
+.selectable-item:hover {
+    background-color: #e2e6ea;
+}
+
+.selectable-item.selected {
+    background-color: #d1ecf1;
+    border-color: #bee5eb;
+    color: #0c5460;
+}
+
 /* Cell content specific styles */
 .url-cell {
   color: #0066cc;
