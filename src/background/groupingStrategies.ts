@@ -1,5 +1,5 @@
 import { GroupingStrategy, SortingStrategy, TabGroup, TabMetadata, CustomStrategy, StrategyRule, RuleCondition, GroupingRule } from "../shared/types.js";
-import { getStrategies, getStrategy } from "../shared/strategyRegistry.js";
+import { getStrategies } from "../shared/strategyRegistry.js";
 import { logDebug } from "./logger.js";
 
 let customStrategies: CustomStrategy[] = [];
@@ -29,15 +29,8 @@ export const subdomainFromUrl = (url: string): string => {
         // Remove www.
         hostname = hostname.replace(/^www\./, "");
 
-        // Simple logic: everything before the last two parts is subdomain?
-        // e.g. docs.google.com -> docs
-        // api.staging.example.com -> api.staging
-        // google.com -> (empty)
-
         const parts = hostname.split('.');
         if (parts.length > 2) {
-             // Return everything except the last two parts
-             // This is naive and fails for co.uk etc, but matches existing simplistic logic in stripTld
              return parts.slice(0, parts.length - 2).join('.');
         }
         return "";
@@ -124,22 +117,18 @@ const getLabelComponent = (strategy: GroupingStrategy | string, tabs: TabMetadat
   // Check custom strategies first
   const custom = customStrategies.find(s => s.id === strategy);
   if (custom) {
-      // Use groupingKey logic which now handles the new structure
       return groupingKey(firstTab, strategy);
   }
 
   switch (strategy) {
     case "domain": {
-      // Try to find a common siteName
       const siteNames = new Set(tabs.map(t => t.contextData?.siteName).filter(Boolean));
       if (siteNames.size === 1) {
         return stripTld(Array.from(siteNames)[0] as string);
       }
-      // If mixed or missing, fall back to domain
       return stripTld(domainFromUrl(firstTab.url));
     }
     case "domain_full":
-      // Return full domain (no TLD stripping)
       return domainFromUrl(firstTab.url);
     case "topic":
       return semanticBucket(firstTab.title, firstTab.url);
@@ -147,7 +136,6 @@ const getLabelComponent = (strategy: GroupingStrategy | string, tabs: TabMetadat
       if (firstTab.openerTabId !== undefined) {
         const parent = allTabsMap.get(firstTab.openerTabId);
         if (parent) {
-          // Truncate parent title if too long
           const parentTitle = parent.title.length > 20 ? parent.title.substring(0, 20) + "..." : parent.title;
           return `From: ${parentTitle}`;
         }
@@ -155,21 +143,18 @@ const getLabelComponent = (strategy: GroupingStrategy | string, tabs: TabMetadat
       }
       return `Window ${firstTab.windowId}`;
     case "context":
-      // Using context directly as label
       return firstTab.context || "Uncategorized";
     case "pinned":
       return firstTab.pinned ? "Pinned" : "Unpinned";
     case "age":
       return getRecencyLabel(firstTab.lastAccessed ?? 0);
-    // For sorting-oriented strategies, we provide a generic label or fallback
     case "url":
-      return "URL Group"; // Grouping by full URL is rarely useful, usually 1 tab per group
+      return "URL Group";
     case "recency":
       return "Time Group";
     case "nesting":
       return firstTab.openerTabId !== undefined ? "Children" : "Roots";
     default:
-      // Check if it's a generic field
       const val = getFieldValue(firstTab, strategy);
       if (val !== undefined && val !== null) {
           return String(val);
@@ -195,9 +180,6 @@ const getStrategyColor = (strategyId: string): string | undefined => {
     const custom = customStrategies.find(s => s.id === strategyId);
     if (!custom || !custom.groupingRules) return undefined;
 
-    // Check if any rule has a specific color
-    // We prioritize the last rule that has a color? Or the first?
-    // Let's take the last one as it's the most specific "sub-group" usually.
     for (let i = custom.groupingRules.length - 1; i >= 0; i--) {
         const rule = custom.groupingRules[i];
         if (rule.color && rule.color !== 'random') {
@@ -211,17 +193,22 @@ export const groupTabs = (
   tabs: TabMetadata[],
   strategies: (SortingStrategy | string)[]
 ): TabGroup[] => {
-  // Use getStrategies to check grouping capability dynamically
   const availableStrategies = getStrategies(customStrategies);
   const effectiveStrategies = strategies.filter(s => availableStrategies.find(avail => avail.id === s)?.isGrouping);
   const buckets = new Map<string, TabGroup>();
 
-  // Create a map of all tabs for easy lookup (needed for navigation parent title resolution)
   const allTabsMap = new Map<number, TabMetadata>();
   tabs.forEach(t => allTabsMap.set(t.id, t));
 
   tabs.forEach((tab) => {
-    const keys = effectiveStrategies.map(s => groupingKey(tab, s));
+    let keys: string[] = [];
+    try {
+        keys = effectiveStrategies.map(s => groupingKey(tab, s));
+    } catch (e) {
+        logDebug("Error generating grouping key", { tabId: tab.id, error: String(e) });
+        keys = ["Error"];
+    }
+
     const bucketKey = `window-${tab.windowId}::` + keys.join("::");
 
     let group = buckets.get(bucketKey);
@@ -239,7 +226,7 @@ export const groupTabs = (
       group = {
         id: bucketKey,
         windowId: tab.windowId,
-        label: "", // Will be set later
+        label: "",
         color: groupColor,
         tabs: [],
         reason: effectiveStrategies.join(" + ")
@@ -249,7 +236,6 @@ export const groupTabs = (
     group.tabs.push(tab);
   });
 
-  // After populating buckets, generate labels
   const groups = Array.from(buckets.values());
   groups.forEach(group => {
     group.label = generateLabel(effectiveStrategies, group.tabs, allTabsMap);
@@ -281,11 +267,62 @@ export const checkCondition = (condition: RuleCondition, tab: TabMetadata): bool
     }
 };
 
+function evaluateLegacyRules(legacyRules: StrategyRule[], tab: TabMetadata): string | null {
+    if (!legacyRules) return null;
+    if (!Array.isArray(legacyRules)) {
+        logDebug("EvaluateLegacyRules: rules is not an array", { type: typeof legacyRules });
+        return null;
+    }
+
+    try {
+        for (const rule of legacyRules) {
+            if (!rule) continue;
+            const rawValue = getFieldValue(tab, rule.field);
+            let valueToCheck = rawValue !== undefined && rawValue !== null ? String(rawValue) : "";
+            valueToCheck = valueToCheck.toLowerCase();
+            const pattern = rule.value.toLowerCase();
+
+            let isMatch = false;
+            let matchObj: RegExpExecArray | null = null;
+
+            switch (rule.operator) {
+                case 'contains': isMatch = valueToCheck.includes(pattern); break;
+                case 'doesNotContain': isMatch = !valueToCheck.includes(pattern); break;
+                case 'equals': isMatch = valueToCheck === pattern; break;
+                case 'startsWith': isMatch = valueToCheck.startsWith(pattern); break;
+                case 'endsWith': isMatch = valueToCheck.endsWith(pattern); break;
+                case 'exists': isMatch = rawValue !== undefined; break;
+                case 'doesNotExist': isMatch = rawValue === undefined; break;
+                case 'isNull': isMatch = rawValue === null; break;
+                case 'isNotNull': isMatch = rawValue !== null; break;
+                case 'matches':
+                    try {
+                        const regex = new RegExp(rule.value, 'i');
+                        matchObj = regex.exec(rawValue !== undefined && rawValue !== null ? String(rawValue) : "");
+                        isMatch = !!matchObj;
+                    } catch (e) {}
+                    break;
+            }
+
+            if (isMatch) {
+                let result = rule.result;
+                if (matchObj) {
+                    for (let i = 1; i < matchObj.length; i++) {
+                         result = result.replace(new RegExp(`\\$${i}`, 'g'), matchObj[i] || "");
+                    }
+                }
+                return result;
+            }
+        }
+    } catch (error) {
+        logDebug("Error evaluating legacy rules", { error: String(error) });
+    }
+    return null;
+}
+
 export const groupingKey = (tab: TabMetadata, strategy: GroupingStrategy | string): string => {
-  // 1. Check Custom Strategies (Override built-in if ID matches)
   const custom = customStrategies.find(s => s.id === strategy);
   if (custom) {
-      // 1. Check Filters (ALL must be met)
       if (custom.filters && custom.filters.length > 0) {
           const allPass = custom.filters.every(filter => checkCondition(filter, tab));
           if (!allPass) {
@@ -293,7 +330,6 @@ export const groupingKey = (tab: TabMetadata, strategy: GroupingStrategy | strin
           }
       }
 
-      // 2. Apply Grouping Rules (New Logic)
       if (custom.groupingRules) {
         if (!Array.isArray(custom.groupingRules)) {
              logDebug("GroupingKey: custom.groupingRules is not an array", { id: custom.id, type: typeof custom.groupingRules });
@@ -309,7 +345,6 @@ export const groupingKey = (tab: TabMetadata, strategy: GroupingStrategy | strin
                      val = rule.value;
                 }
 
-                // Apply Transformation
                 if (val && rule.transform && rule.transform !== 'none') {
                     switch (rule.transform) {
                         case 'stripTld':
@@ -325,7 +360,6 @@ export const groupingKey = (tab: TabMetadata, strategy: GroupingStrategy | strin
                             val = val.charAt(0);
                             break;
                         case 'domain':
-                            // Assumes val is a URL
                             val = domainFromUrl(val);
                             break;
                         case 'hostname':
@@ -345,21 +379,19 @@ export const groupingKey = (tab: TabMetadata, strategy: GroupingStrategy | strin
           if (parts.length > 0) {
               return parts.join(" - ");
           }
-          // If no rules matched (empty list?), return fallback
           return custom.fallback || "Misc";
         }
-      } else if (custom.rules && Array.isArray(custom.rules)) {
-          // Legacy support (Deprecated)
-          // Use legacy evaluation if necessary, but ideally we migrate.
-          // Since we changed the type definition, custom.rules corresponds to 'rules' prop in CustomStrategy.
-          // We can keep evaluateLegacyRules if we want robust backward compat.
-          return evaluateLegacyRules(custom.rules, tab) || custom.fallback || "Misc";
+      } else if (custom.rules) {
+          if (Array.isArray(custom.rules)) {
+            return evaluateLegacyRules(custom.rules, tab) || custom.fallback || "Misc";
+          } else {
+            logDebug("GroupingKey: custom.rules is not an array", { id: custom.id, type: typeof custom.rules });
+          }
       }
 
       return custom.fallback || "Misc";
   }
 
-  // 2. Built-in Strategies
   switch (strategy) {
     case "domain":
     case "domain_full":
@@ -374,7 +406,6 @@ export const groupingKey = (tab: TabMetadata, strategy: GroupingStrategy | strin
       return tab.pinned ? "pinned" : "unpinned";
     case "age":
       return getRecencyLabel(tab.lastAccessed ?? 0);
-    // Exact match strategies
     case "url":
       return tab.url;
     case "title":
@@ -384,64 +415,10 @@ export const groupingKey = (tab: TabMetadata, strategy: GroupingStrategy | strin
     case "nesting":
       return tab.openerTabId !== undefined ? "child" : "root";
     default:
-        // Generic field fallback
         const val = getFieldValue(tab, strategy);
         if (val !== undefined && val !== null) {
             return String(val);
         }
         return "Unknown";
   }
-};
-
-
-const evaluateLegacyRules = (legacyRules: StrategyRule[], tab: TabMetadata): string | null => {
-    if (!legacyRules) return null;
-    if (!Array.isArray(legacyRules)) {
-        logDebug("EvaluateLegacyRules: rules is not an array", { type: typeof legacyRules });
-        return null;
-    }
-
-    try {
-        for (const rule of legacyRules) {
-            const rawValue = getFieldValue(tab, rule.field);
-            let valueToCheck = rawValue !== undefined && rawValue !== null ? String(rawValue) : "";
-        valueToCheck = valueToCheck.toLowerCase();
-        const pattern = rule.value.toLowerCase();
-
-        let isMatch = false;
-        let matchObj: RegExpExecArray | null = null;
-
-        switch (rule.operator) {
-            case 'contains': isMatch = valueToCheck.includes(pattern); break;
-            case 'doesNotContain': isMatch = !valueToCheck.includes(pattern); break;
-            case 'equals': isMatch = valueToCheck === pattern; break;
-            case 'startsWith': isMatch = valueToCheck.startsWith(pattern); break;
-            case 'endsWith': isMatch = valueToCheck.endsWith(pattern); break;
-            case 'exists': isMatch = rawValue !== undefined; break;
-            case 'doesNotExist': isMatch = rawValue === undefined; break;
-            case 'isNull': isMatch = rawValue === null; break;
-            case 'isNotNull': isMatch = rawValue !== null; break;
-            case 'matches':
-                try {
-                    const regex = new RegExp(rule.value, 'i');
-                    matchObj = regex.exec(rawValue !== undefined && rawValue !== null ? String(rawValue) : "");
-                    isMatch = !!matchObj;
-                } catch (e) {}
-                break;
-        }
-
-            if (isMatch) {
-                let result = rule.result;
-                if (matchObj) {
-                    for (let i = 1; i < matchObj.length; i++) {
-                         result = result.replace(new RegExp(`\\$${i}`, 'g'), matchObj[i] || "");
-                    }
-                }
-                return result;
-            }
-        }
-    } catch (error) {
-        logDebug("Error evaluating legacy rules", { error: String(error) });
-    }
-    return null;
 };
