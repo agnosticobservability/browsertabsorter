@@ -5,23 +5,24 @@ export interface StrategyDefinition {
     label: string;
     isGrouping: boolean;
     isSorting: boolean;
+    tags?: string[];
     autoRun?: boolean;
     isCustom?: boolean;
 }
 
 // Restored strategies matching background capabilities.
 export const STRATEGIES: StrategyDefinition[] = [
-    { id: "domain", label: "Domain", isGrouping: true, isSorting: true },
-    { id: "domain_full", label: "Full Domain", isGrouping: true, isSorting: true },
-    { id: "topic", label: "Topic", isGrouping: true, isSorting: true },
-    { id: "context", label: "Context", isGrouping: true, isSorting: true },
-    { id: "lineage", label: "Lineage", isGrouping: true, isSorting: true },
-    { id: "pinned", label: "Pinned", isGrouping: true, isSorting: true },
-    { id: "recency", label: "Recency", isGrouping: true, isSorting: true },
-    { id: "age", label: "Age", isGrouping: true, isSorting: true },
-    { id: "url", label: "URL", isGrouping: true, isSorting: true },
-    { id: "nesting", label: "Nesting", isGrouping: true, isSorting: true },
-    { id: "title", label: "Title", isGrouping: true, isSorting: true },
+    { id: "domain", label: "Domain", isGrouping: true, isSorting: true, tags: ["group", "sort"] },
+    { id: "domain_full", label: "Full Domain", isGrouping: true, isSorting: true, tags: ["group", "sort"] },
+    { id: "topic", label: "Topic", isGrouping: true, isSorting: true, tags: ["group", "sort"] },
+    { id: "context", label: "Context", isGrouping: true, isSorting: true, tags: ["group", "sort"] },
+    { id: "lineage", label: "Lineage", isGrouping: true, isSorting: true, tags: ["group", "sort"] },
+    { id: "pinned", label: "Pinned", isGrouping: true, isSorting: true, tags: ["group", "sort"] },
+    { id: "recency", label: "Recency", isGrouping: true, isSorting: true, tags: ["group", "sort"] },
+    { id: "age", label: "Age", isGrouping: true, isSorting: true, tags: ["group", "sort"] },
+    { id: "url", label: "URL", isGrouping: true, isSorting: true, tags: ["group", "sort"] },
+    { id: "nesting", label: "Nesting", isGrouping: true, isSorting: true, tags: ["group", "sort"] },
+    { id: "title", label: "Title", isGrouping: true, isSorting: true, tags: ["group", "sort"] },
 ];
 
 export const getStrategies = (customStrategies?: CustomStrategy[]): StrategyDefinition[] => {
@@ -32,11 +33,21 @@ export const getStrategies = (customStrategies?: CustomStrategy[]): StrategyDefi
 
     customStrategies.forEach(custom => {
         const existingIndex = combined.findIndex(s => s.id === custom.id);
+
+        // Determine capabilities based on rules presence
+        const hasGrouping = (custom.groupingRules && custom.groupingRules.length > 0) || (custom.rules && custom.rules.length > 0) || false;
+        const hasSorting = (custom.sortingRules && custom.sortingRules.length > 0) || (custom.rules && custom.rules.length > 0) || false;
+
+        const tags: string[] = [];
+        if (hasGrouping) tags.push("group");
+        if (hasSorting) tags.push("sort");
+
         const definition: StrategyDefinition = {
             id: custom.id,
             label: custom.label,
-            isGrouping: true, // New Custom Strategies are always grouping capable
-            isSorting: true,   // And sorting capable
+            isGrouping: hasGrouping,
+            isSorting: hasSorting,
+            tags: tags,
             autoRun: custom.autoRun,
             isCustom: true
         };
