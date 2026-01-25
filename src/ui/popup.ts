@@ -31,8 +31,7 @@ const btnCollapseAll = document.getElementById("btnCollapseAll") as HTMLButtonEl
 
 const strategiesList = document.getElementById("strategiesList") as HTMLDivElement;
 const toggleStrategies = document.getElementById("toggleStrategies") as HTMLDivElement;
-const groupingListContainer = document.getElementById("grouping-strategies") as HTMLDivElement;
-const sortingListContainer = document.getElementById("sorting-strategies") as HTMLDivElement;
+const allStrategiesContainer = document.getElementById("all-strategies") as HTMLDivElement;
 
 // Stats
 const statTabs = document.getElementById("statTabs") as HTMLElement;
@@ -417,10 +416,18 @@ function renderStrategyList(container: HTMLElement, strategies: StrategyDefiniti
         row.dataset.id = strategy.id;
         row.draggable = true;
 
+        let tagsHtml = '';
+        if (strategy.tags) {
+            strategy.tags.forEach(tag => {
+                tagsHtml += `<span class="tag tag-${tag}">${tag}</span>`;
+            });
+        }
+
         row.innerHTML = `
             <div class="strategy-drag-handle">☰</div>
             <input type="checkbox" ${isChecked ? 'checked' : ''}>
             <span class="strategy-label">${strategy.label}</span>
+            ${tagsHtml}
         `;
 
         if (strategy.isCustom) {
@@ -523,8 +530,7 @@ function setupContainerDnD(container: HTMLElement) {
 }
 
 // Initialize DnD on containers once
-setupContainerDnD(groupingListContainer);
-setupContainerDnD(sortingListContainer);
+setupContainerDnD(allStrategiesContainer);
 
 function getDragAfterElement(container: HTMLElement, y: number) {
   const draggableElements = Array.from(container.querySelectorAll('.strategy-row:not(.dragging)'));
@@ -565,12 +571,8 @@ const loadState = async () => {
 
       const allStrategies = getStrategies(preferences.customStrategies);
 
-      // Render Strategy Lists
-      const groupingStrategies = allStrategies.filter(st => st.isGrouping);
-      renderStrategyList(groupingListContainer, groupingStrategies, s);
-
-      const sortingStrategies = allStrategies.filter(st => st.isSorting);
-      renderStrategyList(sortingListContainer, sortingStrategies, s);
+      // Render unified strategy list
+      renderStrategyList(allStrategiesContainer, allStrategies, s);
 
       // Initial theme load
       if (preferences.theme) {
@@ -615,12 +617,8 @@ const getStrategyIds = (container: HTMLElement): SortingStrategy[] => {
 };
 
 const getSelectedSorting = (): SortingStrategy[] => {
-  const groupingStrats = getStrategyIds(groupingListContainer);
-  const sortingStrats = getStrategyIds(sortingListContainer);
-
-  // Combine: Grouping first, then Sorting (duplicates allowed/handled by backend logic, but let's just concat)
-  // Replicating DevTools logic:
-  return [...groupingStrats, ...sortingStrats];
+  // Use the single unified container
+  return getStrategyIds(allStrategiesContainer);
 };
 
 const triggerGroup = async (selection?: GroupingSelection) => {
