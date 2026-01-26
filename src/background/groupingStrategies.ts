@@ -367,6 +367,28 @@ export const groupingKey = (tab: TabMetadata, strategy: GroupingStrategy | strin
                               val = new URL(val).hostname;
                             } catch { /* keep as is */ }
                             break;
+                        case 'regex':
+                            if (rule.transformPattern) {
+                                try {
+                                    const regex = new RegExp(rule.transformPattern);
+                                    const match = regex.exec(val);
+                                    if (match) {
+                                        let extracted = "";
+                                        for (let i = 1; i < match.length; i++) {
+                                            extracted += match[i] || "";
+                                        }
+                                        val = extracted;
+                                    } else {
+                                        val = "";
+                                    }
+                                } catch (e) {
+                                    logDebug("Invalid regex in transform", { pattern: rule.transformPattern, error: String(e) });
+                                    val = "";
+                                }
+                            } else {
+                                val = "";
+                            }
+                            break;
                     }
                 }
 

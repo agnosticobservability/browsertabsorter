@@ -722,6 +722,7 @@ function addBuilderRow(type: 'group' | 'sort' | 'groupSort', data?: any) {
     div.dataset.type = type;
 
     if (type === 'group') {
+        div.style.flexWrap = 'wrap';
         div.innerHTML = `
             <span class="row-number"></span>
             <select class="source-select">
@@ -746,7 +747,22 @@ function addBuilderRow(type: 'group' | 'sort' | 'groupSort', data?: any) {
                 <option value="lowercase">Lowercase</option>
                 <option value="uppercase">Uppercase</option>
                 <option value="firstChar">First Char</option>
+                <option value="regex">Regex Extraction</option>
             </select>
+
+            <div class="regex-container" style="display:none; flex-basis: 100%; margin-top: 8px; padding: 8px; background: #f8f9fa; border: 1px dashed #ced4da; border-radius: 4px;">
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 5px;">
+                    <span style="font-weight: 500; font-size: 0.9em;">Pattern:</span>
+                    <input type="text" class="transform-pattern" placeholder="e.g. ^(\w+)-(\d+)$" style="flex:1;">
+                    <span title="Captures all groups and concatenates them. If no match, result is empty. Example: 'user-(\d+)' extracts '123' from 'user-123'." style="cursor: help; color: #007bff; font-weight: bold; background: #e7f1ff; width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; font-size: 12px;">?</span>
+                </div>
+                <div style="display: flex; gap: 8px; align-items: center; font-size: 0.9em;">
+                    <span style="font-weight: 500;">Test:</span>
+                    <input type="text" class="regex-test-input" placeholder="Test String" style="flex: 1;">
+                    <span>&rarr;</span>
+                    <span class="regex-test-result" style="font-family: monospace; background: white; padding: 2px 5px; border: 1px solid #ddd; border-radius: 3px; min-width: 60px;">(preview)</span>
+                </div>
+            </div>
 
             <span style="margin-left: 10px;">Color:</span>
             <select class="color-input">
@@ -773,6 +789,54 @@ function addBuilderRow(type: 'group' | 'sort' | 'groupSort', data?: any) {
         const textInput = div.querySelector('.value-input-text') as HTMLElement;
         const colorInput = div.querySelector('.color-input') as HTMLSelectElement;
         const randomCheck = div.querySelector('.random-color-check') as HTMLInputElement;
+
+        // Regex Logic
+        const transformSelect = div.querySelector('.transform-select') as HTMLSelectElement;
+        const regexContainer = div.querySelector('.regex-container') as HTMLElement;
+        const patternInput = div.querySelector('.transform-pattern') as HTMLInputElement;
+        const testInput = div.querySelector('.regex-test-input') as HTMLInputElement;
+        const testResult = div.querySelector('.regex-test-result') as HTMLElement;
+
+        const toggleTransform = () => {
+            if (transformSelect.value === 'regex') {
+                regexContainer.style.display = 'block';
+            } else {
+                regexContainer.style.display = 'none';
+            }
+            updateBreadcrumb();
+        };
+        transformSelect.addEventListener('change', toggleTransform);
+
+        const updateTest = () => {
+            const pat = patternInput.value;
+            const txt = testInput.value;
+            if (!pat || !txt) {
+                 testResult.textContent = "(preview)";
+                 testResult.style.color = "#555";
+                 return;
+            }
+            try {
+                const regex = new RegExp(pat);
+                const match = regex.exec(txt);
+                if (match) {
+                     let extracted = "";
+                     for (let i = 1; i < match.length; i++) {
+                         extracted += match[i] || "";
+                     }
+                     testResult.textContent = extracted || "(empty group)";
+                     testResult.style.color = "green";
+                } else {
+                     testResult.textContent = "(no match)";
+                     testResult.style.color = "red";
+                }
+            } catch (e) {
+                testResult.textContent = "(invalid regex)";
+                testResult.style.color = "red";
+            }
+        };
+        patternInput.addEventListener('input', () => { updateTest(); updateBreadcrumb(); });
+        testInput.addEventListener('input', updateTest);
+
 
         // Toggle input type
         const toggleInput = () => {
@@ -837,6 +901,10 @@ function addBuilderRow(type: 'group' | 'sort' | 'groupSort', data?: any) {
             }
 
             if (data.transform) transformSelect.value = data.transform;
+            if (data.transformPattern) (div.querySelector('.transform-pattern') as HTMLInputElement).value = data.transformPattern;
+
+            // Trigger toggle for regex UI
+            transformSelect.dispatchEvent(new Event('change'));
 
             if (data.color && data.color !== 'random') {
                 randomCheck.checked = false;
@@ -989,6 +1057,7 @@ function getBuilderStrategy(): CustomStrategy | null {
         }
 
         const transform = (row.querySelector('.transform-select') as HTMLSelectElement).value as any;
+        const transformPattern = (row.querySelector('.transform-pattern') as HTMLInputElement).value;
 
         const randomCheck = row.querySelector('.random-color-check') as HTMLInputElement;
         const colorInput = row.querySelector('.color-input') as HTMLSelectElement;
@@ -999,7 +1068,7 @@ function getBuilderStrategy(): CustomStrategy | null {
         }
 
         if (value) {
-            groupingRules.push({ source, value, color, transform });
+            groupingRules.push({ source, value, color, transform, transformPattern: transform === 'regex' ? transformPattern : undefined });
         }
     });
 
