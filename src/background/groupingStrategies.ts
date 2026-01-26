@@ -447,26 +447,36 @@ export const requiresContextAnalysis = (strategyIds: (string | SortingStrategy)[
              const groupSortingRules = custom.groupSortingRules || [];
              const filters = custom.filters || [];
 
-             for (const rule of groupingRules) {
-                 if (rule.source === 'field' && isContextField(rule.value)) return true;
+             if (Array.isArray(groupingRules)) {
+                 for (const rule of groupingRules) {
+                     if (rule.source === 'field' && isContextField(rule.value)) return true;
+                 }
              }
 
-             for (const rule of sortingRules) {
-                 if (isContextField(rule.field)) return true;
+             if (Array.isArray(sortingRules)) {
+                 for (const rule of sortingRules) {
+                     if (isContextField(rule.field)) return true;
+                 }
              }
 
-             for (const rule of groupSortingRules) {
-                 if (isContextField(rule.field)) return true;
+             if (Array.isArray(groupSortingRules)) {
+                 for (const rule of groupSortingRules) {
+                     if (isContextField(rule.field)) return true;
+                 }
              }
 
-             for (const rule of filters) {
-                 if (isContextField(rule.field)) return true;
+             if (Array.isArray(filters)) {
+                 for (const rule of filters) {
+                     if (isContextField(rule.field)) return true;
+                 }
              }
 
-             if (custom.filterGroups) {
+             if (custom.filterGroups && Array.isArray(custom.filterGroups)) {
                  for (const group of custom.filterGroups) {
-                     for (const rule of group) {
-                         if (isContextField(rule.field)) return true;
+                     if (Array.isArray(group)) {
+                         for (const rule of group) {
+                             if (isContextField(rule.field)) return true;
+                         }
                      }
                  }
              }
