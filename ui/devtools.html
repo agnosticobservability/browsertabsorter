@@ -122,6 +122,8 @@
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <h2>Strategy Builder</h2>
                 <div>
+                   <button id="builder-export-btn" style="background-color: #6c757d; color: white; border: none; padding: 5px 10px; margin-right: 5px; cursor: pointer;">Export</button>
+                   <button id="builder-import-btn" style="background-color: #6c757d; color: white; border: none; padding: 5px 10px; margin-right: 5px; cursor: pointer;">Import</button>
                    <button id="builder-clear-btn" style="background-color: #f44336; color: white; border: none; padding: 5px 10px; margin-right: 5px; cursor: pointer;">Clear</button>
                    <button id="builder-run-btn">Simulate</button>
                    <button id="builder-run-live-btn" style="background-color: #4CAF50; color: white; border: none; padding: 5px 10px; cursor: pointer; margin-right: 5px;">Run Live</button>
@@ -226,7 +228,13 @@
       <section id="view-strategy-list" class="view-section">
         <div class="algo-container">
           <div class="algo-card">
-            <h2>Strategy List</h2>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h2>Strategy List</h2>
+                <div>
+                    <button id="strategy-list-export-btn" class="small-btn">Export All</button>
+                    <button id="strategy-list-import-btn" class="small-btn">Import All</button>
+                </div>
+            </div>
             <p>Review all built-in and custom strategies.</p>
             <div class="strategy-table-container">
               <table class="strategy-table">
