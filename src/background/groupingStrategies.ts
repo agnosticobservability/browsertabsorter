@@ -422,3 +422,65 @@ export const groupingKey = (tab: TabMetadata, strategy: GroupingStrategy | strin
         return "Unknown";
   }
 };
+
+function isContextField(field: string): boolean {
+    return field === 'context' || field === 'genre' || field === 'siteName' || field.startsWith('contextData.');
+}
+
+export const requiresContextAnalysis = (strategyIds: (string | SortingStrategy)[]): boolean => {
+    // Check if "context" strategy is explicitly requested
+    if (strategyIds.includes("context")) return true;
+
+    const strategies = getStrategies(customStrategies);
+    // filter only those that match the requested IDs
+    const activeDefs = strategies.filter(s => strategyIds.includes(s.id));
+
+    for (const def of activeDefs) {
+        // If it's a built-in strategy that needs context (only 'context' does)
+        if (def.id === 'context') return true;
+
+        // If it is a custom strategy (or overrides built-in), check its rules
+        const custom = customStrategies.find(c => c.id === def.id);
+        if (custom) {
+             const groupingRules = custom.groupingRules || [];
+             const sortingRules = custom.sortingRules || [];
+             const groupSortingRules = custom.groupSortingRules || [];
+             const filters = custom.filters || [];
+
+             if (Array.isArray(groupingRules)) {
+                 for (const rule of groupingRules) {
+                     if (rule.source === 'field' && isContextField(rule.value)) return true;
+                 }
+             }
+
+             if (Array.isArray(sortingRules)) {
+                 for (const rule of sortingRules) {
+                     if (isContextField(rule.field)) return true;
+                 }
+             }
+
+             if (Array.isArray(groupSortingRules)) {
+                 for (const rule of groupSortingRules) {
+                     if (isContextField(rule.field)) return true;
+                 }
+             }
+
+             if (Array.isArray(filters)) {
+                 for (const rule of filters) {
+                     if (isContextField(rule.field)) return true;
+                 }
+             }
+
+             if (custom.filterGroups && Array.isArray(custom.filterGroups)) {
+                 for (const group of custom.filterGroups) {
+                     if (Array.isArray(group)) {
+                         for (const rule of group) {
+                             if (isContextField(rule.field)) return true;
+                         }
+                     }
+                 }
+             }
+        }
+    }
+    return false;
+};
