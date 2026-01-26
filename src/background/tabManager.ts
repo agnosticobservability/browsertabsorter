@@ -1,4 +1,4 @@
-import { groupTabs, getCustomStrategies, getFieldValue } from "./groupingStrategies.js";
+import { groupTabs, getCustomStrategies, getFieldValue, requiresContextAnalysis } from "./groupingStrategies.js";
 import { sortTabs, compareBy } from "./sortingStrategies.js";
 import { analyzeTabContext } from "./contextAnalysis.js";
 import { logDebug, logError, logInfo } from "./logger.js";
@@ -17,7 +17,7 @@ export const fetchCurrentTabGroups = async (
   // Map tabs to metadata
   const mapped = tabs.map(mapChromeTab).filter((t): t is TabMetadata => Boolean(t));
 
-  if (preferences.sorting.includes("context")) {
+  if (requiresContextAnalysis(preferences.sorting)) {
       const contextMap = await analyzeTabContext(mapped);
       mapped.forEach(tab => {
         const res = contextMap.get(tab.id);
@@ -96,7 +96,7 @@ export const calculateTabGroups = async (
     .map(mapChromeTab)
     .filter((tab): tab is TabMetadata => Boolean(tab));
 
-  if (preferences.sorting.includes("context")) {
+  if (requiresContextAnalysis(preferences.sorting)) {
     const contextMap = await analyzeTabContext(mapped);
     mapped.forEach(tab => {
       const res = contextMap.get(tab.id);
@@ -161,7 +161,7 @@ export const applyTabSorting = async (
       const windowTabs = chromeTabs.filter(t => t.windowId === windowId);
       const mapped = windowTabs.map(mapChromeTab).filter((t): t is TabMetadata => Boolean(t));
 
-      if (preferences.sorting.includes("context")) {
+      if (requiresContextAnalysis(preferences.sorting)) {
         const contextMap = await analyzeTabContext(mapped);
         mapped.forEach(tab => {
           const res = contextMap.get(tab.id);
