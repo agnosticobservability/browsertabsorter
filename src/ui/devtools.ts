@@ -212,6 +212,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   renderAlgorithmsView();
   loadCustomGenera();
   initStrategyBuilder();
+
+  const exportAllBtn = document.getElementById('strategy-list-export-btn');
+  const importAllBtn = document.getElementById('strategy-list-import-btn');
+  if (exportAllBtn) exportAllBtn.addEventListener('click', exportAllStrategies);
+  if (importAllBtn) importAllBtn.addEventListener('click', importAllStrategies);
 });
 
 // Column Management
@@ -486,6 +491,12 @@ function initStrategyBuilder() {
     const runBtn = document.getElementById('builder-run-btn');
     const runLiveBtn = document.getElementById('builder-run-live-btn');
     const clearBtn = document.getElementById('builder-clear-btn');
+
+    const exportBtn = document.getElementById('builder-export-btn');
+    const importBtn = document.getElementById('builder-import-btn');
+
+    if (exportBtn) exportBtn.addEventListener('click', exportBuilderStrategy);
+    if (importBtn) importBtn.addEventListener('click', importBuilderStrategy);
 
     if (addFilterGroupBtn) addFilterGroupBtn.addEventListener('click', () => addFilterGroupRow());
     if (addGroupBtn) addGroupBtn.addEventListener('click', () => addBuilderRow('group'));
@@ -967,6 +978,118 @@ function clearBuilder() {
 
     addFilterGroupRow(); // Reset with one empty filter group
     updateBreadcrumb();
+}
+
+function exportBuilderStrategy() {
+    const strat = getBuilderStrategy();
+    if (!strat) {
+        alert("Please define a strategy to export (ID and Label required).");
+        return;
+    }
+    const json = JSON.stringify(strat, null, 2);
+    const content = `
+        <p>Copy the JSON below:</p>
+        <textarea style="width: 100%; height: 300px; font-family: monospace;">${escapeHtml(json)}</textarea>
+    `;
+    showModal("Export Strategy", content);
+}
+
+function importBuilderStrategy() {
+    const content = document.createElement('div');
+    content.innerHTML = `
+        <p>Paste Strategy JSON below:</p>
+        <textarea id="import-strat-area" style="width: 100%; height: 200px; font-family: monospace; margin-bottom: 10px;"></textarea>
+        <button id="import-strat-confirm" class="success-btn">Load</button>
+    `;
+
+    const btn = content.querySelector('#import-strat-confirm');
+    btn?.addEventListener('click', () => {
+        const txt = (content.querySelector('#import-strat-area') as HTMLTextAreaElement).value;
+        try {
+            const json = JSON.parse(txt);
+            if (!json.id || !json.label) {
+                alert("Invalid strategy: ID and Label are required.");
+                return;
+            }
+            populateBuilderFromStrategy(json);
+            document.querySelector('.modal-overlay')?.remove();
+        } catch(e) {
+            alert("Invalid JSON: " + e);
+        }
+    });
+
+    showModal("Import Strategy", content);
+}
+
+function exportAllStrategies() {
+    const json = JSON.stringify(localCustomStrategies, null, 2);
+    const content = `
+        <p>Copy the JSON below (contains ${localCustomStrategies.length} strategies):</p>
+        <textarea style="width: 100%; height: 300px; font-family: monospace;">${escapeHtml(json)}</textarea>
+    `;
+    showModal("Export All Strategies", content);
+}
+
+function importAllStrategies() {
+    const content = document.createElement('div');
+    content.innerHTML = `
+        <p>Paste Strategy List JSON below:</p>
+        <p style="font-size: 0.9em; color: #666;">Note: Strategies with matching IDs will be overwritten.</p>
+        <textarea id="import-all-area" style="width: 100%; height: 200px; font-family: monospace; margin-bottom: 10px;"></textarea>
+        <button id="import-all-confirm" class="success-btn">Import All</button>
+    `;
+
+    const btn = content.querySelector('#import-all-confirm');
+    btn?.addEventListener('click', async () => {
+        const txt = (content.querySelector('#import-all-area') as HTMLTextAreaElement).value;
+        try {
+            const json = JSON.parse(txt);
+            if (!Array.isArray(json)) {
+                alert("Invalid format: Expected an array of strategies.");
+                return;
+            }
+
+            // Validate items
+            const invalid = json.find(s => !s.id || !s.label);
+            if (invalid) {
+                alert("Invalid strategy in list: missing ID or Label.");
+                return;
+            }
+
+            // Merge logic (Upsert)
+            const stratMap = new Map(localCustomStrategies.map(s => [s.id, s]));
+
+            let count = 0;
+            json.forEach((s: CustomStrategy) => {
+                stratMap.set(s.id, s);
+                count++;
+            });
+
+            const newStrategies = Array.from(stratMap.values());
+
+            // Save
+            await chrome.runtime.sendMessage({
+                type: 'savePreferences',
+                payload: { customStrategies: newStrategies }
+            });
+
+            // Update local state
+            localCustomStrategies = newStrategies;
+            setCustomStrategies(localCustomStrategies);
+
+            renderStrategyLoadOptions();
+            renderStrategyListTable();
+            renderAlgorithmsView();
+
+            alert(`Imported ${count} strategies.`);
+            document.querySelector('.modal-overlay')?.remove();
+
+        } catch(e) {
+            alert("Invalid JSON: " + e);
+        }
+    });
+
+    showModal("Import All Strategies", content);
 }
 
 function updateBreadcrumb() {
@@ -1902,6 +2025,40 @@ function getDragAfterElement(container: HTMLElement, y: number) {
   }, { offset: Number.NEGATIVE_INFINITY, element: null as Element | null }).element;
 }
 
+function showModal(title: string, content: HTMLElement | string) {
+    const modalOverlay = document.createElement('div');
+    modalOverlay.className = 'modal-overlay';
+    modalOverlay.innerHTML = `
+        <div class="modal">
+            <div class="modal-header">
+                <h3>${escapeHtml(title)}</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-content"></div>
+        </div>
+    `;
+
+    const contentContainer = modalOverlay.querySelector('.modal-content') as HTMLElement;
+    if (typeof content === 'string') {
+        contentContainer.innerHTML = content;
+    } else {
+        contentContainer.appendChild(content);
+    }
+
+    document.body.appendChild(modalOverlay);
+
+    const closeBtn = modalOverlay.querySelector('.modal-close');
+    closeBtn?.addEventListener('click', () => {
+        document.body.removeChild(modalOverlay);
+    });
+
+    modalOverlay.addEventListener('click', (e) => {
+        if (e.target === modalOverlay) {
+             document.body.removeChild(modalOverlay);
+        }
+    });
+}
+
 function showStrategyDetails(type: string, name: string) {
     let content = "";
     let title = `${name} (${type})`;
@@ -1968,32 +2125,7 @@ function showStrategyDetails(type: string, name: string) {
         `;
     }
 
-    const modalOverlay = document.createElement('div');
-    modalOverlay.className = 'modal-overlay';
-    modalOverlay.innerHTML = `
-        <div class="modal">
-            <div class="modal-header">
-                <h3>${title}</h3>
-                <button class="modal-close">&times;</button>
-            </div>
-            <div class="modal-content">
-                ${content}
-            </div>
-        </div>
-    `;
-
-    document.body.appendChild(modalOverlay);
-
-    const closeBtn = modalOverlay.querySelector('.modal-close');
-    closeBtn?.addEventListener('click', () => {
-        document.body.removeChild(modalOverlay);
-    });
-
-    modalOverlay.addEventListener('click', (e) => {
-        if (e.target === modalOverlay) {
-             document.body.removeChild(modalOverlay);
-        }
-    });
+    showModal(title, content);
 }
 
 function getEnabledStrategiesFromUI(container: HTMLElement): SortingStrategy[] {
