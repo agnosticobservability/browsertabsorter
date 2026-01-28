@@ -4,7 +4,7 @@ import { analyzeTabContext } from "./contextAnalysis.js";
 import { logDebug, logError, logInfo } from "./logger.js";
 import { GroupingSelection, Preferences, TabGroup, TabMetadata, SortingRule } from "../shared/types.js";
 import { getStoredValue, setStoredValue } from "./storage.js";
-import { mapChromeTab, asArray } from "../shared/utils.js";
+import { mapChromeTab } from "../shared/utils.js";
 
 export const fetchCurrentTabGroups = async (
   preferences: Preferences
@@ -217,11 +217,9 @@ export const applyTabSorting = async (
 };
 
 const compareBySortingRules = (sortingRulesArg: SortingRule[], a: TabMetadata, b: TabMetadata): number => {
-  const rules = asArray<SortingRule>(sortingRulesArg);
-  if (rules.length === 0) return 0;
-
+  if (!sortingRulesArg || !Array.isArray(sortingRulesArg)) return 0;
   try {
-    for (const rule of rules) {
+    for (const rule of sortingRulesArg) {
       const valA = getFieldValue(a, rule.field);
       const valB = getFieldValue(b, rule.field);
 
@@ -282,7 +280,7 @@ const sortGroupsIfEnabled = async (
 
     // Sort the groups
     if (groupSorterStrategy.groupSortingRules && Array.isArray(groupSorterStrategy.groupSortingRules) && groupSorterStrategy.groupSortingRules.length > 0) {
-        groupReps.sort((a, b) => compareBySortingRules(groupSorterStrategy!.groupSortingRules!, a.rep, b.rep));
+        groupReps.sort((a, b) => compareBySortingRules(groupSorterStrategy.groupSortingRules!, a.rep, b.rep));
     } else {
         groupReps.sort((a, b) => compareBy(groupSorterStrategy!.id, a.rep, b.rep));
     }
