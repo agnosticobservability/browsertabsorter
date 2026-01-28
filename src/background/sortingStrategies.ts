@@ -1,7 +1,6 @@
 import { SortingStrategy, TabMetadata, CustomStrategy, SortingRule } from "../shared/types.js";
 import { domainFromUrl, semanticBucket, navigationKey, groupingKey, getFieldValue, getCustomStrategies } from "./groupingStrategies.js";
 import { logDebug } from "./logger.js";
-import { asArray } from "../shared/utils.js";
 
 export const recencyScore = (tab: TabMetadata) => tab.lastAccessed ?? 0;
 export const hierarchyScore = (tab: TabMetadata) => (tab.openerTabId !== undefined ? 1 : 0);
@@ -22,30 +21,30 @@ export const compareBy = (strategy: SortingStrategy | string, a: TabMetadata, b:
   // 1. Check Custom Strategies for Sorting Rules
   const customStrats = getCustomStrategies();
   const custom = customStrats.find(s => s.id === strategy);
-  if (custom) {
-      const sortRulesList = asArray<SortingRule>(custom.sortingRules);
-      if (sortRulesList.length > 0) {
-          // Evaluate custom sorting rules in order
-          try {
-              for (const rule of sortRulesList) {
-                  if (!rule) continue;
-                  const valA = getFieldValue(a, rule.field);
-                  const valB = getFieldValue(b, rule.field);
+  if (custom && custom.sortingRules) {
+      if (!Array.isArray(custom.sortingRules)) {
+        logDebug("CompareBy: custom.sortingRules is not an array", { id: custom.id, type: typeof custom.sortingRules });
+      } else if (custom.sortingRules.length > 0) {
+      // Evaluate custom sorting rules in order
+      try {
+          for (const rule of custom.sortingRules) {
+              const valA = getFieldValue(a, rule.field);
+              const valB = getFieldValue(b, rule.field);
 
-                  let result = 0;
-                  if (valA < valB) result = -1;
-                  else if (valA > valB) result = 1;
+              let result = 0;
+              if (valA < valB) result = -1;
+              else if (valA > valB) result = 1;
 
-                  if (result !== 0) {
-                      return rule.order === 'desc' ? -result : result;
-                  }
+              if (result !== 0) {
+                  return rule.order === 'desc' ? -result : result;
               }
-          } catch (e) {
-              logDebug("Error evaluating custom sorting rules", { error: String(e) });
           }
-          // If all rules equal, continue to next strategy (return 0)
-          return 0;
+      } catch (e) {
+          logDebug("Error evaluating custom sorting rules", { error: String(e) });
       }
+      // If all rules equal, continue to next strategy (return 0)
+      return 0;
+    }
   }
 
   // 2. Built-in or fallback
