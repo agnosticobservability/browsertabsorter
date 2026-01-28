@@ -1,7 +1,6 @@
-import { CustomStrategy, Preferences, SortingStrategy } from "../shared/types.js";
+import { Preferences, SortingStrategy } from "../shared/types.js";
 import { getStoredValue, setStoredValue } from "./storage.js";
 import { setLoggerPreferences } from "./logger.js";
-import { asArray } from "../shared/utils.js";
 
 const PREFERENCES_KEY = "preferences";
 
@@ -22,25 +21,12 @@ const normalizeSorting = (sorting: unknown): SortingStrategy[] => {
   return [...defaultPreferences.sorting];
 };
 
-const normalizeStrategies = (strategies: unknown): CustomStrategy[] => {
-    const arr = asArray<any>(strategies).filter(s => typeof s === 'object' && s !== null);
-    return arr.map(s => ({
-        ...s,
-        groupingRules: asArray(s.groupingRules),
-        sortingRules: asArray(s.sortingRules),
-        groupSortingRules: s.groupSortingRules ? asArray(s.groupSortingRules) : undefined,
-        filters: s.filters ? asArray(s.filters) : undefined,
-        filterGroups: s.filterGroups ? asArray(s.filterGroups).map((g: any) => asArray(g)) : undefined,
-        rules: s.rules ? asArray(s.rules) : undefined
-    }));
-};
-
 const normalizePreferences = (prefs?: Partial<Preferences> | null): Preferences => {
   const merged = { ...defaultPreferences, ...(prefs ?? {}) };
   return {
     ...merged,
     sorting: normalizeSorting(merged.sorting),
-    customStrategies: normalizeStrategies(merged.customStrategies)
+    customStrategies: Array.isArray(merged.customStrategies) ? merged.customStrategies : undefined
   };
 };
 
