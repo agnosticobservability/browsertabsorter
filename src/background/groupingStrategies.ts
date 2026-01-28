@@ -1,6 +1,7 @@
-import { GroupingStrategy, SortingStrategy, TabGroup, TabMetadata, CustomStrategy, StrategyRule, RuleCondition, GroupingRule } from "../shared/types.js";
+import { GroupingStrategy, SortingStrategy, TabGroup, TabMetadata, CustomStrategy, StrategyRule, RuleCondition, GroupingRule, SortingRule } from "../shared/types.js";
 import { getStrategies } from "../shared/strategyRegistry.js";
 import { logDebug } from "./logger.js";
+import { asArray } from "../shared/utils.js";
 
 let customStrategies: CustomStrategy[] = [];
 
@@ -178,10 +179,11 @@ const generateLabel = (
 
 const getStrategyColor = (strategyId: string): string | undefined => {
     const custom = customStrategies.find(s => s.id === strategyId);
-    if (!custom || !custom.groupingRules) return undefined;
+    if (!custom) return undefined;
 
-    for (let i = custom.groupingRules.length - 1; i >= 0; i--) {
-        const rule = custom.groupingRules[i];
+    const rules = asArray<GroupingRule>(custom.groupingRules);
+    for (let i = rules.length - 1; i >= 0; i--) {
+        const rule = rules[i];
         if (rule.color && rule.color !== 'random') {
             return rule.color;
         }
@@ -268,14 +270,11 @@ export const checkCondition = (condition: RuleCondition, tab: TabMetadata): bool
 };
 
 function evaluateLegacyRules(legacyRules: StrategyRule[], tab: TabMetadata): string | null {
-    if (!legacyRules) return null;
-    if (!Array.isArray(legacyRules)) {
-        logDebug("EvaluateLegacyRules: rules is not an array", { type: typeof legacyRules });
-        return null;
-    }
+    const rules = asArray<StrategyRule>(legacyRules);
+    if (rules.length === 0) return null;
 
     try {
-        for (const rule of legacyRules) {
+        for (const rule of rules) {
             if (!rule) continue;
             const rawValue = getFieldValue(tab, rule.field);
             let valueToCheck = rawValue !== undefined && rawValue !== null ? String(rawValue) : "";
@@ -323,20 +322,19 @@ function evaluateLegacyRules(legacyRules: StrategyRule[], tab: TabMetadata): str
 export const groupingKey = (tab: TabMetadata, strategy: GroupingStrategy | string): string => {
   const custom = customStrategies.find(s => s.id === strategy);
   if (custom) {
-      if (custom.filters && custom.filters.length > 0) {
-          const allPass = custom.filters.every(filter => checkCondition(filter, tab));
+      const filters = asArray<RuleCondition>(custom.filters);
+      if (filters.length > 0) {
+          const allPass = filters.every(filter => checkCondition(filter, tab));
           if (!allPass) {
               return custom.fallback || "Misc";
           }
       }
 
-      if (custom.groupingRules) {
-        if (!Array.isArray(custom.groupingRules)) {
-             logDebug("GroupingKey: custom.groupingRules is not an array", { id: custom.id, type: typeof custom.groupingRules });
-        } else if (custom.groupingRules.length > 0) {
+      const groupingRules = asArray<GroupingRule>(custom.groupingRules);
+      if (groupingRules.length > 0) {
           const parts: string[] = [];
           try {
-            for (const rule of custom.groupingRules) {
+            for (const rule of groupingRules) {
                 let val = "";
                 if (rule.source === 'field') {
                      const raw = getFieldValue(tab, rule.value);
@@ -402,13 +400,9 @@ export const groupingKey = (tab: TabMetadata, strategy: GroupingStrategy | strin
               return parts.join(" - ");
           }
           return custom.fallback || "Misc";
-        }
       } else if (custom.rules) {
-          if (Array.isArray(custom.rules)) {
-            return evaluateLegacyRules(custom.rules, tab) || custom.fallback || "Misc";
-          } else {
-            logDebug("GroupingKey: custom.rules is not an array", { id: custom.id, type: typeof custom.rules });
-          }
+          const result = evaluateLegacyRules(asArray<StrategyRule>(custom.rules), tab);
+          if (result) return result;
       }
 
       return custom.fallback || "Misc";
@@ -464,42 +458,32 @@ export const requiresContextAnalysis = (strategyIds: (string | SortingStrategy)[
         // If it is a custom strategy (or overrides built-in), check its rules
         const custom = customStrategies.find(c => c.id === def.id);
         if (custom) {
-             const groupingRules = custom.groupingRules || [];
-             const sortingRules = custom.sortingRules || [];
-             const groupSortingRules = custom.groupSortingRules || [];
-             const filters = custom.filters || [];
+             const groupingRules = asArray<GroupingRule>(custom.groupingRules);
+             const sortingRules = asArray<SortingRule>(custom.sortingRules);
+             const groupSortingRules = asArray<SortingRule>(custom.groupSortingRules);
+             const filters = asArray<RuleCondition>(custom.filters);
+             const filterGroups = asArray<RuleCondition[]>(custom.filterGroups);
 
-             if (Array.isArray(groupingRules)) {
-                 for (const rule of groupingRules) {
-                     if (rule.source === 'field' && isContextField(rule.value)) return true;
-                 }
+             for (const rule of groupingRules) {
+                 if (rule.source === 'field' && isContextField(rule.value)) return true;
              }
 
-             if (Array.isArray(sortingRules)) {
-                 for (const rule of sortingRules) {
+             for (const rule of sortingRules) {
+                 if (isContextField(rule.field)) return true;
+             }
+
+             for (const rule of groupSortingRules) {
+                 if (isContextField(rule.field)) return true;
+             }
+
+             for (const rule of filters) {
+                 if (isContextField(rule.field)) return true;
+             }
+
+             for (const group of filterGroups) {
+                 const groupRules = asArray<RuleCondition>(group);
+                 for (const rule of groupRules) {
                      if (isContextField(rule.field)) return true;
-                 }
-             }
-
-             if (Array.isArray(groupSortingRules)) {
-                 for (const rule of groupSortingRules) {
-                     if (isContextField(rule.field)) return true;
-                 }
-             }
-
-             if (Array.isArray(filters)) {
-                 for (const rule of filters) {
-                     if (isContextField(rule.field)) return true;
-                 }
-             }
-
-             if (custom.filterGroups && Array.isArray(custom.filterGroups)) {
-                 for (const group of custom.filterGroups) {
-                     if (Array.isArray(group)) {
-                         for (const rule of group) {
-                             if (isContextField(rule.field)) return true;
-                         }
-                     }
                  }
              }
         }
