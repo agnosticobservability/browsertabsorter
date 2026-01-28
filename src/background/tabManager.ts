@@ -217,11 +217,12 @@ export const applyTabSorting = async (
 };
 
 const compareBySortingRules = (sortingRulesArg: SortingRule[], a: TabMetadata, b: TabMetadata): number => {
-  const rules = asArray<SortingRule>(sortingRulesArg);
-  if (rules.length === 0) return 0;
+  const sortRulesList = asArray<SortingRule>(sortingRulesArg);
+  if (sortRulesList.length === 0) return 0;
 
   try {
-    for (const rule of rules) {
+    for (const rule of sortRulesList) {
+      if (!rule) continue;
       const valA = getFieldValue(a, rule.field);
       const valB = getFieldValue(b, rule.field);
 

@@ -181,10 +181,11 @@ const getStrategyColor = (strategyId: string): string | undefined => {
     const custom = customStrategies.find(s => s.id === strategyId);
     if (!custom) return undefined;
 
-    const rules = asArray<GroupingRule>(custom.groupingRules);
-    for (let i = rules.length - 1; i >= 0; i--) {
-        const rule = rules[i];
-        if (rule.color && rule.color !== 'random') {
+    const groupingRulesList = asArray<GroupingRule>(custom.groupingRules);
+    // Iterate manually to check color
+    for (let i = groupingRulesList.length - 1; i >= 0; i--) {
+        const rule = groupingRulesList[i];
+        if (rule && rule.color && rule.color !== 'random') {
             return rule.color;
         }
     }
@@ -247,9 +248,10 @@ export const groupTabs = (
 };
 
 export const checkCondition = (condition: RuleCondition, tab: TabMetadata): boolean => {
+    if (!condition) return false;
     const rawValue = getFieldValue(tab, condition.field);
     const valueToCheck = rawValue !== undefined && rawValue !== null ? String(rawValue).toLowerCase() : "";
-    const pattern = condition.value.toLowerCase();
+    const pattern = condition.value ? condition.value.toLowerCase() : "";
 
     switch (condition.operator) {
         case 'contains': return valueToCheck.includes(pattern);
@@ -270,16 +272,22 @@ export const checkCondition = (condition: RuleCondition, tab: TabMetadata): bool
 };
 
 function evaluateLegacyRules(legacyRules: StrategyRule[], tab: TabMetadata): string | null {
-    const rules = asArray<StrategyRule>(legacyRules);
-    if (rules.length === 0) return null;
+    // Defensive check
+    if (!legacyRules || !Array.isArray(legacyRules)) {
+        if (!legacyRules) return null;
+        // Try asArray if it's not array but truthy (unlikely given previous logic but safe)
+    }
+
+    const legacyRulesList = asArray<StrategyRule>(legacyRules);
+    if (legacyRulesList.length === 0) return null;
 
     try {
-        for (const rule of rules) {
+        for (const rule of legacyRulesList) {
             if (!rule) continue;
             const rawValue = getFieldValue(tab, rule.field);
             let valueToCheck = rawValue !== undefined && rawValue !== null ? String(rawValue) : "";
             valueToCheck = valueToCheck.toLowerCase();
-            const pattern = rule.value.toLowerCase();
+            const pattern = rule.value ? rule.value.toLowerCase() : "";
 
             let isMatch = false;
             let matchObj: RegExpExecArray | null = null;
@@ -322,19 +330,20 @@ function evaluateLegacyRules(legacyRules: StrategyRule[], tab: TabMetadata): str
 export const groupingKey = (tab: TabMetadata, strategy: GroupingStrategy | string): string => {
   const custom = customStrategies.find(s => s.id === strategy);
   if (custom) {
-      const filters = asArray<RuleCondition>(custom.filters);
-      if (filters.length > 0) {
-          const allPass = filters.every(filter => checkCondition(filter, tab));
+      const filtersList = asArray<RuleCondition>(custom.filters);
+      if (filtersList.length > 0) {
+          const allPass = filtersList.every(filter => checkCondition(filter, tab));
           if (!allPass) {
               return custom.fallback || "Misc";
           }
       }
 
-      const groupingRules = asArray<GroupingRule>(custom.groupingRules);
-      if (groupingRules.length > 0) {
+      const groupingRulesList = asArray<GroupingRule>(custom.groupingRules);
+      if (groupingRulesList.length > 0) {
           const parts: string[] = [];
           try {
-            for (const rule of groupingRules) {
+            for (const rule of groupingRulesList) {
+                if (!rule) continue;
                 let val = "";
                 if (rule.source === 'field') {
                      const raw = getFieldValue(tab, rule.value);
@@ -458,32 +467,32 @@ export const requiresContextAnalysis = (strategyIds: (string | SortingStrategy)[
         // If it is a custom strategy (or overrides built-in), check its rules
         const custom = customStrategies.find(c => c.id === def.id);
         if (custom) {
-             const groupingRules = asArray<GroupingRule>(custom.groupingRules);
-             const sortingRules = asArray<SortingRule>(custom.sortingRules);
-             const groupSortingRules = asArray<SortingRule>(custom.groupSortingRules);
-             const filters = asArray<RuleCondition>(custom.filters);
-             const filterGroups = asArray<RuleCondition[]>(custom.filterGroups);
+             const groupRulesList = asArray<GroupingRule>(custom.groupingRules);
+             const sortRulesList = asArray<SortingRule>(custom.sortingRules);
+             const groupSortRulesList = asArray<SortingRule>(custom.groupSortingRules);
+             const filtersList = asArray<RuleCondition>(custom.filters);
+             const filterGroupsList = asArray<RuleCondition[]>(custom.filterGroups);
 
-             for (const rule of groupingRules) {
-                 if (rule.source === 'field' && isContextField(rule.value)) return true;
+             for (const rule of groupRulesList) {
+                 if (rule && rule.source === 'field' && isContextField(rule.value)) return true;
              }
 
-             for (const rule of sortingRules) {
-                 if (isContextField(rule.field)) return true;
+             for (const rule of sortRulesList) {
+                 if (rule && isContextField(rule.field)) return true;
              }
 
-             for (const rule of groupSortingRules) {
-                 if (isContextField(rule.field)) return true;
+             for (const rule of groupSortRulesList) {
+                 if (rule && isContextField(rule.field)) return true;
              }
 
-             for (const rule of filters) {
-                 if (isContextField(rule.field)) return true;
+             for (const rule of filtersList) {
+                 if (rule && isContextField(rule.field)) return true;
              }
 
-             for (const group of filterGroups) {
+             for (const group of filterGroupsList) {
                  const groupRules = asArray<RuleCondition>(group);
                  for (const rule of groupRules) {
-                     if (isContextField(rule.field)) return true;
+                     if (rule && isContextField(rule.field)) return true;
                  }
              }
         }

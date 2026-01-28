@@ -23,11 +23,12 @@ export const compareBy = (strategy: SortingStrategy | string, a: TabMetadata, b:
   const customStrats = getCustomStrategies();
   const custom = customStrats.find(s => s.id === strategy);
   if (custom) {
-      const sortingRules = asArray<SortingRule>(custom.sortingRules);
-      if (sortingRules.length > 0) {
+      const sortRulesList = asArray<SortingRule>(custom.sortingRules);
+      if (sortRulesList.length > 0) {
           // Evaluate custom sorting rules in order
           try {
-              for (const rule of sortingRules) {
+              for (const rule of sortRulesList) {
+                  if (!rule) continue;
                   const valA = getFieldValue(a, rule.field);
                   const valB = getFieldValue(b, rule.field);
 
