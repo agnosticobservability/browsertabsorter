@@ -26,3 +26,8 @@ export const getStoredPreferences = async (): Promise<Preferences | null> => {
     });
   });
 };
+
+export const asArray = <T>(value: unknown): T[] => {
+    if (Array.isArray(value)) return value as T[];
+    return [];
+};
