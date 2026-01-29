@@ -11,11 +11,13 @@ export const fetchCurrentTabGroups = async (
 ): Promise<TabGroup[]> => {
   try {
   const tabs = await chrome.tabs.query({});
+  const extensionPrefix = chrome.runtime.getURL("");
+  const filteredTabs = tabs.filter((tab) => !tab.url?.startsWith(extensionPrefix));
   const groups = await chrome.tabGroups.query({});
   const groupMap = new Map(groups.map(g => [g.id, g]));
 
   // Map tabs to metadata
-  const mapped = tabs.map(mapChromeTab).filter((t): t is TabMetadata => Boolean(t));
+  const mapped = filteredTabs.map(mapChromeTab).filter((t): t is TabMetadata => Boolean(t));
 
   if (requiresContextAnalysis(preferences.sorting)) {
       const contextMap = await analyzeTabContext(mapped);
@@ -85,13 +87,14 @@ export const calculateTabGroups = async (
   filter?: GroupingSelection
 ): Promise<TabGroup[]> => {
   const chromeTabs = await chrome.tabs.query({});
+  const extensionPrefix = chrome.runtime.getURL("");
   const windowIdSet = new Set(filter?.windowIds ?? []);
   const tabIdSet = new Set(filter?.tabIds ?? []);
   const hasFilters = windowIdSet.size > 0 || tabIdSet.size > 0;
   const filteredTabs = chromeTabs.filter((tab) => {
     if (!hasFilters) return true;
     return (tab.windowId && windowIdSet.has(tab.windowId)) || (tab.id && tabIdSet.has(tab.id));
-  });
+  }).filter((tab) => !tab.url?.startsWith(extensionPrefix));
   const mapped = filteredTabs
     .map(mapChromeTab)
     .filter((tab): tab is TabMetadata => Boolean(tab));
@@ -249,23 +252,25 @@ export const applyTabSorting = async (
   filter?: GroupingSelection
 ) => {
   const chromeTabs = await chrome.tabs.query({});
+  const extensionPrefix = chrome.runtime.getURL("");
+  const filteredTabs = chromeTabs.filter((tab) => !tab.url?.startsWith(extensionPrefix));
 
   const targetWindowIds = new Set<number>();
 
   if (!filter || (!filter.windowIds?.length && !filter.tabIds?.length)) {
-      chromeTabs.forEach(t => { if (t.windowId) targetWindowIds.add(t.windowId); });
+      filteredTabs.forEach(t => { if (t.windowId) targetWindowIds.add(t.windowId); });
   } else {
       filter.windowIds?.forEach(id => targetWindowIds.add(id));
       if (filter.tabIds?.length) {
           const ids = new Set(filter.tabIds);
-          chromeTabs.forEach(t => {
+          filteredTabs.forEach(t => {
               if (t.id && ids.has(t.id) && t.windowId) targetWindowIds.add(t.windowId);
           });
       }
   }
 
   for (const windowId of targetWindowIds) {
-      const windowTabs = chromeTabs.filter(t => t.windowId === windowId);
+      const windowTabs = filteredTabs.filter(t => t.windowId === windowId);
       const mapped = windowTabs.map(mapChromeTab).filter((t): t is TabMetadata => Boolean(t));
 
       if (requiresContextAnalysis(preferences.sorting)) {
