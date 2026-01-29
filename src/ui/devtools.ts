@@ -1148,17 +1148,22 @@ function updateBreadcrumb() {
     breadcrumb.textContent = text;
 }
 
-function getBuilderStrategy(): CustomStrategy | null {
+function getBuilderStrategy(ignoreValidation: boolean = false): CustomStrategy | null {
     const idInput = document.getElementById('strat-name') as HTMLInputElement;
     const labelInput = document.getElementById('strat-desc') as HTMLInputElement;
 
-    const id = idInput ? idInput.value.trim() : '';
-    const label = labelInput ? labelInput.value.trim() : '';
+    let id = idInput ? idInput.value.trim() : '';
+    let label = labelInput ? labelInput.value.trim() : '';
     const fallback = 'Misc'; // Fallback removed from UI, default to Misc
     const sortGroups = (document.getElementById('strat-sortgroups-check') as HTMLInputElement).checked;
 
-    if (!id || !label) {
+    if (!ignoreValidation && (!id || !label)) {
         return null;
+    }
+
+    if (ignoreValidation) {
+        if (!id) id = 'temp_sim_id';
+        if (!label) label = 'Simulation';
     }
 
     const filterGroups: RuleCondition[][] = [];
@@ -1244,26 +1249,15 @@ function getBuilderStrategy(): CustomStrategy | null {
 }
 
 function runBuilderSimulation() {
-    const strat = getBuilderStrategy();
+    // Pass true to ignore validation so we can simulate without ID/Label
+    const strat = getBuilderStrategy(true);
     const resultContainer = document.getElementById('builder-results');
     const newStatePanel = document.getElementById('new-state-panel');
 
-    // For simulation, we can mock an ID/Label if missing
-    const simStrat: CustomStrategy = strat || {
-        id: 'sim_temp',
-        label: 'Simulation',
-        filters: [],
-        groupingRules: [],
-        sortingRules: [],
-        fallback: 'Misc'
-    };
+    if (!strat) return; // Should not happen with ignoreValidation=true
 
-    if (!strat) {
-        if (!(document.getElementById('strat-name') as HTMLInputElement).value) {
-            alert("Please enter an ID to run simulation.");
-            return;
-        }
-    }
+    // For simulation, we can mock an ID/Label if missing
+    const simStrat: CustomStrategy = strat;
 
     if (!resultContainer || !newStatePanel) return;
 
