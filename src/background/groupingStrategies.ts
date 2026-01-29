@@ -210,7 +210,7 @@ export const groupTabs = (
         for (const s of effectiveStrategies) {
             const key = groupingKey(tab, s);
             if (key !== null) {
-                keys.push(key);
+                keys.push(`${s}:${key}`);
                 appliedStrategies.push(s);
             }
         }

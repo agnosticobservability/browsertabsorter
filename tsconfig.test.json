@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "outDir": "dist_test",
+    "rootDir": ".",
+    "noEmit": false,
+    "types": ["node", "chrome"]
+  },
+  "include": ["src/**/*.ts", "tests/reproduce_collision.ts"]
+}
