@@ -111,7 +111,7 @@ const hashCode = (value: string): number => {
 };
 
 // Helper to get a human-readable label component from a strategy and a set of tabs
-const getLabelComponent = (strategy: GroupingStrategy | string, tabs: TabMetadata[], allTabsMap: Map<number, TabMetadata>): string => {
+const getLabelComponent = (strategy: GroupingStrategy | string, tabs: TabMetadata[], allTabsMap: Map<number, TabMetadata>): string | null => {
   const firstTab = tabs[0];
   if (!firstTab) return "Unknown";
 
@@ -205,11 +205,23 @@ export const groupTabs = (
 
   tabs.forEach((tab) => {
     let keys: string[] = [];
+    const appliedStrategies: string[] = [];
     try {
-        keys = effectiveStrategies.map(s => groupingKey(tab, s));
+        for (const s of effectiveStrategies) {
+            const key = groupingKey(tab, s);
+            if (key !== null) {
+                keys.push(key);
+                appliedStrategies.push(s);
+            }
+        }
     } catch (e) {
         logDebug("Error generating grouping key", { tabId: tab.id, error: String(e) });
-        keys = ["Error"];
+        return; // Skip this tab on error
+    }
+
+    // If no strategies applied (e.g. all filtered out), skip grouping for this tab
+    if (keys.length === 0) {
+        return;
     }
 
     const bucketKey = `window-${tab.windowId}::` + keys.join("::");
@@ -217,7 +229,7 @@ export const groupTabs = (
     let group = buckets.get(bucketKey);
     if (!group) {
       let groupColor = null;
-      for (const sId of effectiveStrategies) {
+      for (const sId of appliedStrategies) {
         const color = getStrategyColor(sId);
         if (color) { groupColor = color; break; }
       }
@@ -232,7 +244,7 @@ export const groupTabs = (
         label: "",
         color: groupColor,
         tabs: [],
-        reason: effectiveStrategies.join(" + ")
+        reason: appliedStrategies.join(" + ")
       };
       buckets.set(bucketKey, group);
     }
@@ -241,6 +253,16 @@ export const groupTabs = (
 
   const groups = Array.from(buckets.values());
   groups.forEach(group => {
+    // Generate label based on the reason (applied strategies)
+    // Actually generateLabel takes a list of strategies.
+    // We should pass the strategies that actually formed the group?
+    // But different tabs might have different sets of strategies if we allowed partial matches (not the case here,
+    // since keys define the bucket, so all tabs in bucket matched the same set of strategies and produced the same keys).
+    // The reason field contains the applied strategies joined by ' + '.
+    // We can parse it or pass effectiveStrategies and let generateLabel filter out nulls (which it does).
+    // But passing effectiveStrategies might include strategies that were filtered out (returned null).
+    // getLabelComponent calls groupingKey again. If it returns null, it's filtered.
+    // So passing effectiveStrategies is safe and correct.
     group.label = generateLabel(effectiveStrategies, group.tabs, allTabsMap);
   });
 
@@ -327,15 +349,35 @@ function evaluateLegacyRules(legacyRules: StrategyRule[], tab: TabMetadata): str
     return null;
 }
 
-export const groupingKey = (tab: TabMetadata, strategy: GroupingStrategy | string): string => {
+export const groupingKey = (tab: TabMetadata, strategy: GroupingStrategy | string): string | null => {
   const custom = customStrategies.find(s => s.id === strategy);
   if (custom) {
+      const filterGroupsList = asArray<RuleCondition[]>(custom.filterGroups);
       const filtersList = asArray<RuleCondition>(custom.filters);
-      if (filtersList.length > 0) {
-          const allPass = filtersList.every(filter => checkCondition(filter, tab));
-          if (!allPass) {
-              return custom.fallback || "Misc";
+
+      let match = false;
+
+      if (filterGroupsList.length > 0) {
+          // OR logic: At least one group must pass
+          for (const group of filterGroupsList) {
+              const groupRules = asArray<RuleCondition>(group);
+              if (groupRules.length === 0 || groupRules.every(r => checkCondition(r, tab))) {
+                  match = true;
+                  break;
+              }
           }
+      } else if (filtersList.length > 0) {
+          // Legacy/Simple AND logic
+          if (filtersList.every(f => checkCondition(f, tab))) {
+              match = true;
+          }
+      } else {
+          // No filters -> Match all
+          match = true;
+      }
+
+      if (!match) {
+          return null;
       }
 
       const groupingRulesList = asArray<GroupingRule>(custom.groupingRules);

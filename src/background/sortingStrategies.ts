@@ -71,7 +71,7 @@ export const compareBy = (strategy: SortingStrategy | string, a: TabMetadata, b:
       return navigationKey(a).localeCompare(navigationKey(b));
     case "age":
       // Reverse alphabetical for age buckets (Today < Yesterday), rough approx
-      return groupingKey(a, "age").localeCompare(groupingKey(b, "age"));
+      return (groupingKey(a, "age") || "").localeCompare(groupingKey(b, "age") || "");
     default:
       // Check if it's a generic field first
       const valA = getFieldValue(a, strategy);
@@ -85,6 +85,6 @@ export const compareBy = (strategy: SortingStrategy | string, a: TabMetadata, b:
 
       // Fallback for custom strategies grouping key (if using custom strategy as sorting but no sorting rules defined)
       // or unhandled built-ins
-      return groupingKey(a, strategy).localeCompare(groupingKey(b, strategy));
+      return (groupingKey(a, strategy) || "").localeCompare(groupingKey(b, strategy) || "");
   }
 };
