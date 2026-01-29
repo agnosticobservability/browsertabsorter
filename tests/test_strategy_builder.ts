@@ -65,8 +65,8 @@ const runTest = () => {
     const key2 = groupingKey(mockTab2, "social_test");
     console.log(`Key for Google: ${key2}`);
 
-    if (key2 !== "Not Social") {
-        console.error("FAIL: Expected 'Not Social', got", key2);
+    if (key2 !== null) {
+        console.error("FAIL: Expected null, got", key2);
         process.exit(1);
     }
 

@@ -1161,13 +1161,33 @@ function getBuilderStrategy(): CustomStrategy | null {
         return null;
     }
 
-    const filters: RuleCondition[] = [];
-    document.getElementById('filter-rows-container')?.querySelectorAll('.builder-row').forEach(row => {
-        const field = (row.querySelector('.field-select') as HTMLSelectElement).value;
-        const operator = (row.querySelector('.operator-select') as HTMLSelectElement).value as any;
-        const value = (row.querySelector('.value-input') as HTMLInputElement).value;
-        if (value) filters.push({ field, operator, value });
-    });
+    const filterGroups: RuleCondition[][] = [];
+    const filterContainer = document.getElementById('filter-rows-container');
+
+    // Parse filter groups
+    if (filterContainer) {
+        const groupRows = filterContainer.querySelectorAll('.filter-group-row');
+        if (groupRows.length > 0) {
+            groupRows.forEach(groupRow => {
+                const conditions: RuleCondition[] = [];
+                groupRow.querySelectorAll('.builder-row').forEach(row => {
+                    const field = (row.querySelector('.field-select') as HTMLSelectElement).value;
+                    const operator = (row.querySelector('.operator-select') as HTMLSelectElement).value as any;
+                    const value = (row.querySelector('.value-input') as HTMLInputElement).value;
+                    // Only add if value is present or operator doesn't require it
+                    if (value || ['exists', 'doesNotExist', 'isNull', 'isNotNull'].includes(operator)) {
+                        conditions.push({ field, operator, value });
+                    }
+                });
+                if (conditions.length > 0) {
+                    filterGroups.push(conditions);
+                }
+            });
+        }
+    }
+
+    // For backward compatibility / simple strategies, populate filters with the first group
+    const filters: RuleCondition[] = filterGroups.length > 0 ? filterGroups[0] : [];
 
     const groupingRules: GroupingRule[] = [];
     document.getElementById('group-rows-container')?.querySelectorAll('.builder-row').forEach(row => {
@@ -1214,6 +1234,7 @@ function getBuilderStrategy(): CustomStrategy | null {
         id,
         label,
         filters,
+        filterGroups,
         groupingRules,
         sortingRules,
         groupSortingRules: appliedGroupSortingRules,
