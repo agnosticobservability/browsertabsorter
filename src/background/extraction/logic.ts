@@ -113,15 +113,43 @@ export function extractYouTubeChannelFromHtml(html: string): string | null {
   // <span itemprop="author" itemscope itemtype="http://schema.org/Person"><link itemprop="name" content="Channel Name"></span>
   const linkNameRegex = /<link\s+itemprop=["']name["']\s+content=["']([^"']+)["']\s*\/?>/i;
   const linkMatch = linkNameRegex.exec(html);
-  if (linkMatch && linkMatch[1]) return linkMatch[1];
+  if (linkMatch && linkMatch[1]) return decodeHtmlEntities(linkMatch[1]);
 
   // 3. Try meta author
   const metaAuthorRegex = /<meta\s+name=["']author["']\s+content=["']([^"']+)["']\s*\/?>/i;
   const metaMatch = metaAuthorRegex.exec(html);
   if (metaMatch && metaMatch[1]) {
       // YouTube meta author is often "Channel Name"
-      return metaMatch[1];
+      return decodeHtmlEntities(metaMatch[1]);
   }
 
   return null;
+}
+
+function decodeHtmlEntities(text: string): string {
+  if (!text) return text;
+
+  const entities: Record<string, string> = {
+    '&amp;': '&',
+    '&lt;': '<',
+    '&gt;': '>',
+    '&quot;': '"',
+    '&#39;': "'",
+    '&apos;': "'",
+    '&nbsp;': ' '
+  };
+
+  return text.replace(/&([a-z0-9]+|#[0-9]{1,6}|#x[0-9a-fA-F]{1,6});/ig, (match) => {
+      const lower = match.toLowerCase();
+      if (entities[lower]) return entities[lower];
+      if (entities[match]) return entities[match];
+
+      if (lower.startsWith('&#x')) {
+          try { return String.fromCharCode(parseInt(lower.slice(3, -1), 16)); } catch { return match; }
+      }
+      if (lower.startsWith('&#')) {
+          try { return String.fromCharCode(parseInt(lower.slice(2, -1), 10)); } catch { return match; }
+      }
+      return match;
+  });
 }
