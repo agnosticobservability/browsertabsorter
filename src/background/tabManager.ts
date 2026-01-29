@@ -117,22 +117,97 @@ const VALID_COLORS = ["grey", "blue", "red", "yellow", "green", "pink", "purple"
 
 export const applyTabGroups = async (groups: TabGroup[]) => {
   for (const group of groups) {
-    const tabsByWindow = group.tabs.reduce<Map<number, TabMetadata[]>>((acc, tab) => {
-      const existing = acc.get(tab.windowId) ?? [];
-      existing.push(tab);
-      acc.set(tab.windowId, existing);
-      return acc;
-    }, new Map());
+    const mode = group.targetWindowMode || "current";
 
-    for (const tabs of tabsByWindow.values()) {
-      const groupId = await chrome.tabs.group({ tabIds: tabs.map((t) => t.id) });
-      const updateProps: chrome.tabGroups.UpdateProperties = {
-        title: group.label
-      };
-      if (VALID_COLORS.includes(group.color)) {
-          updateProps.color = group.color as chrome.tabGroups.ColorEnum;
-      }
-      await chrome.tabGroups.update(groupId, updateProps);
+    if (mode === "new" && group.tabs.length > 0) {
+        // Create new window with first tab
+        const firstTab = group.tabs[0];
+        const otherTabs = group.tabs.slice(1);
+
+        try {
+            const newWin = await chrome.windows.create({ tabId: firstTab.id });
+            const newWindowId = newWin.id!;
+
+            // Move other tabs to this window
+            if (otherTabs.length > 0) {
+                await chrome.tabs.move(otherTabs.map(t => t.id), { windowId: newWindowId, index: -1 });
+            }
+
+            // Group them all
+            const allIds = group.tabs.map(t => t.id);
+            const groupId = await chrome.tabs.group({ tabIds: allIds, createProperties: { windowId: newWindowId } });
+             const updateProps: chrome.tabGroups.UpdateProperties = {
+                title: group.label
+            };
+            if (VALID_COLORS.includes(group.color)) {
+                updateProps.color = group.color as chrome.tabGroups.ColorEnum;
+            }
+            await chrome.tabGroups.update(groupId, updateProps);
+        } catch (e) {
+            logError("Error applying new window group", { error: String(e) });
+        }
+
+    } else if (mode === "compound" && group.tabs.length > 0) {
+        // Find target window (most frequent windowId)
+        const winCounts = new Map<number, number>();
+        group.tabs.forEach(t => winCounts.set(t.windowId, (winCounts.get(t.windowId) || 0) + 1));
+
+        let targetWindowId = group.tabs[0].windowId;
+        let maxCount = 0;
+        for (const [wid, count] of winCounts) {
+            if (count > maxCount) {
+                maxCount = count;
+                targetWindowId = wid;
+            }
+        }
+
+        try {
+             // Move tabs not in target window
+            const tabsToMove = group.tabs.filter(t => t.windowId !== targetWindowId);
+            if (tabsToMove.length > 0) {
+                await chrome.tabs.move(tabsToMove.map(t => t.id), { windowId: targetWindowId, index: -1 });
+            }
+
+            // Group them
+             const allIds = group.tabs.map(t => t.id);
+             // Note: createProperties with windowId helps if we are grouping tabs that might not be grouped yet?
+             // But chrome.tabs.group takes tabIds. If they are in the same window, it's fine.
+            const groupId = await chrome.tabs.group({ tabIds: allIds, createProperties: { windowId: targetWindowId } });
+            const updateProps: chrome.tabGroups.UpdateProperties = {
+                title: group.label
+            };
+            if (VALID_COLORS.includes(group.color)) {
+                updateProps.color = group.color as chrome.tabGroups.ColorEnum;
+            }
+            await chrome.tabGroups.update(groupId, updateProps);
+
+        } catch (e) {
+             logError("Error applying compound group", { error: String(e) });
+        }
+
+    } else {
+        // "current" mode - default behavior
+        const tabsByWindow = group.tabs.reduce<Map<number, TabMetadata[]>>((acc, tab) => {
+        const existing = acc.get(tab.windowId) ?? [];
+        existing.push(tab);
+        acc.set(tab.windowId, existing);
+        return acc;
+        }, new Map());
+
+        for (const tabs of tabsByWindow.values()) {
+            try {
+                const groupId = await chrome.tabs.group({ tabIds: tabs.map((t) => t.id) });
+                const updateProps: chrome.tabGroups.UpdateProperties = {
+                    title: group.label
+                };
+                if (VALID_COLORS.includes(group.color)) {
+                    updateProps.color = group.color as chrome.tabGroups.ColorEnum;
+                }
+                await chrome.tabGroups.update(groupId, updateProps);
+            } catch (e) {
+                 logError("Error applying group", { error: String(e) });
+            }
+        }
     }
   }
 };

@@ -76,6 +76,7 @@ export interface TabGroup {
   color: string;
   tabs: TabMetadata[];
   reason: string;
+  targetWindowMode?: "current" | "compound" | "new";
 }
 
 export type SortingStrategy = "domain" | "url" | "topic" | "title" | "lineage" | "nesting" | "context" | "pinned" | "age" | "recency" | "youtubeChannel" | "domain_full" | string;
@@ -128,6 +129,7 @@ export interface GroupingRule {
   color?: string; // hex code or "random"
   transform?: "none" | "stripTld" | "lowercase" | "uppercase" | "firstChar" | "domain" | "hostname" | "regex";
   transformPattern?: string;
+  windowMode?: "current" | "compound" | "new";
 }
 
 export interface SortingRule {

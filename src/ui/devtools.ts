@@ -789,6 +789,13 @@ function addBuilderRow(type: 'group' | 'sort' | 'groupSort', data?: any) {
             </select>
             <label><input type="checkbox" class="random-color-check" checked> Random</label>
 
+            <span style="margin-left: 10px;">Window:</span>
+            <select class="window-mode-select">
+                <option value="current">Current</option>
+                <option value="compound">Compound</option>
+                <option value="new">New</option>
+            </select>
+
             <div class="row-actions">
                 <button class="small-btn btn-del" style="background: #ffcccc; color: darkred;">Delete</button>
             </div>
@@ -925,6 +932,10 @@ function addBuilderRow(type: 'group' | 'sort' | 'groupSort', data?: any) {
             }
              // Trigger toggle color
             randomCheck.dispatchEvent(new Event('change'));
+
+            if (data.windowMode) {
+                (div.querySelector('.window-mode-select') as HTMLSelectElement).value = data.windowMode;
+            }
         } else if (type === 'sort' || type === 'groupSort') {
              if (data.field) (div.querySelector('.field-select') as HTMLSelectElement).value = data.field;
              if (data.order) (div.querySelector('.order-select') as HTMLSelectElement).value = data.order;
@@ -1122,6 +1133,11 @@ function updateBreadcrumb() {
                  val = (row.querySelector('.value-input-text') as HTMLInputElement).value;
                  text += ` > Group by Name: "${val}"`;
              }
+
+             const winMode = (row.querySelector('.window-mode-select') as HTMLSelectElement).value;
+             if (winMode && winMode !== 'current') {
+                 text += ` (${winMode})`;
+             }
         });
     }
 
@@ -1204,6 +1220,7 @@ function getBuilderStrategy(): CustomStrategy | null {
 
         const randomCheck = row.querySelector('.random-color-check') as HTMLInputElement;
         const colorInput = row.querySelector('.color-input') as HTMLSelectElement;
+        const windowMode = (row.querySelector('.window-mode-select') as HTMLSelectElement).value as any;
 
         let color = 'random';
         if (!randomCheck.checked) {
@@ -1211,7 +1228,7 @@ function getBuilderStrategy(): CustomStrategy | null {
         }
 
         if (value) {
-            groupingRules.push({ source, value, color, transform, transformPattern: transform === 'regex' ? transformPattern : undefined });
+            groupingRules.push({ source, value, color, transform, transformPattern: transform === 'regex' ? transformPattern : undefined, windowMode });
         }
     });
 

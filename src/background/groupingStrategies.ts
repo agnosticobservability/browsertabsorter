@@ -206,12 +206,27 @@ export const groupTabs = (
   tabs.forEach((tab) => {
     let keys: string[] = [];
     const appliedStrategies: string[] = [];
+    let targetWindowMode: "current" | "compound" | "new" = "current";
+
     try {
         for (const s of effectiveStrategies) {
             const key = groupingKey(tab, s);
             if (key !== null) {
                 keys.push(`${s}:${key}`);
                 appliedStrategies.push(s);
+
+                // Check for windowMode in custom strategy rules
+                const custom = customStrategies.find(c => c.id === s);
+                if (custom) {
+                    const rules = asArray<GroupingRule>(custom.groupingRules);
+                    for (const rule of rules) {
+                        if (rule.windowMode === "new") {
+                            targetWindowMode = "new";
+                        } else if (rule.windowMode === "compound" && targetWindowMode !== "new") {
+                            targetWindowMode = "compound";
+                        }
+                    }
+                }
             }
         }
     } catch (e) {
@@ -224,7 +239,13 @@ export const groupTabs = (
         return;
     }
 
-    const bucketKey = `window-${tab.windowId}::` + keys.join("::");
+    // Construct bucket key based on windowMode
+    let bucketKeyPrefix = `window-${tab.windowId}`;
+    if (targetWindowMode === "compound" || targetWindowMode === "new") {
+        bucketKeyPrefix = "global";
+    }
+
+    const bucketKey = `${bucketKeyPrefix}::` + keys.join("::");
 
     let group = buckets.get(bucketKey);
     if (!group) {
@@ -244,7 +265,8 @@ export const groupTabs = (
         label: "",
         color: groupColor,
         tabs: [],
-        reason: appliedStrategies.join(" + ")
+        reason: appliedStrategies.join(" + "),
+        targetWindowMode
       };
       buckets.set(bucketKey, group);
     }
