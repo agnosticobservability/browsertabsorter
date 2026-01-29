@@ -1279,6 +1279,14 @@ function runBuilderSimulation() {
     // Run Logic
     let tabs = getMappedTabs();
 
+    if (tabs.length === 0) {
+        resultContainer.innerHTML = '<p>No tabs found to simulate.</p>';
+        // Restore strategies immediately
+        localCustomStrategies = originalStrategies;
+        setCustomStrategies(localCustomStrategies);
+        return;
+    }
+
     // Apply Simulated Selection Override
     if (simulatedSelection.size > 0) {
         tabs = tabs.map(t => ({
@@ -1294,6 +1302,23 @@ function runBuilderSimulation() {
 
     // Group using this strategy
     const groups = groupTabs(tabs, [simStrat.id]);
+
+    // Check if we should show a fallback result (e.g. Sort Only)
+    // If no groups were created, but we have tabs, and the strategy is not a grouping strategy,
+    // we show the tabs as a single list.
+    if (groups.length === 0) {
+        const stratDef = getStrategies(localCustomStrategies).find(s => s.id === simStrat.id);
+        if (stratDef && !stratDef.isGrouping) {
+             groups.push({
+                 id: 'sim-sorted',
+                 windowId: 0,
+                 label: 'Sorted Results (No Grouping)',
+                 color: 'grey',
+                 tabs: tabs,
+                 reason: 'Sort Only'
+             });
+        }
+    }
 
     // Restore strategies
     localCustomStrategies = originalStrategies;
