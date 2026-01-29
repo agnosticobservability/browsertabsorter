@@ -1,6 +1,6 @@
 import { GroupingStrategy, SortingStrategy, TabGroup, TabMetadata, CustomStrategy, StrategyRule, RuleCondition, GroupingRule, SortingRule } from "../shared/types.js";
 import { getStrategies } from "../shared/strategyRegistry.js";
-import { logDebug } from "./logger.js";
+import { logDebug, logError } from "./logger.js";
 import { asArray } from "../shared/utils.js";
 
 let customStrategies: CustomStrategy[] = [];
@@ -282,6 +282,10 @@ function evaluateLegacyRules(legacyRules: StrategyRule[], tab: TabMetadata): str
     if (legacyRulesList.length === 0) return null;
 
     try {
+        if (!Array.isArray(legacyRulesList)) {
+            logError("Legacy rules is not an array");
+            return null;
+        }
         for (const rule of legacyRulesList) {
             if (!rule) continue;
             const rawValue = getFieldValue(tab, rule.field);
@@ -322,7 +326,7 @@ function evaluateLegacyRules(legacyRules: StrategyRule[], tab: TabMetadata): str
             }
         }
     } catch (error) {
-        logDebug("Error evaluating legacy rules", { error: String(error) });
+        logError("Error evaluating legacy rules loop", { error: String(error) });
     }
     return null;
 }
@@ -342,67 +346,71 @@ export const groupingKey = (tab: TabMetadata, strategy: GroupingStrategy | strin
       if (groupingRulesList.length > 0) {
           const parts: string[] = [];
           try {
-            for (const rule of groupingRulesList) {
-                if (!rule) continue;
-                let val = "";
-                if (rule.source === 'field') {
-                     const raw = getFieldValue(tab, rule.value);
-                     val = raw !== undefined && raw !== null ? String(raw) : "";
-                } else {
-                     val = rule.value;
-                }
+            if (!Array.isArray(groupingRulesList)) {
+                logError("Grouping rules is not an array", { strategy: custom.id });
+            } else {
+                for (const rule of groupingRulesList) {
+                    if (!rule) continue;
+                    let val = "";
+                    if (rule.source === 'field') {
+                        const raw = getFieldValue(tab, rule.value);
+                        val = raw !== undefined && raw !== null ? String(raw) : "";
+                    } else {
+                        val = rule.value;
+                    }
 
-                if (val && rule.transform && rule.transform !== 'none') {
-                    switch (rule.transform) {
-                        case 'stripTld':
-                            val = stripTld(val);
-                            break;
-                        case 'lowercase':
-                            val = val.toLowerCase();
-                            break;
-                        case 'uppercase':
-                            val = val.toUpperCase();
-                            break;
-                        case 'firstChar':
-                            val = val.charAt(0);
-                            break;
-                        case 'domain':
-                            val = domainFromUrl(val);
-                            break;
-                        case 'hostname':
-                            try {
-                              val = new URL(val).hostname;
-                            } catch { /* keep as is */ }
-                            break;
-                        case 'regex':
-                            if (rule.transformPattern) {
+                    if (val && rule.transform && rule.transform !== 'none') {
+                        switch (rule.transform) {
+                            case 'stripTld':
+                                val = stripTld(val);
+                                break;
+                            case 'lowercase':
+                                val = val.toLowerCase();
+                                break;
+                            case 'uppercase':
+                                val = val.toUpperCase();
+                                break;
+                            case 'firstChar':
+                                val = val.charAt(0);
+                                break;
+                            case 'domain':
+                                val = domainFromUrl(val);
+                                break;
+                            case 'hostname':
                                 try {
-                                    const regex = new RegExp(rule.transformPattern);
-                                    const match = regex.exec(val);
-                                    if (match) {
-                                        let extracted = "";
-                                        for (let i = 1; i < match.length; i++) {
-                                            extracted += match[i] || "";
+                                val = new URL(val).hostname;
+                                } catch { /* keep as is */ }
+                                break;
+                            case 'regex':
+                                if (rule.transformPattern) {
+                                    try {
+                                        const regex = new RegExp(rule.transformPattern);
+                                        const match = regex.exec(val);
+                                        if (match) {
+                                            let extracted = "";
+                                            for (let i = 1; i < match.length; i++) {
+                                                extracted += match[i] || "";
+                                            }
+                                            val = extracted;
+                                        } else {
+                                            val = "";
                                         }
-                                        val = extracted;
-                                    } else {
+                                    } catch (e) {
+                                        logDebug("Invalid regex in transform", { pattern: rule.transformPattern, error: String(e) });
                                         val = "";
                                     }
-                                } catch (e) {
-                                    logDebug("Invalid regex in transform", { pattern: rule.transformPattern, error: String(e) });
+                                } else {
                                     val = "";
                                 }
-                            } else {
-                                val = "";
-                            }
-                            break;
+                                break;
+                        }
                     }
-                }
 
-                if (val) parts.push(val);
+                    if (val) parts.push(val);
+                }
             }
           } catch (e) {
-             logDebug("Error applying grouping rules", { error: String(e) });
+             logError("Error applying grouping rules loop", { strategy: custom.id, error: String(e) });
           }
 
           if (parts.length > 0) {
@@ -491,8 +499,16 @@ export const requiresContextAnalysis = (strategyIds: (string | SortingStrategy)[
 
              for (const group of filterGroupsList) {
                  const groupRules = asArray<RuleCondition>(group);
-                 for (const rule of groupRules) {
-                     if (rule && isContextField(rule.field)) return true;
+                 try {
+                     if (!Array.isArray(groupRules)) {
+                         logError("Group rules in filterGroups is not an array", { strategy: custom.id });
+                         continue;
+                     }
+                     for (const rule of groupRules) {
+                         if (rule && isContextField(rule.field)) return true;
+                     }
+                 } catch (e) {
+                     logError("Error checking context requirements in filterGroups", { strategy: custom.id, error: String(e) });
                  }
              }
         }

@@ -133,6 +133,7 @@ chrome.runtime.onMessage.addListener(
     handleMessage(message, sender)
     .then((response) => sendResponse(response))
     .catch((error) => {
+      console.error("Message handling failed", error);
       sendResponse({ ok: false, error: String(error) });
     });
     return true;
