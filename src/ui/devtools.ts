@@ -775,6 +775,13 @@ function addBuilderRow(type: 'group' | 'sort' | 'groupSort', data?: any) {
                 </div>
             </div>
 
+            <span style="margin-left: 10px;">Window:</span>
+            <select class="window-mode-select">
+                <option value="current">Current</option>
+                <option value="compound">Compound</option>
+                <option value="new">New</option>
+            </select>
+
             <span style="margin-left: 10px;">Color:</span>
             <select class="color-input">
                 <option value="grey">Grey</option>
@@ -899,6 +906,7 @@ function addBuilderRow(type: 'group' | 'sort' | 'groupSort', data?: any) {
             const transformSelect = div.querySelector('.transform-select') as HTMLSelectElement;
             const colorInput = div.querySelector('.color-input') as HTMLSelectElement;
             const randomCheck = div.querySelector('.random-color-check') as HTMLInputElement;
+            const windowModeSelect = div.querySelector('.window-mode-select') as HTMLSelectElement;
 
             if (data.source) sourceSelect.value = data.source;
 
@@ -916,6 +924,8 @@ function addBuilderRow(type: 'group' | 'sort' | 'groupSort', data?: any) {
 
             // Trigger toggle for regex UI
             transformSelect.dispatchEvent(new Event('change'));
+
+            if (data.windowMode) windowModeSelect.value = data.windowMode;
 
             if (data.color && data.color !== 'random') {
                 randomCheck.checked = false;
@@ -1206,6 +1216,7 @@ function getBuilderStrategy(ignoreValidation: boolean = false): CustomStrategy |
 
         const transform = (row.querySelector('.transform-select') as HTMLSelectElement).value as any;
         const transformPattern = (row.querySelector('.transform-pattern') as HTMLInputElement).value;
+        const windowMode = (row.querySelector('.window-mode-select') as HTMLSelectElement).value as any;
 
         const randomCheck = row.querySelector('.random-color-check') as HTMLInputElement;
         const colorInput = row.querySelector('.color-input') as HTMLSelectElement;
@@ -1216,7 +1227,7 @@ function getBuilderStrategy(ignoreValidation: boolean = false): CustomStrategy |
         }
 
         if (value) {
-            groupingRules.push({ source, value, color, transform, transformPattern: transform === 'regex' ? transformPattern : undefined });
+            groupingRules.push({ source, value, color, transform, transformPattern: transform === 'regex' ? transformPattern : undefined, windowMode });
         }
     });
 

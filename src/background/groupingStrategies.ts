@@ -192,6 +192,12 @@ const getStrategyColor = (strategyId: string): string | undefined => {
     return undefined;
 };
 
+const resolveWindowMode = (modes: (string | undefined)[]): "current" | "new" | "compound" => {
+    if (modes.includes("new")) return "new";
+    if (modes.includes("compound")) return "compound";
+    return "current";
+};
+
 export const groupTabs = (
   tabs: TabMetadata[],
   strategies: (SortingStrategy | string)[]
@@ -206,12 +212,15 @@ export const groupTabs = (
   tabs.forEach((tab) => {
     let keys: string[] = [];
     const appliedStrategies: string[] = [];
+    const collectedModes: string[] = [];
+
     try {
         for (const s of effectiveStrategies) {
-            const key = groupingKey(tab, s);
-            if (key !== null) {
-                keys.push(`${s}:${key}`);
+            const result = getGroupingResult(tab, s);
+            if (result.key !== null) {
+                keys.push(`${s}:${result.key}`);
                 appliedStrategies.push(s);
+                collectedModes.push(result.mode);
             }
         }
     } catch (e) {
@@ -224,7 +233,13 @@ export const groupTabs = (
         return;
     }
 
-    const bucketKey = `window-${tab.windowId}::` + keys.join("::");
+    const effectiveMode = resolveWindowMode(collectedModes);
+    let bucketKey = "";
+    if (effectiveMode === 'current') {
+         bucketKey = `window-${tab.windowId}::` + keys.join("::");
+    } else {
+         bucketKey = `global::` + keys.join("::");
+    }
 
     let group = buckets.get(bucketKey);
     if (!group) {
@@ -244,7 +259,8 @@ export const groupTabs = (
         label: "",
         color: groupColor,
         tabs: [],
-        reason: appliedStrategies.join(" + ")
+        reason: appliedStrategies.join(" + "),
+        windowMode: effectiveMode
       };
       buckets.set(bucketKey, group);
     }
@@ -253,16 +269,6 @@ export const groupTabs = (
 
   const groups = Array.from(buckets.values());
   groups.forEach(group => {
-    // Generate label based on the reason (applied strategies)
-    // Actually generateLabel takes a list of strategies.
-    // We should pass the strategies that actually formed the group?
-    // But different tabs might have different sets of strategies if we allowed partial matches (not the case here,
-    // since keys define the bucket, so all tabs in bucket matched the same set of strategies and produced the same keys).
-    // The reason field contains the applied strategies joined by ' + '.
-    // We can parse it or pass effectiveStrategies and let generateLabel filter out nulls (which it does).
-    // But passing effectiveStrategies might include strategies that were filtered out (returned null).
-    // getLabelComponent calls groupingKey again. If it returns null, it's filtered.
-    // So passing effectiveStrategies is safe and correct.
     group.label = generateLabel(effectiveStrategies, group.tabs, allTabsMap);
   });
 
@@ -349,7 +355,7 @@ function evaluateLegacyRules(legacyRules: StrategyRule[], tab: TabMetadata): str
     return null;
 }
 
-export const groupingKey = (tab: TabMetadata, strategy: GroupingStrategy | string): string | null => {
+export const getGroupingResult = (tab: TabMetadata, strategy: GroupingStrategy | string): { key: string | null, mode: "current" | "new" | "compound" } => {
   const custom = customStrategies.find(s => s.id === strategy);
   if (custom) {
       const filterGroupsList = asArray<RuleCondition[]>(custom.filterGroups);
@@ -358,7 +364,7 @@ export const groupingKey = (tab: TabMetadata, strategy: GroupingStrategy | strin
       let match = false;
 
       if (filterGroupsList.length > 0) {
-          // OR logic: At least one group must pass
+          // OR logic
           for (const group of filterGroupsList) {
               const groupRules = asArray<RuleCondition>(group);
               if (groupRules.length === 0 || groupRules.every(r => checkCondition(r, tab))) {
@@ -377,12 +383,13 @@ export const groupingKey = (tab: TabMetadata, strategy: GroupingStrategy | strin
       }
 
       if (!match) {
-          return null;
+          return { key: null, mode: "current" };
       }
 
       const groupingRulesList = asArray<GroupingRule>(custom.groupingRules);
       if (groupingRulesList.length > 0) {
           const parts: string[] = [];
+          const modes: string[] = [];
           try {
             for (const rule of groupingRulesList) {
                 if (!rule) continue;
@@ -441,53 +448,75 @@ export const groupingKey = (tab: TabMetadata, strategy: GroupingStrategy | strin
                     }
                 }
 
-                if (val) parts.push(val);
+                if (val) {
+                    parts.push(val);
+                    if (rule.windowMode) modes.push(rule.windowMode);
+                }
             }
           } catch (e) {
              logDebug("Error applying grouping rules", { error: String(e) });
           }
 
           if (parts.length > 0) {
-              return parts.join(" - ");
+              return { key: parts.join(" - "), mode: resolveWindowMode(modes) };
           }
-          return custom.fallback || "Misc";
+          return { key: custom.fallback || "Misc", mode: "current" };
       } else if (custom.rules) {
           const result = evaluateLegacyRules(asArray<StrategyRule>(custom.rules), tab);
-          if (result) return result;
+          if (result) return { key: result, mode: "current" };
       }
 
-      return custom.fallback || "Misc";
+      return { key: custom.fallback || "Misc", mode: "current" };
   }
 
+  // Built-in strategies
+  let simpleKey: string | null = null;
   switch (strategy) {
     case "domain":
     case "domain_full":
-      return domainFromUrl(tab.url);
+      simpleKey = domainFromUrl(tab.url);
+      break;
     case "topic":
-      return semanticBucket(tab.title, tab.url);
+      simpleKey = semanticBucket(tab.title, tab.url);
+      break;
     case "lineage":
-      return navigationKey(tab);
+      simpleKey = navigationKey(tab);
+      break;
     case "context":
-      return tab.context || "Uncategorized";
+      simpleKey = tab.context || "Uncategorized";
+      break;
     case "pinned":
-      return tab.pinned ? "pinned" : "unpinned";
+      simpleKey = tab.pinned ? "pinned" : "unpinned";
+      break;
     case "age":
-      return getRecencyLabel(tab.lastAccessed ?? 0);
+      simpleKey = getRecencyLabel(tab.lastAccessed ?? 0);
+      break;
     case "url":
-      return tab.url;
+      simpleKey = tab.url;
+      break;
     case "title":
-      return tab.title;
+      simpleKey = tab.title;
+      break;
     case "recency":
-      return String(tab.lastAccessed ?? 0);
+      simpleKey = String(tab.lastAccessed ?? 0);
+      break;
     case "nesting":
-      return tab.openerTabId !== undefined ? "child" : "root";
+      simpleKey = tab.openerTabId !== undefined ? "child" : "root";
+      break;
     default:
         const val = getFieldValue(tab, strategy);
         if (val !== undefined && val !== null) {
-            return String(val);
+            simpleKey = String(val);
+        } else {
+            simpleKey = "Unknown";
         }
-        return "Unknown";
+        break;
   }
+  return { key: simpleKey, mode: "current" };
+};
+
+export const groupingKey = (tab: TabMetadata, strategy: GroupingStrategy | string): string | null => {
+    return getGroupingResult(tab, strategy).key;
 };
 
 function isContextField(field: string): boolean {

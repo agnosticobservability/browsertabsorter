@@ -119,19 +119,65 @@ export const applyTabGroups = async (groups: TabGroup[]) => {
   const claimedGroupIds = new Set<number>();
 
   for (const group of groups) {
-    const tabsByWindow = group.tabs.reduce<Map<number, TabMetadata[]>>((acc, tab) => {
-      const existing = acc.get(tab.windowId) ?? [];
-      existing.push(tab);
-      acc.set(tab.windowId, existing);
-      return acc;
-    }, new Map());
+    let tabsToProcess: { windowId: number, tabs: TabMetadata[] }[] = [];
 
-    for (const tabs of tabsByWindow.values()) {
+    if (group.windowMode === 'new') {
+      if (group.tabs.length > 0) {
+        try {
+          const first = group.tabs[0];
+          const win = await chrome.windows.create({ tabId: first.id });
+          const winId = win.id!;
+          const others = group.tabs.slice(1).map(t => t.id);
+          if (others.length > 0) {
+            await chrome.tabs.move(others, { windowId: winId, index: -1 });
+          }
+          tabsToProcess.push({ windowId: winId, tabs: group.tabs });
+        } catch (e) {
+          logError("Error creating new window for group", { error: String(e) });
+        }
+      }
+    } else if (group.windowMode === 'compound') {
+      if (group.tabs.length > 0) {
+        // Determine target window (majority wins)
+        const counts = new Map<number, number>();
+        group.tabs.forEach(t => counts.set(t.windowId, (counts.get(t.windowId) || 0) + 1));
+        let targetWindowId = group.tabs[0].windowId;
+        let max = 0;
+        for (const [wid, count] of counts) {
+          if (count > max) { max = count; targetWindowId = wid; }
+        }
+
+        // Move tabs not in target
+        const toMove = group.tabs.filter(t => t.windowId !== targetWindowId).map(t => t.id);
+        if (toMove.length > 0) {
+          try {
+            await chrome.tabs.move(toMove, { windowId: targetWindowId, index: -1 });
+          } catch (e) {
+            logError("Error moving tabs for compound group", { error: String(e) });
+          }
+        }
+        tabsToProcess.push({ windowId: targetWindowId, tabs: group.tabs });
+      }
+    } else {
+      // Current mode: split by source window
+      const map = group.tabs.reduce<Map<number, TabMetadata[]>>((acc, tab) => {
+        const existing = acc.get(tab.windowId) ?? [];
+        existing.push(tab);
+        acc.set(tab.windowId, existing);
+        return acc;
+      }, new Map());
+      for (const [wid, t] of map) {
+        tabsToProcess.push({ windowId: wid, tabs: t });
+      }
+    }
+
+    for (const { windowId: targetWinId, tabs } of tabsToProcess) {
       // Find candidate group ID to reuse
       let candidateGroupId: number | undefined;
       const counts = new Map<number, number>();
       for (const t of tabs) {
-        if (t.groupId && t.groupId !== -1) {
+        // Only consider groups that were already in this window
+        if (t.groupId && t.groupId !== -1 && t.windowId === targetWinId) {
           counts.set(t.groupId, (counts.get(t.groupId) || 0) + 1);
         }
       }
@@ -169,6 +215,7 @@ export const applyTabGroups = async (groups: TabGroup[]) => {
           // 2. Add only the tabs that aren't already in the group
           const tabsToAdd = tabs.filter(t => !existingTabIds.has(t.id));
           if (tabsToAdd.length > 0) {
+             // For new/compound, tabs might have been moved, so we must pass tabIds
              await chrome.tabs.group({ groupId: finalGroupId, tabIds: tabsToAdd.map(t => t.id) });
           }
         } catch (e) {
@@ -176,6 +223,9 @@ export const applyTabGroups = async (groups: TabGroup[]) => {
         }
       } else {
         // Create new group (default behavior: expanded)
+        // Ensure we create it in the target window (if strictly new, tabIds implies window if they are in it)
+        // If tabs were just moved, they are in targetWinId.
+        // chrome.tabs.group with tabIds will infer window from tabs.
         finalGroupId = await chrome.tabs.group({ tabIds: tabs.map(t => t.id) });
         claimedGroupIds.add(finalGroupId);
       }
