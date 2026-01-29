@@ -967,7 +967,6 @@ function clearBuilder() {
     (document.getElementById('strat-desc') as HTMLInputElement).value = '';
 
     (document.getElementById('strat-autorun') as HTMLInputElement).checked = false;
-    (document.getElementById('strat-separate-window') as HTMLInputElement).checked = false;
 
     const sortGroupsCheck = (document.getElementById('strat-sortgroups-check') as HTMLInputElement);
     if (sortGroupsCheck) {
