@@ -226,7 +226,10 @@ export const applyTabGroups = async (groups: TabGroup[]) => {
         // Ensure we create it in the target window (if strictly new, tabIds implies window if they are in it)
         // If tabs were just moved, they are in targetWinId.
         // chrome.tabs.group with tabIds will infer window from tabs.
-        finalGroupId = await chrome.tabs.group({ tabIds: tabs.map(t => t.id) });
+        finalGroupId = await chrome.tabs.group({
+          tabIds: tabs.map(t => t.id),
+          createProperties: { windowId: targetWinId }
+        });
         claimedGroupIds.add(finalGroupId);
       }
 
