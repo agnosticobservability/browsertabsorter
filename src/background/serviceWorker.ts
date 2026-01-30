@@ -1,7 +1,7 @@
 import { applyTabGroups, applyTabSorting, calculateTabGroups, fetchCurrentTabGroups, mergeTabs, splitTabs } from "./tabManager.js";
 import { loadPreferences, savePreferences } from "./preferences.js";
 import { setCustomStrategies } from "./groupingStrategies.js";
-import { logDebug, logInfo } from "../shared/logger.js";
+import { logDebug, logInfo, getLogs, clearLogs, setLoggerPreferences } from "../shared/logger.js";
 import { pushUndoState, saveState, undo, getSavedStates, deleteSavedState, restoreState } from "./stateManager.js";
 import {
   ApplyGroupingPayload,
@@ -121,7 +121,16 @@ const handleMessage = async <TData>(
     case "savePreferences": {
       const prefs = await savePreferences(message.payload as any);
       setCustomStrategies(prefs.customStrategies || []);
+      setLoggerPreferences(prefs);
       return { ok: true, data: prefs as TData };
+    }
+    case "getLogs": {
+        const logs = getLogs();
+        return { ok: true, data: logs as TData };
+    }
+    case "clearLogs": {
+        clearLogs();
+        return { ok: true };
     }
     default:
       return { ok: false, error: "Unknown message" };
