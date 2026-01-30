@@ -1,6 +1,6 @@
 import { CustomStrategy, Preferences, SortingStrategy } from "../shared/types.js";
 import { getStoredValue, setStoredValue } from "./storage.js";
-import { setLoggerPreferences } from "../shared/logger.js";
+import { setLoggerPreferences, logDebug } from "../shared/logger.js";
 import { asArray } from "../shared/utils.js";
 
 const PREFERENCES_KEY = "preferences";
@@ -53,6 +53,7 @@ export const loadPreferences = async (): Promise<Preferences> => {
 };
 
 export const savePreferences = async (prefs: Partial<Preferences>): Promise<Preferences> => {
+  logDebug("Updating preferences", { keys: Object.keys(prefs) });
   const current = await loadPreferences();
   const merged = normalizePreferences({ ...current, ...prefs });
   await setStoredValue(PREFERENCES_KEY, merged);
