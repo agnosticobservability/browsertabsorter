@@ -1,6 +1,6 @@
 import { UndoState, SavedState, WindowState, StoredTabState } from "../shared/types.js";
 import { getStoredValue, setStoredValue } from "./storage.js";
-import { logInfo, logError } from "./logger.js";
+import { logInfo, logError } from "../shared/logger.js";
 
 const MAX_UNDO_STACK = 10;
 const UNDO_STACK_KEY = "undoStack";

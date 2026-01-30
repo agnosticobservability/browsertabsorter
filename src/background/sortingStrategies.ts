@@ -1,6 +1,6 @@
 import { SortingStrategy, TabMetadata, CustomStrategy, SortingRule } from "../shared/types.js";
 import { domainFromUrl, semanticBucket, navigationKey, groupingKey, getFieldValue, getCustomStrategies } from "./groupingStrategies.js";
-import { logDebug } from "./logger.js";
+import { logDebug } from "../shared/logger.js";
 import { asArray } from "../shared/utils.js";
 
 export const recencyScore = (tab: TabMetadata) => tab.lastAccessed ?? 0;

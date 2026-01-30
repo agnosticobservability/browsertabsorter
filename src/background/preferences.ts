@@ -1,6 +1,6 @@
 import { CustomStrategy, Preferences, SortingStrategy } from "../shared/types.js";
 import { getStoredValue, setStoredValue } from "./storage.js";
-import { setLoggerPreferences } from "./logger.js";
+import { setLoggerPreferences } from "../shared/logger.js";
 import { asArray } from "../shared/utils.js";
 
 const PREFERENCES_KEY = "preferences";
@@ -8,6 +8,7 @@ const PREFERENCES_KEY = "preferences";
 export const defaultPreferences: Preferences = {
   sorting: ["pinned", "recency"],
   debug: false,
+  logLevel: "info",
   theme: "dark",
   customGenera: {}
 };

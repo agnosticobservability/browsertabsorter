@@ -1,7 +1,7 @@
 import { PageContext, TabMetadata } from "../../shared/types.js";
 import { normalizeUrl, parseYouTubeUrl, extractYouTubeChannelFromHtml } from "./logic.js";
 import { getGenera } from "./generaRegistry.js";
-import { logDebug } from "../logger.js";
+import { logDebug } from "../../shared/logger.js";
 import { loadPreferences } from "../preferences.js";
 
 interface ExtractionResponse {

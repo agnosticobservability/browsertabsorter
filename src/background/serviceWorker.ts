@@ -1,7 +1,7 @@
 import { applyTabGroups, applyTabSorting, calculateTabGroups, fetchCurrentTabGroups, mergeTabs, splitTabs } from "./tabManager.js";
 import { loadPreferences, savePreferences } from "./preferences.js";
 import { setCustomStrategies } from "./groupingStrategies.js";
-import { logDebug, logInfo } from "./logger.js";
+import { logDebug, logInfo } from "../shared/logger.js";
 import { pushUndoState, saveState, undo, getSavedStates, deleteSavedState, restoreState } from "./stateManager.js";
 import {
   ApplyGroupingPayload,
@@ -17,7 +17,11 @@ import {
 chrome.runtime.onInstalled.addListener(async () => {
   const prefs = await loadPreferences();
   setCustomStrategies(prefs.customStrategies || []);
-  logInfo("Extension installed", { prefs });
+  logInfo("Extension installed", {
+    version: chrome.runtime.getManifest().version,
+    logLevel: prefs.logLevel,
+    strategiesCount: prefs.customStrategies?.length || 0
+  });
 });
 
 const handleMessage = async <TData>(
@@ -154,7 +158,10 @@ const triggerAutoRun = () => {
 
       const autoRunStrats = prefs.customStrategies?.filter(s => s.autoRun);
       if (autoRunStrats && autoRunStrats.length > 0) {
-        logInfo("Auto-running strategies", { strategies: autoRunStrats.map(s => s.id) });
+        logInfo("Auto-running strategies", {
+          strategies: autoRunStrats.map(s => s.id),
+          count: autoRunStrats.length
+        });
         const ids = autoRunStrats.map(s => s.id);
 
         // We apply grouping using these strategies

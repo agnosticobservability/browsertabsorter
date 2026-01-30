@@ -3,6 +3,7 @@ import {
   Preferences,
   SavedState,
   SortingStrategy,
+  LogLevel
 } from "../shared/types.js";
 import {
   applyGrouping,
@@ -16,6 +17,7 @@ import {
   GROUP_COLORS
 } from "./common.js";
 import { getStrategies, STRATEGIES, StrategyDefinition } from "../shared/strategyRegistry.js";
+import { setLoggerPreferences, logDebug } from "../shared/logger.js";
 
 // Elements
 const searchInput = document.getElementById("tabSearch") as HTMLInputElement;
@@ -569,6 +571,9 @@ const loadState = async () => {
     if (preferences) {
       const s = preferences.sorting || [];
 
+      // Initialize Logger
+      setLoggerPreferences(preferences);
+
       const allStrategies = getStrategies(preferences.customStrategies);
 
       // Render unified strategy list
@@ -577,6 +582,12 @@ const loadState = async () => {
       // Initial theme load
       if (preferences.theme) {
         applyTheme(preferences.theme, false);
+      }
+
+      // Init settings UI
+      if (preferences.logLevel) {
+          const select = document.getElementById('logLevelSelect') as HTMLSelectElement;
+          if (select) select.value = preferences.logLevel;
       }
     }
 
@@ -799,6 +810,28 @@ btnTheme?.addEventListener('click', () => {
     const newTheme = isLight ? 'dark' : 'light';
     localStorage.setItem('theme', newTheme); // Keep local copy for fast boot
     applyTheme(newTheme, true);
+});
+
+// --- Settings Logic ---
+const settingsDialog = document.getElementById("settingsDialog") as HTMLDialogElement;
+document.getElementById("btnSettings")?.addEventListener("click", () => {
+    settingsDialog.showModal();
+});
+document.getElementById("btnCloseSettings")?.addEventListener("click", () => {
+    settingsDialog.close();
+});
+
+const logLevelSelect = document.getElementById("logLevelSelect") as HTMLSelectElement;
+logLevelSelect?.addEventListener("change", async () => {
+    const newLevel = logLevelSelect.value as LogLevel;
+    if (preferences) {
+        preferences.logLevel = newLevel;
+        // Update local logger immediately
+        setLoggerPreferences(preferences);
+        // Persist
+        await sendMessage("savePreferences", { logLevel: newLevel });
+        logDebug("Log level updated", { level: newLevel });
+    }
 });
 
 // --- Pin & Resize Logic ---
