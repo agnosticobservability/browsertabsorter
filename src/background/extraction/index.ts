@@ -1,4 +1,4 @@
-import { PageContext } from "../../shared/types.js";
+import { PageContext, TabMetadata } from "../../shared/types.js";
 import { normalizeUrl, parseYouTubeUrl, extractYouTubeChannelFromHtml } from "./logic.js";
 import { getGenera } from "./generaRegistry.js";
 import { logDebug } from "../logger.js";
@@ -21,7 +21,7 @@ let activeFetches = 0;
 const MAX_CONCURRENT_FETCHES = 5; // Conservative limit to avoid rate limiting
 const FETCH_QUEUE: (() => void)[] = [];
 
-const fetchWithTimeout = async (url: string, timeout = 5000): Promise<Response> => {
+const fetchWithTimeout = async (url: string, timeout = 2000): Promise<Response> => {
     const controller = new AbortController();
     const id = setTimeout(() => controller.abort(), timeout);
     try {
@@ -48,9 +48,8 @@ const enqueueFetch = async <T>(fn: () => Promise<T>): Promise<T> => {
     }
 };
 
-export const extractPageContext = async (tabId: number): Promise<ExtractionResponse> => {
+export const extractPageContext = async (tab: TabMetadata | chrome.tabs.Tab): Promise<ExtractionResponse> => {
   try {
-    const tab = await chrome.tabs.get(tabId);
     if (!tab || !tab.url) {
         return { data: null, error: "Tab not found or no URL", status: 'NO_RESPONSE' };
     }
@@ -66,7 +65,7 @@ export const extractPageContext = async (tabId: number): Promise<ExtractionRespo
     }
 
     const prefs = await loadPreferences();
-    let baseline = buildBaselineContext(tab, prefs.customGenera);
+    let baseline = buildBaselineContext(tab as chrome.tabs.Tab, prefs.customGenera);
 
     // Fetch and enrich for YouTube if author is missing and it is a video
     const targetUrl = tab.url;
@@ -96,7 +95,7 @@ export const extractPageContext = async (tabId: number): Promise<ExtractionRespo
     };
 
   } catch (e: any) {
-    logDebug(`Extraction failed for tab ${tabId}`, { error: String(e) });
+    logDebug(`Extraction failed for tab ${tab.id}`, { error: String(e) });
     return {
       data: null,
       error: String(e),

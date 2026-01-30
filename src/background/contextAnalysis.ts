@@ -10,12 +10,26 @@ export interface ContextResult {
   status?: string;
 }
 
+const contextCache = new Map<string, ContextResult>();
+
 export const analyzeTabContext = async (tabs: TabMetadata[]): Promise<Map<number, ContextResult>> => {
   const contextMap = new Map<number, ContextResult>();
 
   const promises = tabs.map(async (tab) => {
     try {
+      const cacheKey = `${tab.id}::${tab.url}`;
+      if (contextCache.has(cacheKey)) {
+        contextMap.set(tab.id, contextCache.get(cacheKey)!);
+        return;
+      }
+
       const result = await fetchContextForTab(tab);
+
+      // Only cache valid results to allow retrying on transient errors?
+      // Actually, if we cache error, we stop retrying.
+      // Let's cache everything for now to prevent spamming if it keeps failing.
+      contextCache.set(cacheKey, result);
+
       contextMap.set(tab.id, result);
     } catch (error) {
       logError(`Failed to analyze context for tab ${tab.id}`, { error: String(error) });
@@ -35,7 +49,7 @@ const fetchContextForTab = async (tab: TabMetadata): Promise<ContextResult> => {
   let status: string | undefined;
 
   try {
-      const extraction = await extractPageContext(tab.id);
+      const extraction = await extractPageContext(tab);
       data = extraction.data;
       error = extraction.error;
       status = extraction.status;
