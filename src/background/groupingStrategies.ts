@@ -13,6 +13,8 @@ export const getCustomStrategies = (): CustomStrategy[] => customStrategies;
 
 const COLORS = ["blue", "cyan", "green", "orange", "purple", "red", "yellow"];
 
+const regexCache = new Map<string, RegExp>();
+
 export const domainFromUrl = (url: string): string => {
   try {
     const parsed = new URL(url);
@@ -426,7 +428,11 @@ export const getGroupingResult = (tab: TabMetadata, strategy: GroupingStrategy |
                         case 'regex':
                             if (rule.transformPattern) {
                                 try {
-                                    const regex = new RegExp(rule.transformPattern);
+                                    let regex = regexCache.get(rule.transformPattern);
+                                    if (!regex) {
+                                        regex = new RegExp(rule.transformPattern);
+                                        regexCache.set(rule.transformPattern, regex);
+                                    }
                                     const match = regex.exec(val);
                                     if (match) {
                                         let extracted = "";

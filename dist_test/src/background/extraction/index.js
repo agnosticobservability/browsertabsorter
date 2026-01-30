@@ -7,8 +7,19 @@ const logger_js_1 = require("../logger.js");
 const preferences_js_1 = require("../preferences.js");
 // Simple concurrency control
 let activeFetches = 0;
-const MAX_CONCURRENT_FETCHES = 2; // Conservative limit to avoid rate limiting
+const MAX_CONCURRENT_FETCHES = 5; // Conservative limit to avoid rate limiting
 const FETCH_QUEUE = [];
+const fetchWithTimeout = async (url, timeout = 5000) => {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeout);
+    try {
+        const response = await fetch(url, { signal: controller.signal });
+        return response;
+    }
+    finally {
+        clearTimeout(id);
+    }
+};
 const enqueueFetch = async (fn) => {
     if (activeFetches >= MAX_CONCURRENT_FETCHES) {
         await new Promise(resolve => FETCH_QUEUE.push(resolve));
@@ -49,7 +60,7 @@ const extractPageContext = async (tabId) => {
             try {
                 // We use a queue to prevent flooding requests
                 await enqueueFetch(async () => {
-                    const response = await fetch(targetUrl);
+                    const response = await fetchWithTimeout(targetUrl);
                     if (response.ok) {
                         const html = await response.text();
                         const channel = (0, logic_js_1.extractYouTubeChannelFromHtml)(html);
