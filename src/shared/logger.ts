@@ -11,8 +11,62 @@ const LEVEL_PRIORITY: Record<LogLevel, number> = {
 };
 
 let currentLevel: LogLevel = "info";
-const logs: LogEntry[] = [];
+let logs: LogEntry[] = [];
 const MAX_LOGS = 1000;
+const STORAGE_KEY = "sessionLogs";
+
+// Safe context check
+const isServiceWorker = typeof self !== 'undefined' &&
+                        typeof (self as any).ServiceWorkerGlobalScope !== 'undefined' &&
+                        self instanceof (self as any).ServiceWorkerGlobalScope;
+let isSaving = false;
+let pendingSave = false;
+let saveTimer: ReturnType<typeof setTimeout> | null = null;
+
+const doSave = () => {
+    if (!isServiceWorker || !chrome?.storage?.session || isSaving) {
+        pendingSave = true;
+        return;
+    }
+
+    isSaving = true;
+    pendingSave = false;
+
+    chrome.storage.session.set({ [STORAGE_KEY]: logs }).then(() => {
+        isSaving = false;
+        if (pendingSave) {
+            saveLogsToStorage();
+        }
+    }).catch(err => {
+        console.error("Failed to save logs", err);
+        isSaving = false;
+    });
+};
+
+const saveLogsToStorage = () => {
+    if (saveTimer) clearTimeout(saveTimer);
+    saveTimer = setTimeout(doSave, 1000);
+};
+
+let resolveLoggerReady: () => void;
+export const loggerReady = new Promise<void>(resolve => {
+    resolveLoggerReady = resolve;
+});
+
+export const initLogger = async () => {
+    if (isServiceWorker && chrome?.storage?.session) {
+        try {
+            const result = await chrome.storage.session.get(STORAGE_KEY);
+            if (result[STORAGE_KEY] && Array.isArray(result[STORAGE_KEY])) {
+                logs = result[STORAGE_KEY];
+                if (logs.length > MAX_LOGS) logs = logs.slice(0, MAX_LOGS);
+            }
+        } catch (e) {
+            console.error("Failed to restore logs", e);
+        }
+    }
+    if (resolveLoggerReady) resolveLoggerReady();
+};
 
 export const setLoggerPreferences = (prefs: Preferences) => {
   if (prefs.logLevel) {
@@ -51,15 +105,39 @@ const addLog = (level: LogLevel, message: string, context?: Record<string, unkno
           message,
           context
       };
-      logs.unshift(entry);
-      if (logs.length > MAX_LOGS) {
-          logs.pop();
+
+      if (isServiceWorker) {
+          logs.unshift(entry);
+          if (logs.length > MAX_LOGS) {
+              logs.pop();
+          }
+          saveLogsToStorage();
+      } else {
+          // In other contexts, send to SW
+          if (chrome?.runtime?.sendMessage) {
+             chrome.runtime.sendMessage({ type: 'logEntry', payload: entry }).catch(() => {
+                 // Ignore if message fails (e.g. context invalidated)
+             });
+          }
       }
   }
 };
 
+export const addLogEntry = (entry: LogEntry) => {
+    if (isServiceWorker) {
+        logs.unshift(entry);
+        if (logs.length > MAX_LOGS) {
+            logs.pop();
+        }
+        saveLogsToStorage();
+    }
+};
+
 export const getLogs = () => [...logs];
-export const clearLogs = () => { logs.length = 0; };
+export const clearLogs = () => {
+    logs.length = 0;
+    if (isServiceWorker) saveLogsToStorage();
+};
 
 export const logDebug = (message: string, context?: Record<string, unknown>) => {
   addLog("debug", message, context);

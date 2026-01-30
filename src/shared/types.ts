@@ -199,7 +199,8 @@ export interface RuntimeMessage<TPayload = unknown> {
     | "mergeSelection"
     | "splitSelection"
     | "getLogs"
-    | "clearLogs";
+    | "clearLogs"
+    | "logEntry";
   payload?: TPayload;
 }
 

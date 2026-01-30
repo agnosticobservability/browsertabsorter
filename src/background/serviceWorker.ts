@@ -1,7 +1,7 @@
 import { applyTabGroups, applyTabSorting, calculateTabGroups, fetchCurrentTabGroups, mergeTabs, splitTabs } from "./tabManager.js";
 import { loadPreferences, savePreferences } from "./preferences.js";
 import { setCustomStrategies } from "./groupingStrategies.js";
-import { logDebug, logInfo, getLogs, clearLogs, setLoggerPreferences } from "../shared/logger.js";
+import { logDebug, logInfo, getLogs, clearLogs, setLoggerPreferences, initLogger, addLogEntry, loggerReady } from "../shared/logger.js";
 import { pushUndoState, saveState, undo, getSavedStates, deleteSavedState, restoreState } from "./stateManager.js";
 import {
   ApplyGroupingPayload,
@@ -22,6 +22,16 @@ chrome.runtime.onInstalled.addListener(async () => {
     logLevel: prefs.logLevel,
     strategiesCount: prefs.customStrategies?.length || 0
   });
+});
+
+// Initialize logger on startup
+loadPreferences().then(async (prefs) => {
+    setCustomStrategies(prefs.customStrategies || []);
+    await initLogger();
+    logInfo("Service Worker Initialized", {
+        version: chrome.runtime.getManifest().version,
+        logLevel: prefs.logLevel
+    });
 });
 
 const handleMessage = async <TData>(
@@ -125,11 +135,19 @@ const handleMessage = async <TData>(
       return { ok: true, data: prefs as TData };
     }
     case "getLogs": {
+        await loggerReady;
         const logs = getLogs();
         return { ok: true, data: logs as TData };
     }
     case "clearLogs": {
         clearLogs();
+        return { ok: true };
+    }
+    case "logEntry": {
+        const entry = message.payload as any;
+        if (entry && entry.level && entry.message) {
+            addLogEntry(entry);
+        }
         return { ok: true };
     }
     default:
