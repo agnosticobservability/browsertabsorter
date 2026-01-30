@@ -4,6 +4,7 @@ const contextAnalysis_js_1 = require("../background/contextAnalysis.js");
 const groupingStrategies_js_1 = require("../background/groupingStrategies.js");
 const generaRegistry_js_1 = require("../background/extraction/generaRegistry.js");
 const sortingStrategies_js_1 = require("../background/sortingStrategies.js");
+const utils_js_1 = require("../shared/utils.js");
 const groupingStrategies_js_2 = require("../background/groupingStrategies.js");
 const strategyRegistry_js_1 = require("../shared/strategyRegistry.js");
 // State
@@ -1176,62 +1177,57 @@ function runBuilderSimulation() {
     newStatePanel.style.display = 'flex';
     // Update localCustomStrategies temporarily for Sim
     const originalStrategies = [...localCustomStrategies];
-    // Replace or add
-    const existingIdx = localCustomStrategies.findIndex(s => s.id === simStrat.id);
-    if (existingIdx !== -1) {
-        localCustomStrategies[existingIdx] = simStrat;
-    }
-    else {
-        localCustomStrategies.push(simStrat);
-    }
-    (0, groupingStrategies_js_2.setCustomStrategies)(localCustomStrategies);
-    // Run Logic
-    let tabs = getMappedTabs();
-    if (tabs.length === 0) {
-        resultContainer.innerHTML = '<p>No tabs found to simulate.</p>';
-        // Restore strategies immediately
-        localCustomStrategies = originalStrategies;
-        (0, groupingStrategies_js_2.setCustomStrategies)(localCustomStrategies);
-        return;
-    }
-    // Apply Simulated Selection Override
-    if (simulatedSelection.size > 0) {
-        tabs = tabs.map(t => ({
-            ...t,
-            selected: simulatedSelection.has(t.id)
-        }));
-    }
-    // Sort using this strategy?
-    // sortTabs expects SortingStrategy[].
-    // If we use this strategy for sorting...
-    tabs = (0, sortingStrategies_js_1.sortTabs)(tabs, [simStrat.id]);
-    // Group using this strategy
-    const groups = (0, groupingStrategies_js_1.groupTabs)(tabs, [simStrat.id]);
-    // Check if we should show a fallback result (e.g. Sort Only)
-    // If no groups were created, but we have tabs, and the strategy is not a grouping strategy,
-    // we show the tabs as a single list.
-    if (groups.length === 0) {
-        const stratDef = (0, strategyRegistry_js_1.getStrategies)(localCustomStrategies).find(s => s.id === simStrat.id);
-        if (stratDef && !stratDef.isGrouping) {
-            groups.push({
-                id: 'sim-sorted',
-                windowId: 0,
-                label: 'Sorted Results (No Grouping)',
-                color: 'grey',
-                tabs: tabs,
-                reason: 'Sort Only'
-            });
+    try {
+        // Replace or add
+        const existingIdx = localCustomStrategies.findIndex(s => s.id === simStrat.id);
+        if (existingIdx !== -1) {
+            localCustomStrategies[existingIdx] = simStrat;
         }
-    }
-    // Restore strategies
-    localCustomStrategies = originalStrategies;
-    (0, groupingStrategies_js_2.setCustomStrategies)(localCustomStrategies);
-    // Render Results
-    if (groups.length === 0) {
-        resultContainer.innerHTML = '<p>No groups created.</p>';
-        return;
-    }
-    resultContainer.innerHTML = groups.map(group => `
+        else {
+            localCustomStrategies.push(simStrat);
+        }
+        (0, groupingStrategies_js_2.setCustomStrategies)(localCustomStrategies);
+        // Run Logic
+        let tabs = getMappedTabs();
+        if (tabs.length === 0) {
+            resultContainer.innerHTML = '<p>No tabs found to simulate.</p>';
+            return;
+        }
+        // Apply Simulated Selection Override
+        if (simulatedSelection.size > 0) {
+            tabs = tabs.map(t => ({
+                ...t,
+                selected: simulatedSelection.has(t.id)
+            }));
+        }
+        // Sort using this strategy?
+        // sortTabs expects SortingStrategy[].
+        // If we use this strategy for sorting...
+        tabs = (0, sortingStrategies_js_1.sortTabs)(tabs, [simStrat.id]);
+        // Group using this strategy
+        const groups = (0, groupingStrategies_js_1.groupTabs)(tabs, [simStrat.id]);
+        // Check if we should show a fallback result (e.g. Sort Only)
+        // If no groups were created, but we have tabs, and the strategy is not a grouping strategy,
+        // we show the tabs as a single list.
+        if (groups.length === 0) {
+            const stratDef = (0, strategyRegistry_js_1.getStrategies)(localCustomStrategies).find(s => s.id === simStrat.id);
+            if (stratDef && !stratDef.isGrouping) {
+                groups.push({
+                    id: 'sim-sorted',
+                    windowId: 0,
+                    label: 'Sorted Results (No Grouping)',
+                    color: 'grey',
+                    tabs: tabs,
+                    reason: 'Sort Only'
+                });
+            }
+        }
+        // Render Results
+        if (groups.length === 0) {
+            resultContainer.innerHTML = '<p>No groups created.</p>';
+            return;
+        }
+        resultContainer.innerHTML = groups.map(group => `
     <div class="group-result" style="margin-bottom: 10px; border: 1px solid #ddd; border-radius: 4px; overflow: hidden;">
       <div class="group-header" style="border-left: 5px solid ${group.color}; padding: 5px; background: #f8f9fa; font-size: 0.9em; font-weight: bold; display: flex; justify-content: space-between;">
         <span>${escapeHtml(group.label || 'Ungrouped')}</span>
@@ -1249,6 +1245,17 @@ function runBuilderSimulation() {
       </ul>
     </div>
   `).join('');
+    }
+    catch (e) {
+        console.error("Simulation failed", e);
+        resultContainer.innerHTML = `<p style="color: red;">Simulation failed: ${e}</p>`;
+        alert("Simulation failed: " + e);
+    }
+    finally {
+        // Restore strategies
+        localCustomStrategies = originalStrategies;
+        (0, groupingStrategies_js_2.setCustomStrategies)(localCustomStrategies);
+    }
 }
 async function saveCustomStrategyFromBuilder(showSuccess = true) {
     const strat = getBuilderStrategy();
@@ -1551,26 +1558,18 @@ async function loadTabs() {
 }
 function getMappedTabs() {
     return currentTabs
-        .filter((tab) => !!tab.id && !!tab.windowId && !!tab.url && !!tab.title)
         .map(tab => {
-        const contextResult = currentContextMap.get(tab.id);
-        return {
-            id: tab.id,
-            windowId: tab.windowId,
-            title: tab.title,
-            url: tab.url,
-            pinned: !!tab.pinned,
-            lastAccessed: tab.lastAccessed,
-            openerTabId: tab.openerTabId,
-            favIconUrl: tab.favIconUrl || undefined,
-            context: contextResult?.context,
-            contextData: contextResult?.data,
-            index: tab.index,
-            active: tab.active,
-            status: tab.status,
-            selected: tab.highlighted
-        };
-    });
+        const metadata = (0, utils_js_1.mapChromeTab)(tab);
+        if (!metadata)
+            return null;
+        const contextResult = currentContextMap.get(metadata.id);
+        if (contextResult) {
+            metadata.context = contextResult.context;
+            metadata.contextData = contextResult.data;
+        }
+        return metadata;
+    })
+        .filter((t) => t !== null);
 }
 function handleSort(key) {
     if (sortKey === key) {
