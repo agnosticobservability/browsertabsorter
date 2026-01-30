@@ -20,6 +20,7 @@
       <button class="tab-btn" data-target="view-strategies">Strategy Manager</button>
       <button class="tab-btn" data-target="view-strategy-list">Strategy List</button>
       <button class="tab-btn" data-target="view-custom-genera">Custom Genera</button>
+      <button class="tab-btn" data-target="view-logs">Logs</button>
     </nav>
 
     <main>
@@ -270,6 +271,59 @@
             </div>
             <div id="custom-genera-list" style="max-height: 400px; overflow-y: auto;">
               <!-- Custom entries populated by JS -->
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="view-logs" class="view-section">
+        <div class="algo-container">
+          <div class="algo-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+              <h2>System Logs</h2>
+              <div style="display: flex; gap: 10px; align-items: center;">
+                 <label>Level:
+                     <select id="log-level-filter" style="padding: 5px;">
+                         <option value="all">All</option>
+                         <option value="debug">Debug</option>
+                         <option value="info">Info</option>
+                         <option value="warn">Warn</option>
+                         <option value="error">Error</option>
+                         <option value="critical">Critical</option>
+                     </select>
+                 </label>
+                 <input type="text" id="log-search" placeholder="Search logs..." style="padding: 5px;">
+                 <button id="refresh-logs-btn" class="small-btn">Refresh</button>
+                 <button id="clear-logs-btn" class="small-btn" style="background-color: #f44336; color: white;">Clear</button>
+              </div>
+            </div>
+
+            <div class="log-config" style="margin-bottom: 20px; padding: 10px; background: #f5f5f5; border-radius: 4px; display: flex; align-items: center;">
+                <label style="margin-right: 10px;"><strong>Configuration:</strong> Global Log Level
+                    <select id="global-log-level" style="margin-left: 5px;">
+                        <option value="debug">Debug</option>
+                        <option value="info">Info</option>
+                        <option value="warn">Warn</option>
+                        <option value="error">Error</option>
+                    </select>
+                </label>
+                <span style="font-size: 0.9em; color: #666;">(Controls what gets captured)</span>
+            </div>
+
+            <div class="log-viewer" style="height: 600px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px;">
+                <table id="logs-table" style="width: 100%; border-collapse: collapse; table-layout: fixed;">
+                    <thead style="position: sticky; top: 0; background: #eee; z-index: 1;">
+                        <tr>
+                            <th style="padding: 8px; text-align: left; width: 150px; border-bottom: 1px solid #ccc;">Time</th>
+                            <th style="padding: 8px; text-align: left; width: 80px; border-bottom: 1px solid #ccc;">Level</th>
+                            <th style="padding: 8px; text-align: left; width: 40%; border-bottom: 1px solid #ccc;">Message</th>
+                            <th style="padding: 8px; text-align: left; border-bottom: 1px solid #ccc;">Context</th>
+                        </tr>
+                    </thead>
+                    <tbody id="logs-table-body" style="background: white; font-family: monospace; font-size: 12px;">
+                        <!-- Logs here -->
+                    </tbody>
+                </table>
             </div>
           </div>
         </div>

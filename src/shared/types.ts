@@ -168,6 +168,13 @@ export interface CustomStrategy {
 
 export type LogLevel = "debug" | "info" | "warn" | "error" | "critical";
 
+export interface LogEntry {
+  timestamp: number;
+  level: LogLevel;
+  message: string;
+  context?: Record<string, unknown>;
+}
+
 export interface Preferences {
   sorting: SortingStrategy[];
   debug: boolean;
@@ -190,7 +197,9 @@ export interface RuntimeMessage<TPayload = unknown> {
     | "getSavedStates"
     | "deleteSavedState"
     | "mergeSelection"
-    | "splitSelection";
+    | "splitSelection"
+    | "getLogs"
+    | "clearLogs";
   payload?: TPayload;
 }
 
