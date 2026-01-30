@@ -1,7 +1,7 @@
 import { groupTabs, getCustomStrategies, getFieldValue, requiresContextAnalysis } from "./groupingStrategies.js";
 import { sortTabs, compareBy } from "./sortingStrategies.js";
 import { analyzeTabContext } from "./contextAnalysis.js";
-import { logDebug, logError, logInfo } from "./logger.js";
+import { logDebug, logError, logInfo } from "../shared/logger.js";
 import { GroupingSelection, Preferences, TabGroup, TabMetadata, SortingRule } from "../shared/types.js";
 import { getStoredValue, setStoredValue } from "./storage.js";
 import { mapChromeTab, asArray } from "../shared/utils.js";

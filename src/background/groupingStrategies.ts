@@ -1,6 +1,6 @@
 import { GroupingStrategy, SortingStrategy, TabGroup, TabMetadata, CustomStrategy, StrategyRule, RuleCondition, GroupingRule, SortingRule } from "../shared/types.js";
 import { getStrategies } from "../shared/strategyRegistry.js";
-import { logDebug } from "./logger.js";
+import { logDebug } from "../shared/logger.js";
 import { asArray } from "../shared/utils.js";
 
 let customStrategies: CustomStrategy[] = [];

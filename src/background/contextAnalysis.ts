@@ -1,5 +1,5 @@
 import { TabMetadata, PageContext } from "../shared/types.js";
-import { logDebug, logError } from "./logger.js";
+import { logDebug, logError } from "../shared/logger.js";
 import { extractPageContext } from "./extraction/index.js";
 
 export interface ContextResult {

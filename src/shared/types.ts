@@ -166,9 +166,12 @@ export interface CustomStrategy {
   rules?: StrategyRule[];
 }
 
+export type LogLevel = "debug" | "info" | "warn" | "error" | "critical";
+
 export interface Preferences {
   sorting: SortingStrategy[];
   debug: boolean;
+  logLevel?: LogLevel;
   theme?: "light" | "dark";
   customGenera?: Record<string, string>;
   customStrategies?: CustomStrategy[];
