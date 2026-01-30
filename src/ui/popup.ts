@@ -17,7 +17,7 @@ import {
   GROUP_COLORS
 } from "./common.js";
 import { getStrategies, STRATEGIES, StrategyDefinition } from "../shared/strategyRegistry.js";
-import { setLoggerPreferences, logDebug } from "../shared/logger.js";
+import { setLoggerPreferences, logDebug, logInfo } from "../shared/logger.js";
 
 // Elements
 const searchInput = document.getElementById("tabSearch") as HTMLInputElement;
@@ -469,6 +469,7 @@ function renderStrategyList(container: HTMLElement, strategies: StrategyDefiniti
         checkbox?.addEventListener('change', async (e) => {
             const checked = (e.target as HTMLInputElement).checked;
             row.classList.toggle('active', checked);
+            logInfo("Strategy toggled", { id: strategy.id, checked });
 
             // Immediate save on interaction
             if (preferences) {
@@ -550,6 +551,7 @@ function getDragAfterElement(container: HTMLElement, y: number) {
 
 const loadState = async () => {
   try {
+    logInfo("Loading popup state");
     const [stateResult, currentWindowResult, chromeWindowsResult] = await Promise.allSettled([
       fetchState(),
       chrome.windows.getCurrent(),
@@ -633,6 +635,7 @@ const getSelectedSorting = (): SortingStrategy[] => {
 };
 
 const triggerGroup = async (selection?: GroupingSelection) => {
+    logInfo("Triggering grouping", { selection });
     const sorting = getSelectedSorting();
     await applyGrouping({ selection, sorting });
     await loadState();
@@ -653,16 +656,21 @@ selectAllCheckbox.addEventListener("change", (e) => {
     renderTree();
 });
 
-btnApply?.addEventListener("click", () => triggerGroup({ tabIds: Array.from(selectedTabs) }));
+btnApply?.addEventListener("click", () => {
+    logInfo("Apply button clicked", { selectedCount: selectedTabs.size });
+    triggerGroup({ tabIds: Array.from(selectedTabs) });
+});
 
 btnUngroup.addEventListener("click", async () => {
   if (confirm(`Ungroup ${selectedTabs.size} tabs?`)) {
+      logInfo("Ungrouping tabs", { count: selectedTabs.size });
       await chrome.tabs.ungroup(Array.from(selectedTabs));
       await loadState();
   }
 });
 btnMerge.addEventListener("click", async () => {
   if (confirm(`Merge ${selectedTabs.size} tabs into one group?`)) {
+      logInfo("Merging tabs", { count: selectedTabs.size });
       const res = await sendMessage("mergeSelection", { tabIds: Array.from(selectedTabs) });
       if (!res.ok) alert("Merge failed: " + res.error);
       else await loadState();
@@ -670,6 +678,7 @@ btnMerge.addEventListener("click", async () => {
 });
 btnSplit.addEventListener("click", async () => {
   if (confirm(`Split ${selectedTabs.size} tabs into a new window?`)) {
+      logInfo("Splitting tabs", { count: selectedTabs.size });
       const res = await sendMessage("splitSelection", { tabIds: Array.from(selectedTabs) });
       if (!res.ok) alert("Split failed: " + res.error);
       else await loadState();
@@ -699,6 +708,7 @@ toggleStrategies.addEventListener("click", () => {
 });
 
 document.getElementById("btnUndo")?.addEventListener("click", async () => {
+  logInfo("Undo clicked");
   const res = await sendMessage("undo");
   if (!res.ok) alert("Undo failed: " + res.error);
 });
@@ -706,6 +716,7 @@ document.getElementById("btnUndo")?.addEventListener("click", async () => {
 document.getElementById("btnSaveState")?.addEventListener("click", async () => {
   const name = prompt("Enter a name for this state:");
   if (name) {
+    logInfo("Saving state", { name });
     const res = await sendMessage("saveState", { name });
     if (!res.ok) alert("Save failed: " + res.error);
   }
@@ -715,6 +726,7 @@ const loadStateDialog = document.getElementById("loadStateDialog") as HTMLDialog
 const savedStateList = document.getElementById("savedStateList") as HTMLElement;
 
 document.getElementById("btnLoadState")?.addEventListener("click", async () => {
+  logInfo("Opening Load State dialog");
   const res = await sendMessage<SavedState[]>("getSavedStates");
   if (res.ok && res.data) {
     savedStateList.innerHTML = "";
@@ -730,6 +742,7 @@ document.getElementById("btnLoadState")?.addEventListener("click", async () => {
       span.style.cursor = "pointer";
       span.onclick = async () => {
         if (confirm(`Load state "${state.name}"?`)) {
+          logInfo("Restoring state", { name: state.name });
           const r = await sendMessage("restoreState", { state });
           if (r.ok) {
               loadStateDialog.close();
@@ -796,6 +809,7 @@ const applyTheme = (theme: 'light' | 'dark', save = false) => {
     // Sync with Preferences
     if (save) {
         // We use savePreferences which calls the background to store it
+        logInfo("Applying theme", { theme });
         sendMessage("savePreferences", { theme });
     }
 };

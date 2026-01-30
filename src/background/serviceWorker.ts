@@ -48,6 +48,7 @@ const handleMessage = async <TData>(
       return { ok: true, data: { groups, preferences: prefs } as TData };
     }
     case "applyGrouping": {
+      logInfo("Applying grouping from message", { sorting: (message.payload as any)?.sorting });
       await pushUndoState();
       const prefs = await loadPreferences();
       setCustomStrategies(prefs.customStrategies || []);
@@ -63,6 +64,7 @@ const handleMessage = async <TData>(
       return { ok: true, data: { groups } as TData };
     }
     case "applySorting": {
+      logInfo("Applying sorting from message");
       await pushUndoState();
       const prefs = await loadPreferences();
       setCustomStrategies(prefs.customStrategies || []);
@@ -74,6 +76,7 @@ const handleMessage = async <TData>(
       return { ok: true };
     }
     case "mergeSelection": {
+      logInfo("Merging selection from message");
       await pushUndoState();
       const payload = message.payload as { tabIds: number[] };
       if (payload?.tabIds?.length) {
@@ -83,6 +86,7 @@ const handleMessage = async <TData>(
       return { ok: false, error: "No tabs selected" };
     }
     case "splitSelection": {
+      logInfo("Splitting selection from message");
       await pushUndoState();
       const payload = message.payload as { tabIds: number[] };
       if (payload?.tabIds?.length) {
@@ -92,12 +96,14 @@ const handleMessage = async <TData>(
       return { ok: false, error: "No tabs selected" };
     }
     case "undo": {
+      logInfo("Undoing last action");
       await undo();
       return { ok: true };
     }
     case "saveState": {
       const name = (message.payload as any)?.name;
       if (typeof name === "string") {
+        logInfo("Saving state from message", { name });
         await saveState(name);
         return { ok: true };
       }
@@ -110,6 +116,7 @@ const handleMessage = async <TData>(
     case "restoreState": {
       const state = (message.payload as any)?.state;
       if (state) {
+        logInfo("Restoring state from message", { name: state.name });
         await restoreState(state);
         return { ok: true };
       }
@@ -118,6 +125,7 @@ const handleMessage = async <TData>(
     case "deleteSavedState": {
       const name = (message.payload as any)?.name;
       if (typeof name === "string") {
+        logInfo("Deleting saved state from message", { name });
         await deleteSavedState(name);
         return { ok: true };
       }
@@ -129,6 +137,7 @@ const handleMessage = async <TData>(
       return { ok: true, data: prefs as TData };
     }
     case "savePreferences": {
+      logInfo("Saving preferences from message");
       const prefs = await savePreferences(message.payload as any);
       setCustomStrategies(prefs.customStrategies || []);
       setLoggerPreferences(prefs);
