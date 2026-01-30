@@ -18,8 +18,19 @@ interface ExtractionResponse {
 
 // Simple concurrency control
 let activeFetches = 0;
-const MAX_CONCURRENT_FETCHES = 2; // Conservative limit to avoid rate limiting
+const MAX_CONCURRENT_FETCHES = 5; // Conservative limit to avoid rate limiting
 const FETCH_QUEUE: (() => void)[] = [];
+
+const fetchWithTimeout = async (url: string, timeout = 5000): Promise<Response> => {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeout);
+    try {
+        const response = await fetch(url, { signal: controller.signal });
+        return response;
+    } finally {
+        clearTimeout(id);
+    }
+};
 
 const enqueueFetch = async <T>(fn: () => Promise<T>): Promise<T> => {
     if (activeFetches >= MAX_CONCURRENT_FETCHES) {
@@ -65,7 +76,7 @@ export const extractPageContext = async (tabId: number): Promise<ExtractionRespo
          try {
              // We use a queue to prevent flooding requests
              await enqueueFetch(async () => {
-                 const response = await fetch(targetUrl);
+                 const response = await fetchWithTimeout(targetUrl);
                  if (response.ok) {
                      const html = await response.text();
                      const channel = extractYouTubeChannelFromHtml(html);
