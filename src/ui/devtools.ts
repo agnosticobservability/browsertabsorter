@@ -18,6 +18,7 @@ import { mapChromeTab } from "../shared/utils.js";
 import { setCustomStrategies } from "../background/groupingStrategies.js";
 import { GroupingStrategy, Preferences, SortingStrategy, TabMetadata, TabGroup, CustomStrategy, StrategyRule, RuleCondition, GroupingRule, SortingRule, LogEntry, LogLevel } from "../shared/types.js";
 import { STRATEGIES, StrategyDefinition, getStrategies } from "../shared/strategyRegistry.js";
+import { logInfo } from "../shared/logger.js";
 
 // Types
 interface ColumnDefinition {
@@ -79,6 +80,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const targetId = (btn as HTMLElement).dataset.target;
       if (targetId) {
         document.getElementById(targetId)?.classList.add('active');
+        logInfo("Switched view", { targetId });
       }
 
       // If switching to algorithms, populate reference if empty
@@ -1016,6 +1018,7 @@ function exportBuilderStrategy() {
         alert("Please define a strategy to export (ID and Label required).");
         return;
     }
+    logInfo("Exporting strategy", { id: strat.id });
     const json = JSON.stringify(strat, null, 2);
     const content = `
         <p>Copy the JSON below:</p>
@@ -1041,6 +1044,7 @@ function importBuilderStrategy() {
                 alert("Invalid strategy: ID and Label are required.");
                 return;
             }
+            logInfo("Importing strategy", { id: json.id });
             populateBuilderFromStrategy(json);
             document.querySelector('.modal-overlay')?.remove();
         } catch(e) {
@@ -1052,6 +1056,7 @@ function importBuilderStrategy() {
 }
 
 function exportAllStrategies() {
+    logInfo("Exporting all strategies", { count: localCustomStrategies.length });
     const json = JSON.stringify(localCustomStrategies, null, 2);
     const content = `
         <p>Copy the JSON below (contains ${localCustomStrategies.length} strategies):</p>
@@ -1096,6 +1101,8 @@ function importAllStrategies() {
             });
 
             const newStrategies = Array.from(stratMap.values());
+
+            logInfo("Importing all strategies", { count: newStrategies.length });
 
             // Save
             await chrome.runtime.sendMessage({
@@ -1287,6 +1294,8 @@ function runBuilderSimulation() {
 
     if (!strat) return; // Should not happen with ignoreValidation=true
 
+    logInfo("Running builder simulation", { strategy: strat.id });
+
     // For simulation, we can mock an ID/Label if missing
     const simStrat: CustomStrategy = strat;
 
@@ -1395,6 +1404,7 @@ async function saveCustomStrategyFromBuilder(showSuccess = true): Promise<boolea
 
 async function saveStrategy(strat: CustomStrategy, showSuccess: boolean): Promise<boolean> {
     try {
+        logInfo("Saving strategy", { id: strat.id });
         const response = await chrome.runtime.sendMessage({ type: 'loadPreferences' });
         if (response && response.ok && response.data) {
             const prefs = response.data as Preferences;
@@ -1438,6 +1448,8 @@ async function runBuilderLive() {
         alert("Please fill in ID and Label to run live.");
         return;
     }
+
+    logInfo("Applying strategy live", { id: strat.id });
 
     // Save silently first to ensure backend has the definition
     const saved = await saveStrategy(strat, false);
@@ -1577,6 +1589,7 @@ function renderStrategyListTable() {
 
 async function deleteCustomStrategy(id: string) {
     try {
+        logInfo("Deleting strategy", { id });
         const response = await chrome.runtime.sendMessage({ type: 'loadPreferences' });
         if (response && response.ok && response.data) {
             const prefs = response.data as Preferences;
@@ -1640,6 +1653,8 @@ async function addCustomGenera() {
         return;
     }
 
+    logInfo("Adding custom genera", { domain, category });
+
     try {
         // Fetch current to merge
         const response = await chrome.runtime.sendMessage({ type: 'loadPreferences' });
@@ -1664,6 +1679,7 @@ async function addCustomGenera() {
 
 async function deleteCustomGenera(domain: string) {
     try {
+        logInfo("Deleting custom genera", { domain });
         const response = await chrome.runtime.sendMessage({ type: 'loadPreferences' });
         if (response && response.ok && response.data) {
             const prefs = response.data as Preferences;
@@ -1691,6 +1707,7 @@ document.addEventListener('click', (event) => {
 });
 
 async function loadTabs() {
+  logInfo("Loading tabs for DevTools");
   const tabs = await chrome.tabs.query({});
   currentTabs = tabs;
 

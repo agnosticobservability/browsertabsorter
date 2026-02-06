@@ -242,6 +242,7 @@ export const applyTabGroups = async (groups: TabGroup[]) => {
       await chrome.tabGroups.update(finalGroupId, updateProps);
     }
   }
+  logInfo("Applied tab groups", { count: groups.length });
 };
 
 export const applyTabSorting = async (
@@ -321,6 +322,7 @@ export const applyTabSorting = async (
       // 3. Sort Groups (if enabled)
       await sortGroupsIfEnabled(windowId, preferences.sorting, tabsByGroup);
   }
+  logInfo("Applied tab sorting");
 };
 
 const compareBySortingRules = (sortingRulesArg: SortingRule[], a: TabMetadata, b: TabMetadata): number => {
@@ -443,7 +445,7 @@ const sortGroupsIfEnabled = async (
 export const closeGroup = async (group: TabGroup) => {
   const ids = group.tabs.map((tab) => tab.id);
   await chrome.tabs.remove(ids);
-  logDebug("Closed group", { label: group.label, count: ids.length });
+  logInfo("Closed group", { label: group.label, count: ids.length });
 };
 
 export const mergeTabs = async (tabIds: number[]) => {
