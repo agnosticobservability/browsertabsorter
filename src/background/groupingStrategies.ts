@@ -236,11 +236,12 @@ export const groupTabs = (
     }
 
     const effectiveMode = resolveWindowMode(collectedModes);
+    const valueKey = keys.join("::");
     let bucketKey = "";
     if (effectiveMode === 'current') {
-         bucketKey = `window-${tab.windowId}::` + keys.join("::");
+         bucketKey = `window-${tab.windowId}::` + valueKey;
     } else {
-         bucketKey = `global::` + keys.join("::");
+         bucketKey = `global::` + valueKey;
     }
 
     let group = buckets.get(bucketKey);
@@ -252,7 +253,7 @@ export const groupTabs = (
       }
 
       if (groupColor === 'match') {
-        groupColor = colorForKey(bucketKey, 0);
+        groupColor = colorForKey(valueKey, 0);
       } else if (!groupColor) {
         groupColor = colorForKey(bucketKey, buckets.size);
       }
