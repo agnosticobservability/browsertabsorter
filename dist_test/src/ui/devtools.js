@@ -7,6 +7,7 @@ const sortingStrategies_js_1 = require("../background/sortingStrategies.js");
 const utils_js_1 = require("../shared/utils.js");
 const groupingStrategies_js_2 = require("../background/groupingStrategies.js");
 const strategyRegistry_js_1 = require("../shared/strategyRegistry.js");
+const logger_js_1 = require("../shared/logger.js");
 // State
 let currentTabs = [];
 let localCustomStrategies = [];
@@ -52,6 +53,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const targetId = btn.dataset.target;
             if (targetId) {
                 document.getElementById(targetId)?.classList.add('active');
+                (0, logger_js_1.logInfo)("Switched view", { targetId });
             }
             // If switching to algorithms, populate reference if empty
             if (targetId === 'view-algorithms') {
@@ -60,8 +62,28 @@ document.addEventListener('DOMContentLoaded', async () => {
             else if (targetId === 'view-strategy-list') {
                 renderStrategyListTable();
             }
+            else if (targetId === 'view-logs') {
+                loadLogs();
+                loadGlobalLogLevel();
+            }
         });
     });
+    // Log Viewer Logic
+    const refreshLogsBtn = document.getElementById('refresh-logs-btn');
+    if (refreshLogsBtn)
+        refreshLogsBtn.addEventListener('click', loadLogs);
+    const clearLogsBtn = document.getElementById('clear-logs-btn');
+    if (clearLogsBtn)
+        clearLogsBtn.addEventListener('click', clearRemoteLogs);
+    const logLevelFilter = document.getElementById('log-level-filter');
+    if (logLevelFilter)
+        logLevelFilter.addEventListener('change', renderLogs);
+    const logSearch = document.getElementById('log-search');
+    if (logSearch)
+        logSearch.addEventListener('input', renderLogs);
+    const globalLogLevel = document.getElementById('global-log-level');
+    if (globalLogLevel)
+        globalLogLevel.addEventListener('change', updateGlobalLogLevel);
     // Simulation Logic
     const runSimBtn = document.getElementById('runSimBtn');
     if (runSimBtn) {
@@ -930,6 +952,7 @@ function exportBuilderStrategy() {
         alert("Please define a strategy to export (ID and Label required).");
         return;
     }
+    (0, logger_js_1.logInfo)("Exporting strategy", { id: strat.id });
     const json = JSON.stringify(strat, null, 2);
     const content = `
         <p>Copy the JSON below:</p>
@@ -953,6 +976,7 @@ function importBuilderStrategy() {
                 alert("Invalid strategy: ID and Label are required.");
                 return;
             }
+            (0, logger_js_1.logInfo)("Importing strategy", { id: json.id });
             populateBuilderFromStrategy(json);
             document.querySelector('.modal-overlay')?.remove();
         }
@@ -963,6 +987,7 @@ function importBuilderStrategy() {
     showModal("Import Strategy", content);
 }
 function exportAllStrategies() {
+    (0, logger_js_1.logInfo)("Exporting all strategies", { count: localCustomStrategies.length });
     const json = JSON.stringify(localCustomStrategies, null, 2);
     const content = `
         <p>Copy the JSON below (contains ${localCustomStrategies.length} strategies):</p>
@@ -1001,6 +1026,7 @@ function importAllStrategies() {
                 count++;
             });
             const newStrategies = Array.from(stratMap.values());
+            (0, logger_js_1.logInfo)("Importing all strategies", { count: newStrategies.length });
             // Save
             await chrome.runtime.sendMessage({
                 type: 'savePreferences',
@@ -1169,6 +1195,7 @@ function runBuilderSimulation() {
     const newStatePanel = document.getElementById('new-state-panel');
     if (!strat)
         return; // Should not happen with ignoreValidation=true
+    (0, logger_js_1.logInfo)("Running builder simulation", { strategy: strat.id });
     // For simulation, we can mock an ID/Label if missing
     const simStrat = strat;
     if (!resultContainer || !newStatePanel)
@@ -1267,6 +1294,7 @@ async function saveCustomStrategyFromBuilder(showSuccess = true) {
 }
 async function saveStrategy(strat, showSuccess) {
     try {
+        (0, logger_js_1.logInfo)("Saving strategy", { id: strat.id });
         const response = await chrome.runtime.sendMessage({ type: 'loadPreferences' });
         if (response && response.ok && response.data) {
             const prefs = response.data;
@@ -1306,6 +1334,7 @@ async function runBuilderLive() {
         alert("Please fill in ID and Label to run live.");
         return;
     }
+    (0, logger_js_1.logInfo)("Applying strategy live", { id: strat.id });
     // Save silently first to ensure backend has the definition
     const saved = await saveStrategy(strat, false);
     if (!saved)
@@ -1430,6 +1459,7 @@ function renderStrategyListTable() {
 }
 async function deleteCustomStrategy(id) {
     try {
+        (0, logger_js_1.logInfo)("Deleting strategy", { id });
         const response = await chrome.runtime.sendMessage({ type: 'loadPreferences' });
         if (response && response.ok && response.data) {
             const prefs = response.data;
@@ -1485,6 +1515,7 @@ async function addCustomGenera() {
         alert("Please enter both domain and category.");
         return;
     }
+    (0, logger_js_1.logInfo)("Adding custom genera", { domain, category });
     try {
         // Fetch current to merge
         const response = await chrome.runtime.sendMessage({ type: 'loadPreferences' });
@@ -1507,6 +1538,7 @@ async function addCustomGenera() {
 }
 async function deleteCustomGenera(domain) {
     try {
+        (0, logger_js_1.logInfo)("Deleting custom genera", { domain });
         const response = await chrome.runtime.sendMessage({ type: 'loadPreferences' });
         if (response && response.ok && response.data) {
             const prefs = response.data;
@@ -1531,6 +1563,7 @@ document.addEventListener('click', (event) => {
     }
 });
 async function loadTabs() {
+    (0, logger_js_1.logInfo)("Loading tabs for DevTools");
     const tabs = await chrome.tabs.query({});
     currentTabs = tabs;
     const totalTabsEl = document.getElementById('totalTabs');
@@ -2145,5 +2178,102 @@ async function renderLiveView() {
     }
     catch (e) {
         container.innerHTML = `<p style="color:red">Error loading live view: ${e}</p>`;
+    }
+}
+// ---------------------- LOG VIEWER ----------------------
+let currentLogs = [];
+async function loadLogs() {
+    try {
+        const response = await chrome.runtime.sendMessage({ type: 'getLogs' });
+        if (response && response.ok && response.data) {
+            currentLogs = response.data;
+            renderLogs();
+        }
+    }
+    catch (e) {
+        console.error("Failed to load logs", e);
+    }
+}
+async function clearRemoteLogs() {
+    try {
+        await chrome.runtime.sendMessage({ type: 'clearLogs' });
+        loadLogs();
+    }
+    catch (e) {
+        console.error("Failed to clear logs", e);
+    }
+}
+function renderLogs() {
+    const tbody = document.getElementById('logs-table-body');
+    const levelFilter = document.getElementById('log-level-filter').value;
+    const searchText = document.getElementById('log-search').value.toLowerCase();
+    if (!tbody)
+        return;
+    tbody.innerHTML = '';
+    const filtered = currentLogs.filter(entry => {
+        if (levelFilter !== 'all' && entry.level !== levelFilter)
+            return false;
+        if (searchText) {
+            const text = `${entry.message} ${JSON.stringify(entry.context || {})}`.toLowerCase();
+            if (!text.includes(searchText))
+                return false;
+        }
+        return true;
+    });
+    if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="padding: 10px; text-align: center; color: #888;">No logs found.</td></tr>';
+        return;
+    }
+    filtered.forEach(entry => {
+        const row = document.createElement('tr');
+        // Color code level
+        let color = '#333';
+        if (entry.level === 'error' || entry.level === 'critical')
+            color = 'red';
+        else if (entry.level === 'warn')
+            color = 'orange';
+        else if (entry.level === 'debug')
+            color = 'blue';
+        row.innerHTML = `
+            <td style="padding: 8px; border-bottom: 1px solid #eee; white-space: nowrap;">${new Date(entry.timestamp).toLocaleTimeString()} (${entry.timestamp})</td>
+            <td style="padding: 8px; border-bottom: 1px solid #eee; color: ${color}; font-weight: bold;">${entry.level.toUpperCase()}</td>
+            <td style="padding: 8px; border-bottom: 1px solid #eee;">${escapeHtml(entry.message)}</td>
+            <td style="padding: 8px; border-bottom: 1px solid #eee;">
+               <div style="max-height: 100px; overflow-y: auto;">
+                  ${entry.context ? `<pre style="margin: 0;">${escapeHtml(JSON.stringify(entry.context, null, 2))}</pre>` : '-'}
+               </div>
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+async function loadGlobalLogLevel() {
+    try {
+        const response = await chrome.runtime.sendMessage({ type: 'loadPreferences' });
+        if (response && response.ok && response.data) {
+            const prefs = response.data;
+            const select = document.getElementById('global-log-level');
+            if (select) {
+                select.value = prefs.logLevel || 'info';
+            }
+        }
+    }
+    catch (e) {
+        console.error("Failed to load prefs for logs", e);
+    }
+}
+async function updateGlobalLogLevel() {
+    const select = document.getElementById('global-log-level');
+    if (!select)
+        return;
+    const level = select.value;
+    try {
+        await chrome.runtime.sendMessage({
+            type: 'savePreferences',
+            payload: { logLevel: level }
+        });
+    }
+    catch (e) {
+        console.error("Failed to save log level", e);
     }
 }

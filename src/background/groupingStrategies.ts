@@ -101,7 +101,7 @@ const getRecencyLabel = (lastAccessed: number): string => {
   return "Older";
 };
 
-const colorForKey = (key: string, offset: number): string => COLORS[(Math.abs(hashCode(key)) + offset) % COLORS.length];
+export const colorForKey = (key: string, offset: number = 0): string => COLORS[(Math.abs(hashCode(key)) + offset) % COLORS.length];
 
 const hashCode = (value: string): number => {
   let hash = 0;
@@ -525,7 +525,7 @@ export const groupingKey = (tab: TabMetadata, strategy: GroupingStrategy | strin
     return getGroupingResult(tab, strategy).key;
 };
 
-function isContextField(field: string): boolean {
+export function isContextField(field: string): boolean {
     return field === 'context' || field === 'genre' || field === 'siteName' || field.startsWith('contextData.');
 }
 

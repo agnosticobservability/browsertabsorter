@@ -1,8 +1,9 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.requiresContextAnalysis = exports.groupingKey = exports.getGroupingResult = exports.checkCondition = exports.groupTabs = exports.navigationKey = exports.semanticBucket = exports.getFieldValue = exports.subdomainFromUrl = exports.domainFromUrl = exports.getCustomStrategies = exports.setCustomStrategies = void 0;
+exports.requiresContextAnalysis = exports.groupingKey = exports.getGroupingResult = exports.checkCondition = exports.groupTabs = exports.colorForKey = exports.navigationKey = exports.semanticBucket = exports.getFieldValue = exports.subdomainFromUrl = exports.domainFromUrl = exports.getCustomStrategies = exports.setCustomStrategies = void 0;
+exports.isContextField = isContextField;
 const strategyRegistry_js_1 = require("../shared/strategyRegistry.js");
-const logger_js_1 = require("./logger.js");
+const logger_js_1 = require("../shared/logger.js");
 const utils_js_1 = require("../shared/utils.js");
 let customStrategies = [];
 const setCustomStrategies = (strategies) => {
@@ -107,7 +108,8 @@ const getRecencyLabel = (lastAccessed) => {
         return "This Week"; // 7d
     return "Older";
 };
-const colorForKey = (key, offset) => COLORS[(Math.abs(hashCode(key)) + offset) % COLORS.length];
+const colorForKey = (key, offset = 0) => COLORS[(Math.abs(hashCode(key)) + offset) % COLORS.length];
+exports.colorForKey = colorForKey;
 const hashCode = (value) => {
     let hash = 0;
     for (let i = 0; i < value.length; i += 1) {
@@ -244,7 +246,7 @@ const groupTabs = (tabs, strategies) => {
                 }
             }
             if (!groupColor) {
-                groupColor = colorForKey(bucketKey, buckets.size);
+                groupColor = (0, exports.colorForKey)(bucketKey, buckets.size);
             }
             group = {
                 id: bucketKey,
