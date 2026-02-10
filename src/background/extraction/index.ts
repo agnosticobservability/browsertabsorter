@@ -1,5 +1,5 @@
 import { PageContext, TabMetadata } from "../../shared/types.js";
-import { normalizeUrl, parseYouTubeUrl, extractYouTubeChannelFromHtml } from "./logic.js";
+import { normalizeUrl, parseYouTubeUrl, extractYouTubeChannelFromHtml, extractYouTubeGenreFromHtml } from "./logic.js";
 import { getGenera } from "./generaRegistry.js";
 import { logDebug } from "../../shared/logger.js";
 import { loadPreferences } from "../preferences.js";
@@ -71,7 +71,7 @@ export const extractPageContext = async (tab: TabMetadata | chrome.tabs.Tab): Pr
     const targetUrl = tab.url;
     const urlObj = new URL(targetUrl);
     const hostname = urlObj.hostname.replace(/^www\./, '');
-    if ((hostname.endsWith('youtube.com') || hostname.endsWith('youtu.be')) && !baseline.authorOrCreator) {
+    if ((hostname.endsWith('youtube.com') || hostname.endsWith('youtu.be')) && (!baseline.authorOrCreator || baseline.genre === 'Video')) {
          try {
              // We use a queue to prevent flooding requests
              await enqueueFetch(async () => {
@@ -81,6 +81,10 @@ export const extractPageContext = async (tab: TabMetadata | chrome.tabs.Tab): Pr
                      const channel = extractYouTubeChannelFromHtml(html);
                      if (channel) {
                          baseline.authorOrCreator = channel;
+                     }
+                     const genre = extractYouTubeGenreFromHtml(html);
+                     if (genre) {
+                         baseline.genre = genre;
                      }
                  }
              });

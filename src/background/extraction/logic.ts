@@ -126,6 +126,25 @@ export function extractYouTubeChannelFromHtml(html: string): string | null {
   return null;
 }
 
+export function extractYouTubeGenreFromHtml(html: string): string | null {
+  // 1. Try <meta itemprop="genre" content="...">
+  const metaGenreRegex = /<meta\s+itemprop=["']genre["']\s+content=["']([^"']+)["']\s*\/?>/i;
+  const metaMatch = metaGenreRegex.exec(html);
+  if (metaMatch && metaMatch[1]) {
+      return decodeHtmlEntities(metaMatch[1]);
+  }
+
+  // 2. Try JSON "category" in scripts
+  // "category":"Gaming"
+  const categoryRegex = /"category"\s*:\s*"([^"]+)"/;
+  const catMatch = categoryRegex.exec(html);
+  if (catMatch && catMatch[1]) {
+      return decodeHtmlEntities(catMatch[1]);
+  }
+
+  return null;
+}
+
 function decodeHtmlEntities(text: string): string {
   if (!text) return text;
 
