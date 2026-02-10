@@ -1,10 +1,17 @@
-import { groupTabs, getCustomStrategies, getFieldValue, requiresContextAnalysis } from "./groupingStrategies.js";
+import { groupTabs, getCustomStrategies, getFieldValue, requiresContextAnalysis, colorForKey, isContextField } from "./groupingStrategies.js";
 import { sortTabs, compareBy } from "./sortingStrategies.js";
 import { analyzeTabContext } from "./contextAnalysis.js";
 import { logDebug, logError, logInfo } from "../shared/logger.js";
 import { GroupingSelection, Preferences, TabGroup, TabMetadata, SortingRule } from "../shared/types.js";
 import { getStoredValue, setStoredValue } from "./storage.js";
 import { mapChromeTab, asArray } from "../shared/utils.js";
+import { loadPreferences } from "./preferences.js";
+import { mapGenreToColor } from "./extraction/youtube.js";
+
+const shouldAnalyzeContext = (preferences: Preferences): boolean => {
+    return requiresContextAnalysis(preferences.sorting) ||
+           (!!preferences.colorByField && (isContextField(preferences.colorByField) || preferences.colorByField === 'youtubeChannelGenre'));
+};
 
 export const fetchCurrentTabGroups = async (
   preferences: Preferences
@@ -17,7 +24,7 @@ export const fetchCurrentTabGroups = async (
   // Map tabs to metadata
   const mapped = tabs.map(mapChromeTab).filter((t): t is TabMetadata => Boolean(t));
 
-  if (requiresContextAnalysis(preferences.sorting)) {
+  if (shouldAnalyzeContext(preferences)) {
       const contextMap = await analyzeTabContext(mapped);
       mapped.forEach(tab => {
         const res = contextMap.get(tab.id);
@@ -96,7 +103,7 @@ export const calculateTabGroups = async (
     .map(mapChromeTab)
     .filter((tab): tab is TabMetadata => Boolean(tab));
 
-  if (requiresContextAnalysis(preferences.sorting)) {
+  if (shouldAnalyzeContext(preferences)) {
     const contextMap = await analyzeTabContext(mapped);
     mapped.forEach(tab => {
       const res = contextMap.get(tab.id);
@@ -116,9 +123,46 @@ export const calculateTabGroups = async (
 const VALID_COLORS = ["grey", "blue", "red", "yellow", "green", "pink", "purple", "cyan", "orange"];
 
 export const applyTabGroups = async (groups: TabGroup[]) => {
+  const prefs = await loadPreferences();
+  const colorField = prefs.colorByField;
   const claimedGroupIds = new Set<number>();
 
   for (const group of groups) {
+    if (colorField && group.tabs.length > 0) {
+        // Calculate representative value for coloring
+        const counts = new Map<string, number>();
+        for (const tab of group.tabs) {
+            let val: any;
+            if (colorField === 'youtubeChannelGenre') {
+                val = tab.contextData?.youtube?.genre;
+            } else {
+                val = getFieldValue(tab, colorField);
+            }
+
+            if (val) {
+                const s = String(val);
+                counts.set(s, (counts.get(s) || 0) + 1);
+            }
+        }
+
+        let bestVal: string | null = null;
+        let maxCount = 0;
+        for (const [v, c] of counts) {
+            if (c > maxCount) {
+                maxCount = c;
+                bestVal = v;
+            }
+        }
+
+        if (bestVal) {
+             if (colorField === 'youtubeChannelGenre') {
+                 group.color = mapGenreToColor(bestVal);
+             } else {
+                 group.color = colorForKey(bestVal);
+             }
+        }
+    }
+
     let tabsToProcess: { windowId: number, tabs: TabMetadata[] }[] = [];
 
     if (group.windowMode === 'new') {
@@ -269,7 +313,7 @@ export const applyTabSorting = async (
       const windowTabs = chromeTabs.filter(t => t.windowId === windowId);
       const mapped = windowTabs.map(mapChromeTab).filter((t): t is TabMetadata => Boolean(t));
 
-      if (requiresContextAnalysis(preferences.sorting)) {
+      if (shouldAnalyzeContext(preferences)) {
         const contextMap = await analyzeTabContext(mapped);
         mapped.forEach(tab => {
           const res = contextMap.get(tab.id);

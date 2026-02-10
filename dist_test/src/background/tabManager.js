@@ -4,8 +4,14 @@ exports.splitTabs = exports.mergeTabs = exports.closeGroup = exports.applyTabSor
 const groupingStrategies_js_1 = require("./groupingStrategies.js");
 const sortingStrategies_js_1 = require("./sortingStrategies.js");
 const contextAnalysis_js_1 = require("./contextAnalysis.js");
-const logger_js_1 = require("./logger.js");
+const logger_js_1 = require("../shared/logger.js");
 const utils_js_1 = require("../shared/utils.js");
+const preferences_js_1 = require("./preferences.js");
+const youtube_js_1 = require("./extraction/youtube.js");
+const shouldAnalyzeContext = (preferences) => {
+    return (0, groupingStrategies_js_1.requiresContextAnalysis)(preferences.sorting) ||
+        (!!preferences.colorByField && ((0, groupingStrategies_js_1.isContextField)(preferences.colorByField) || preferences.colorByField === 'youtubeChannelGenre'));
+};
 const fetchCurrentTabGroups = async (preferences) => {
     try {
         const tabs = await chrome.tabs.query({});
@@ -13,7 +19,7 @@ const fetchCurrentTabGroups = async (preferences) => {
         const groupMap = new Map(groups.map(g => [g.id, g]));
         // Map tabs to metadata
         const mapped = tabs.map(utils_js_1.mapChromeTab).filter((t) => Boolean(t));
-        if ((0, groupingStrategies_js_1.requiresContextAnalysis)(preferences.sorting)) {
+        if (shouldAnalyzeContext(preferences)) {
             const contextMap = await (0, contextAnalysis_js_1.analyzeTabContext)(mapped);
             mapped.forEach(tab => {
                 const res = contextMap.get(tab.id);
@@ -87,7 +93,7 @@ const calculateTabGroups = async (preferences, filter) => {
     const mapped = filteredTabs
         .map(utils_js_1.mapChromeTab)
         .filter((tab) => Boolean(tab));
-    if ((0, groupingStrategies_js_1.requiresContextAnalysis)(preferences.sorting)) {
+    if (shouldAnalyzeContext(preferences)) {
         const contextMap = await (0, contextAnalysis_js_1.analyzeTabContext)(mapped);
         mapped.forEach(tab => {
             const res = contextMap.get(tab.id);
@@ -105,8 +111,43 @@ const calculateTabGroups = async (preferences, filter) => {
 exports.calculateTabGroups = calculateTabGroups;
 const VALID_COLORS = ["grey", "blue", "red", "yellow", "green", "pink", "purple", "cyan", "orange"];
 const applyTabGroups = async (groups) => {
+    const prefs = await (0, preferences_js_1.loadPreferences)();
+    const colorField = prefs.colorByField;
     const claimedGroupIds = new Set();
     for (const group of groups) {
+        if (colorField && group.tabs.length > 0) {
+            // Calculate representative value for coloring
+            const counts = new Map();
+            for (const tab of group.tabs) {
+                let val;
+                if (colorField === 'youtubeChannelGenre') {
+                    val = tab.contextData?.youtube?.genre;
+                }
+                else {
+                    val = (0, groupingStrategies_js_1.getFieldValue)(tab, colorField);
+                }
+                if (val) {
+                    const s = String(val);
+                    counts.set(s, (counts.get(s) || 0) + 1);
+                }
+            }
+            let bestVal = null;
+            let maxCount = 0;
+            for (const [v, c] of counts) {
+                if (c > maxCount) {
+                    maxCount = c;
+                    bestVal = v;
+                }
+            }
+            if (bestVal) {
+                if (colorField === 'youtubeChannelGenre') {
+                    group.color = (0, youtube_js_1.mapGenreToColor)(bestVal);
+                }
+                else {
+                    group.color = (0, groupingStrategies_js_1.colorForKey)(bestVal);
+                }
+            }
+        }
         let tabsToProcess = [];
         if (group.windowMode === 'new') {
             if (group.tabs.length > 0) {
@@ -228,6 +269,7 @@ const applyTabGroups = async (groups) => {
             await chrome.tabGroups.update(finalGroupId, updateProps);
         }
     }
+    (0, logger_js_1.logInfo)("Applied tab groups", { count: groups.length });
 };
 exports.applyTabGroups = applyTabGroups;
 const applyTabSorting = async (preferences, filter) => {
@@ -250,7 +292,7 @@ const applyTabSorting = async (preferences, filter) => {
     for (const windowId of targetWindowIds) {
         const windowTabs = chromeTabs.filter(t => t.windowId === windowId);
         const mapped = windowTabs.map(utils_js_1.mapChromeTab).filter((t) => Boolean(t));
-        if ((0, groupingStrategies_js_1.requiresContextAnalysis)(preferences.sorting)) {
+        if (shouldAnalyzeContext(preferences)) {
             const contextMap = await (0, contextAnalysis_js_1.analyzeTabContext)(mapped);
             mapped.forEach(tab => {
                 const res = contextMap.get(tab.id);
@@ -295,6 +337,7 @@ const applyTabSorting = async (preferences, filter) => {
         // 3. Sort Groups (if enabled)
         await sortGroupsIfEnabled(windowId, preferences.sorting, tabsByGroup);
     }
+    (0, logger_js_1.logInfo)("Applied tab sorting");
 };
 exports.applyTabSorting = applyTabSorting;
 const compareBySortingRules = (sortingRulesArg, a, b) => {
@@ -400,7 +443,7 @@ const sortGroupsIfEnabled = async (windowId, sortingPreferences, tabsByGroup) =>
 const closeGroup = async (group) => {
     const ids = group.tabs.map((tab) => tab.id);
     await chrome.tabs.remove(ids);
-    (0, logger_js_1.logDebug)("Closed group", { label: group.label, count: ids.length });
+    (0, logger_js_1.logInfo)("Closed group", { label: group.label, count: ids.length });
 };
 exports.closeGroup = closeGroup;
 const mergeTabs = async (tabIds) => {

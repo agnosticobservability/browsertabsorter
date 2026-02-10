@@ -591,6 +591,18 @@ const loadState = async () => {
           const select = document.getElementById('logLevelSelect') as HTMLSelectElement;
           if (select) select.value = preferences.logLevel;
       }
+      if (preferences.colorByField !== undefined) {
+          const select = document.getElementById('colorByFieldSelect') as HTMLSelectElement;
+          if (select) select.value = preferences.colorByField;
+      }
+      if (preferences.enableYouTubeGenreDetection !== undefined) {
+          const checkbox = document.getElementById('enableYoutubeGenre') as HTMLInputElement;
+          if (checkbox) checkbox.checked = preferences.enableYouTubeGenreDetection;
+      }
+      if (preferences.youtubeApiKey !== undefined) {
+          const input = document.getElementById('youtubeApiKeyInput') as HTMLInputElement;
+          if (input) input.value = preferences.youtubeApiKey;
+      }
     }
 
     if (currentWindowResult.status === "fulfilled") {
@@ -845,6 +857,33 @@ logLevelSelect?.addEventListener("change", async () => {
         // Persist
         await sendMessage("savePreferences", { logLevel: newLevel });
         logDebug("Log level updated", { level: newLevel });
+    }
+});
+
+const colorByFieldSelect = document.getElementById("colorByFieldSelect") as HTMLSelectElement;
+colorByFieldSelect?.addEventListener("change", async () => {
+    if (preferences) {
+        preferences.colorByField = colorByFieldSelect.value;
+        await sendMessage("savePreferences", { colorByField: preferences.colorByField });
+        logInfo("Color by field updated", { field: preferences.colorByField });
+    }
+});
+
+const enableYoutubeGenreCheckbox = document.getElementById("enableYoutubeGenre") as HTMLInputElement;
+enableYoutubeGenreCheckbox?.addEventListener("change", async () => {
+    if (preferences) {
+        preferences.enableYouTubeGenreDetection = enableYoutubeGenreCheckbox.checked;
+        await sendMessage("savePreferences", { enableYouTubeGenreDetection: preferences.enableYouTubeGenreDetection });
+        logInfo("YouTube genre detection updated", { enabled: preferences.enableYouTubeGenreDetection });
+    }
+});
+
+const youtubeApiKeyInput = document.getElementById("youtubeApiKeyInput") as HTMLInputElement;
+youtubeApiKeyInput?.addEventListener("change", async () => {
+    if (preferences) {
+        preferences.youtubeApiKey = youtubeApiKeyInput.value;
+        await sendMessage("savePreferences", { youtubeApiKey: preferences.youtubeApiKey });
+        logInfo("YouTube API key updated");
     }
 });
 

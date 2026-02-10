@@ -131,7 +131,30 @@
               <option value="error">Error</option>
               <option value="critical">Critical</option>
           </select>
-          <small style="color: #888;">Controls the verbosity of logs in the background and popup consoles.</small>
+          <small style="color: #888;">Controls the verbosity of logs.</small>
+      </div>
+
+      <div style="margin-bottom: 16px; border-top: 1px solid var(--border-color); padding-top: 16px;">
+          <h4>Grouping Appearance</h4>
+          <label style="display: block; margin-bottom: 8px;">Color Groups By</label>
+          <select id="colorByFieldSelect" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main);">
+              <option value="">None (Default)</option>
+              <option value="youtubeChannelGenre">YouTube Genre</option>
+              <option value="domain">Domain</option>
+              <option value="context">Context</option>
+          </select>
+      </div>
+
+      <div style="margin-bottom: 16px; border-top: 1px solid var(--border-color); padding-top: 16px;">
+          <h4>YouTube Features</h4>
+          <label style="display: flex; align-items: center; margin-bottom: 8px; cursor: pointer;">
+              <input type="checkbox" id="enableYoutubeGenre" style="margin-right: 8px;">
+              Enable Genre Detection
+          </label>
+
+          <label style="display: block; margin-bottom: 8px;">YouTube API Key (Optional)</label>
+          <input type="password" id="youtubeApiKeyInput" placeholder="Enter API Key" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main);">
+          <small style="color: #888;">Required for accurate API-based classification. Falls back to heuristics if empty.</small>
       </div>
     </dialog>
 

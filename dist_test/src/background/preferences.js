@@ -2,14 +2,18 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.savePreferences = exports.loadPreferences = exports.defaultPreferences = void 0;
 const storage_js_1 = require("./storage.js");
-const logger_js_1 = require("./logger.js");
+const logger_js_1 = require("../shared/logger.js");
 const utils_js_1 = require("../shared/utils.js");
 const PREFERENCES_KEY = "preferences";
 exports.defaultPreferences = {
     sorting: ["pinned", "recency"],
     debug: false,
+    logLevel: "info",
     theme: "dark",
-    customGenera: {}
+    customGenera: {},
+    enableYouTubeGenreDetection: false,
+    youtubeApiKey: "",
+    colorByField: ""
 };
 const normalizeSorting = (sorting) => {
     if (Array.isArray(sorting)) {
@@ -48,6 +52,7 @@ const loadPreferences = async () => {
 };
 exports.loadPreferences = loadPreferences;
 const savePreferences = async (prefs) => {
+    (0, logger_js_1.logDebug)("Updating preferences", { keys: Object.keys(prefs) });
     const current = await (0, exports.loadPreferences)();
     const merged = normalizePreferences({ ...current, ...prefs });
     await (0, storage_js_1.setStoredValue)(PREFERENCES_KEY, merged);

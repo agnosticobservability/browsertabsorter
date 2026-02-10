@@ -3,13 +3,14 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.extractPageContext = void 0;
 const logic_js_1 = require("./logic.js");
 const generaRegistry_js_1 = require("./generaRegistry.js");
-const logger_js_1 = require("../logger.js");
+const logger_js_1 = require("../../shared/logger.js");
 const preferences_js_1 = require("../preferences.js");
+const youtube_js_1 = require("./youtube.js");
 // Simple concurrency control
 let activeFetches = 0;
 const MAX_CONCURRENT_FETCHES = 5; // Conservative limit to avoid rate limiting
 const FETCH_QUEUE = [];
-const fetchWithTimeout = async (url, timeout = 5000) => {
+const fetchWithTimeout = async (url, timeout = 2000) => {
     const controller = new AbortController();
     const id = setTimeout(() => controller.abort(), timeout);
     try {
@@ -37,9 +38,8 @@ const enqueueFetch = async (fn) => {
         }
     }
 };
-const extractPageContext = async (tabId) => {
+const extractPageContext = async (tab) => {
     try {
-        const tab = await chrome.tabs.get(tabId);
         if (!tab || !tab.url) {
             return { data: null, error: "Tab not found or no URL", status: 'NO_RESPONSE' };
         }
@@ -52,26 +52,59 @@ const extractPageContext = async (tabId) => {
         }
         const prefs = await (0, preferences_js_1.loadPreferences)();
         let baseline = buildBaselineContext(tab, prefs.customGenera);
-        // Fetch and enrich for YouTube if author is missing and it is a video
+        // Fetch and enrich for YouTube
         const targetUrl = tab.url;
         const urlObj = new URL(targetUrl);
         const hostname = urlObj.hostname.replace(/^www\./, '');
-        if ((hostname.endsWith('youtube.com') || hostname.endsWith('youtu.be')) && !baseline.authorOrCreator) {
-            try {
-                // We use a queue to prevent flooding requests
-                await enqueueFetch(async () => {
-                    const response = await fetchWithTimeout(targetUrl);
-                    if (response.ok) {
-                        const html = await response.text();
-                        const channel = (0, logic_js_1.extractYouTubeChannelFromHtml)(html);
-                        if (channel) {
-                            baseline.authorOrCreator = channel;
-                        }
+        const isYouTube = hostname.endsWith('youtube.com') || hostname.endsWith('youtu.be');
+        if (isYouTube) {
+            if (prefs.enableYouTubeGenreDetection) {
+                try {
+                    const ytData = await (0, youtube_js_1.extractYouTubeData)(tab);
+                    const genreResult = await (0, youtube_js_1.determineChannelGenre)(ytData, prefs.youtubeApiKey);
+                    const { videoId, playlistId, playlistIndex } = (0, logic_js_1.parseYouTubeUrl)(targetUrl);
+                    baseline.youtube = {
+                        videoId,
+                        channelId: ytData.channelId,
+                        channelHandle: ytData.channelHandle || undefined,
+                        channelName: ytData.channelName || undefined,
+                        genre: genreResult.genre,
+                        genreSource: genreResult.source,
+                        contentSubtype: null,
+                        durationSeconds: null,
+                        playbackProgress: null,
+                        playlistId,
+                        playlistIndex
+                    };
+                    if (genreResult.genre !== 'Unknown') {
+                        baseline.genre = genreResult.genre;
+                        baseline.sources.genre = genreResult.source;
                     }
-                });
+                    if (ytData.channelName || ytData.channelHandle) {
+                        baseline.authorOrCreator = ytData.channelName || ytData.channelHandle || null;
+                    }
+                }
+                catch (ytError) {
+                    (0, logger_js_1.logDebug)("YouTube extraction failed", { error: String(ytError) });
+                }
             }
-            catch (fetchErr) {
-                (0, logger_js_1.logDebug)("Failed to fetch YouTube page content", { error: String(fetchErr) });
+            else if (!baseline.authorOrCreator) {
+                // Fallback: Fetch channel name if missing and detection disabled
+                try {
+                    await enqueueFetch(async () => {
+                        const response = await fetchWithTimeout(targetUrl);
+                        if (response.ok) {
+                            const html = await response.text();
+                            const channel = (0, logic_js_1.extractYouTubeChannelFromHtml)(html);
+                            if (channel) {
+                                baseline.authorOrCreator = channel;
+                            }
+                        }
+                    });
+                }
+                catch (fetchErr) {
+                    (0, logger_js_1.logDebug)("Failed to fetch YouTube page content", { error: String(fetchErr) });
+                }
             }
         }
         return {
@@ -80,7 +113,7 @@ const extractPageContext = async (tabId) => {
         };
     }
     catch (e) {
-        (0, logger_js_1.logDebug)(`Extraction failed for tab ${tabId}`, { error: String(e) });
+        (0, logger_js_1.logDebug)(`Extraction failed for tab ${tab.id}`, { error: String(e) });
         return {
             data: null,
             error: String(e),
