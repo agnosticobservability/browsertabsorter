@@ -61,14 +61,14 @@ const extractYouTubeData = async (tab) => {
             info.channelId = path.split('/')[2];
         }
         else if (path.startsWith('/@')) {
-            info.channelHandle = '@' + path.split('/')[1].split('/')[0];
+            info.channelHandle = path.split('/')[1].split('/')[0];
         }
         else if (path.startsWith('/c/') || path.startsWith('/user/')) {
             info.channelHandle = path.split('/')[2];
         }
         // 2. Page Content extraction (if needed)
         if (!info.channelId && !info.channelHandle && (path.includes('/watch') || path.includes('/shorts/'))) {
-            if (tab.id && tab.active) {
+            if (tab.id) {
                 try {
                     const results = await chrome.scripting.executeScript({
                         target: { tabId: tab.id },
