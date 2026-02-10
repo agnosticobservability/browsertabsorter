@@ -11,7 +11,7 @@ export const setCustomStrategies = (strategies: CustomStrategy[]) => {
 
 export const getCustomStrategies = (): CustomStrategy[] => customStrategies;
 
-const COLORS = ["blue", "cyan", "green", "orange", "purple", "red", "yellow"];
+const COLORS = ["grey", "blue", "red", "yellow", "green", "pink", "purple", "cyan", "orange"];
 
 const regexCache = new Map<string, RegExp>();
 
@@ -251,7 +251,9 @@ export const groupTabs = (
         if (color) { groupColor = color; break; }
       }
 
-      if (!groupColor) {
+      if (groupColor === 'match') {
+        groupColor = colorForKey(bucketKey, 0);
+      } else if (!groupColor) {
         groupColor = colorForKey(bucketKey, buckets.size);
       }
 

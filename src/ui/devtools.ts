@@ -815,6 +815,7 @@ function addBuilderRow(type: 'group' | 'sort' | 'groupSort', data?: any) {
                 <option value="purple">Purple</option>
                 <option value="cyan">Cyan</option>
                 <option value="orange">Orange</option>
+                <option value="match">Match Value</option>
             </select>
             <label><input type="checkbox" class="random-color-check" checked> Random</label>
 
