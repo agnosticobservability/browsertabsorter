@@ -10,10 +10,7 @@ export const defaultPreferences: Preferences = {
   debug: false,
   logLevel: "info",
   theme: "dark",
-  customGenera: {},
-  enableYouTubeGenreDetection: false,
-  youtubeApiKey: "",
-  colorByField: ""
+  customGenera: {}
 };
 
 const normalizeSorting = (sorting: unknown): SortingStrategy[] => {
