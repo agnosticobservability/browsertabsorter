@@ -36,10 +36,6 @@ export interface PageContext {
   youtube?: {
     videoId: string | null;
     channelId: string | null;
-    channelHandle?: string;
-    channelName?: string;
-    genre?: string;
-    genreSource?: "api" | "page" | "heuristic" | "unknown";
     contentSubtype: 'shorts' | 'live' | 'premiere' | 'standard' | null;
     durationSeconds: number | null;
     playbackProgress: {
@@ -186,13 +182,6 @@ export interface Preferences {
   theme?: "light" | "dark";
   customGenera?: Record<string, string>;
   customStrategies?: CustomStrategy[];
-
-  // YouTube Features
-  youtubeApiKey?: string;
-  enableYouTubeGenreDetection?: boolean;
-
-  // General UI Features
-  colorByField?: string;
 }
 
 export interface RuntimeMessage<TPayload = unknown> {

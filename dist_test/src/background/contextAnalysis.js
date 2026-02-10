@@ -1,23 +1,13 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.analyzeTabContext = void 0;
-const logger_js_1 = require("../shared/logger.js");
+const logger_js_1 = require("./logger.js");
 const index_js_1 = require("./extraction/index.js");
-const contextCache = new Map();
 const analyzeTabContext = async (tabs) => {
     const contextMap = new Map();
     const promises = tabs.map(async (tab) => {
         try {
-            const cacheKey = `${tab.id}::${tab.url}`;
-            if (contextCache.has(cacheKey)) {
-                contextMap.set(tab.id, contextCache.get(cacheKey));
-                return;
-            }
             const result = await fetchContextForTab(tab);
-            // Only cache valid results to allow retrying on transient errors?
-            // Actually, if we cache error, we stop retrying.
-            // Let's cache everything for now to prevent spamming if it keeps failing.
-            contextCache.set(cacheKey, result);
             contextMap.set(tab.id, result);
         }
         catch (error) {
@@ -36,7 +26,7 @@ const fetchContextForTab = async (tab) => {
     let error;
     let status;
     try {
-        const extraction = await (0, index_js_1.extractPageContext)(tab);
+        const extraction = await (0, index_js_1.extractPageContext)(tab.id);
         data = extraction.data;
         error = extraction.error;
         status = extraction.status;

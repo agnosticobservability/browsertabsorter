@@ -3,7 +3,6 @@ import { normalizeUrl, parseYouTubeUrl, extractYouTubeChannelFromHtml } from "./
 import { getGenera } from "./generaRegistry.js";
 import { logDebug } from "../../shared/logger.js";
 import { loadPreferences } from "../preferences.js";
-import { extractYouTubeData, determineChannelGenre } from "./youtube.js";
 
 interface ExtractionResponse {
   data: PageContext | null;
@@ -68,62 +67,26 @@ export const extractPageContext = async (tab: TabMetadata | chrome.tabs.Tab): Pr
     const prefs = await loadPreferences();
     let baseline = buildBaselineContext(tab as chrome.tabs.Tab, prefs.customGenera);
 
-    // Fetch and enrich for YouTube
+    // Fetch and enrich for YouTube if author is missing and it is a video
     const targetUrl = tab.url;
     const urlObj = new URL(targetUrl);
     const hostname = urlObj.hostname.replace(/^www\./, '');
-    const isYouTube = hostname.endsWith('youtube.com') || hostname.endsWith('youtu.be');
-
-    if (isYouTube) {
-        if (prefs.enableYouTubeGenreDetection) {
-             try {
-                 const ytData = await extractYouTubeData(tab as TabMetadata);
-                 const genreResult = await determineChannelGenre(ytData, prefs.youtubeApiKey);
-
-                 const { videoId, playlistId, playlistIndex } = parseYouTubeUrl(targetUrl);
-
-                 baseline.youtube = {
-                     videoId,
-                     channelId: ytData.channelId,
-                     channelHandle: ytData.channelHandle || undefined,
-                     channelName: ytData.channelName || undefined,
-                     genre: genreResult.genre,
-                     genreSource: genreResult.source,
-                     contentSubtype: null,
-                     durationSeconds: null,
-                     playbackProgress: null,
-                     playlistId,
-                     playlistIndex
-                 };
-
-                 if (genreResult.genre !== 'Unknown') {
-                     baseline.genre = genreResult.genre;
-                     baseline.sources.genre = genreResult.source;
-                 }
-
-                 if (ytData.channelName || ytData.channelHandle) {
-                     baseline.authorOrCreator = ytData.channelName || ytData.channelHandle || null;
-                 }
-             } catch (ytError) {
-                 logDebug("YouTube extraction failed", { error: String(ytError) });
-             }
-        } else if (!baseline.authorOrCreator) {
-             // Fallback: Fetch channel name if missing and detection disabled
-             try {
-                 await enqueueFetch(async () => {
-                     const response = await fetchWithTimeout(targetUrl);
-                     if (response.ok) {
-                         const html = await response.text();
-                         const channel = extractYouTubeChannelFromHtml(html);
-                         if (channel) {
-                             baseline.authorOrCreator = channel;
-                         }
+    if ((hostname.endsWith('youtube.com') || hostname.endsWith('youtu.be')) && !baseline.authorOrCreator) {
+         try {
+             // We use a queue to prevent flooding requests
+             await enqueueFetch(async () => {
+                 const response = await fetchWithTimeout(targetUrl);
+                 if (response.ok) {
+                     const html = await response.text();
+                     const channel = extractYouTubeChannelFromHtml(html);
+                     if (channel) {
+                         baseline.authorOrCreator = channel;
                      }
-                 });
-             } catch (fetchErr) {
-                 logDebug("Failed to fetch YouTube page content", { error: String(fetchErr) });
-             }
-        }
+                 }
+             });
+         } catch (fetchErr) {
+             logDebug("Failed to fetch YouTube page content", { error: String(fetchErr) });
+         }
     }
 
     return {

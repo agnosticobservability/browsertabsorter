@@ -8,5 +8,5 @@
     "noEmit": false,
     "types": ["node", "chrome"]
   },
-  "include": ["src/**/*.ts", "tests/reproduce_collision.ts", "tests/verify_tab_reuse.ts", "tests/test_window_modes.ts", "tests/youtube_genre.test.ts"]
+  "include": ["src/**/*.ts", "tests/reproduce_collision.ts", "tests/verify_tab_reuse.ts", "tests/test_window_modes.ts"]
 }

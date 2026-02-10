@@ -2,7 +2,6 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const common_js_1 = require("./common.js");
 const strategyRegistry_js_1 = require("../shared/strategyRegistry.js");
-const logger_js_1 = require("../shared/logger.js");
 // Elements
 const searchInput = document.getElementById("tabSearch");
 const windowsContainer = document.getElementById("windows");
@@ -387,7 +386,6 @@ function renderStrategyList(container, strategies, defaultEnabled) {
         checkbox?.addEventListener('change', async (e) => {
             const checked = e.target.checked;
             row.classList.toggle('active', checked);
-            (0, logger_js_1.logInfo)("Strategy toggled", { id: strategy.id, checked });
             // Immediate save on interaction
             if (preferences) {
                 // Update local preference state
@@ -460,7 +458,6 @@ function getDragAfterElement(container, y) {
 }
 const loadState = async () => {
     try {
-        (0, logger_js_1.logInfo)("Loading popup state");
         const [stateResult, currentWindowResult, chromeWindowsResult] = await Promise.allSettled([
             (0, common_js_1.fetchState)(),
             chrome.windows.getCurrent(),
@@ -478,35 +475,12 @@ const loadState = async () => {
         preferences = stateResult.value.data.preferences;
         if (preferences) {
             const s = preferences.sorting || [];
-            // Initialize Logger
-            (0, logger_js_1.setLoggerPreferences)(preferences);
             const allStrategies = (0, strategyRegistry_js_1.getStrategies)(preferences.customStrategies);
             // Render unified strategy list
             renderStrategyList(allStrategiesContainer, allStrategies, s);
             // Initial theme load
             if (preferences.theme) {
                 applyTheme(preferences.theme, false);
-            }
-            // Init settings UI
-            if (preferences.logLevel) {
-                const select = document.getElementById('logLevelSelect');
-                if (select)
-                    select.value = preferences.logLevel;
-            }
-            if (preferences.colorByField !== undefined) {
-                const select = document.getElementById('colorByFieldSelect');
-                if (select)
-                    select.value = preferences.colorByField;
-            }
-            if (preferences.enableYouTubeGenreDetection !== undefined) {
-                const checkbox = document.getElementById('enableYoutubeGenre');
-                if (checkbox)
-                    checkbox.checked = preferences.enableYouTubeGenreDetection;
-            }
-            if (preferences.youtubeApiKey !== undefined) {
-                const input = document.getElementById('youtubeApiKeyInput');
-                if (input)
-                    input.value = preferences.youtubeApiKey;
             }
         }
         if (currentWindowResult.status === "fulfilled") {
@@ -547,7 +521,6 @@ const getSelectedSorting = () => {
     return getStrategyIds(allStrategiesContainer);
 };
 const triggerGroup = async (selection) => {
-    (0, logger_js_1.logInfo)("Triggering grouping", { selection });
     const sorting = getSelectedSorting();
     await (0, common_js_1.applyGrouping)({ selection, sorting });
     await loadState();
@@ -567,20 +540,15 @@ selectAllCheckbox.addEventListener("change", (e) => {
     }
     renderTree();
 });
-btnApply?.addEventListener("click", () => {
-    (0, logger_js_1.logInfo)("Apply button clicked", { selectedCount: selectedTabs.size });
-    triggerGroup({ tabIds: Array.from(selectedTabs) });
-});
+btnApply?.addEventListener("click", () => triggerGroup({ tabIds: Array.from(selectedTabs) }));
 btnUngroup.addEventListener("click", async () => {
     if (confirm(`Ungroup ${selectedTabs.size} tabs?`)) {
-        (0, logger_js_1.logInfo)("Ungrouping tabs", { count: selectedTabs.size });
         await chrome.tabs.ungroup(Array.from(selectedTabs));
         await loadState();
     }
 });
 btnMerge.addEventListener("click", async () => {
     if (confirm(`Merge ${selectedTabs.size} tabs into one group?`)) {
-        (0, logger_js_1.logInfo)("Merging tabs", { count: selectedTabs.size });
         const res = await (0, common_js_1.sendMessage)("mergeSelection", { tabIds: Array.from(selectedTabs) });
         if (!res.ok)
             alert("Merge failed: " + res.error);
@@ -590,7 +558,6 @@ btnMerge.addEventListener("click", async () => {
 });
 btnSplit.addEventListener("click", async () => {
     if (confirm(`Split ${selectedTabs.size} tabs into a new window?`)) {
-        (0, logger_js_1.logInfo)("Splitting tabs", { count: selectedTabs.size });
         const res = await (0, common_js_1.sendMessage)("splitSelection", { tabIds: Array.from(selectedTabs) });
         if (!res.ok)
             alert("Split failed: " + res.error);
@@ -618,7 +585,6 @@ toggleStrategies.addEventListener("click", () => {
     toggleStrategies.classList.toggle("collapsed", isCollapsed);
 });
 document.getElementById("btnUndo")?.addEventListener("click", async () => {
-    (0, logger_js_1.logInfo)("Undo clicked");
     const res = await (0, common_js_1.sendMessage)("undo");
     if (!res.ok)
         alert("Undo failed: " + res.error);
@@ -626,7 +592,6 @@ document.getElementById("btnUndo")?.addEventListener("click", async () => {
 document.getElementById("btnSaveState")?.addEventListener("click", async () => {
     const name = prompt("Enter a name for this state:");
     if (name) {
-        (0, logger_js_1.logInfo)("Saving state", { name });
         const res = await (0, common_js_1.sendMessage)("saveState", { name });
         if (!res.ok)
             alert("Save failed: " + res.error);
@@ -635,7 +600,6 @@ document.getElementById("btnSaveState")?.addEventListener("click", async () => {
 const loadStateDialog = document.getElementById("loadStateDialog");
 const savedStateList = document.getElementById("savedStateList");
 document.getElementById("btnLoadState")?.addEventListener("click", async () => {
-    (0, logger_js_1.logInfo)("Opening Load State dialog");
     const res = await (0, common_js_1.sendMessage)("getSavedStates");
     if (res.ok && res.data) {
         savedStateList.innerHTML = "";
@@ -650,7 +614,6 @@ document.getElementById("btnLoadState")?.addEventListener("click", async () => {
             span.style.cursor = "pointer";
             span.onclick = async () => {
                 if (confirm(`Load state "${state.name}"?`)) {
-                    (0, logger_js_1.logInfo)("Restoring state", { name: state.name });
                     const r = await (0, common_js_1.sendMessage)("restoreState", { state });
                     if (r.ok) {
                         loadStateDialog.close();
@@ -716,7 +679,6 @@ const applyTheme = (theme, save = false) => {
     // Sync with Preferences
     if (save) {
         // We use savePreferences which calls the background to store it
-        (0, logger_js_1.logInfo)("Applying theme", { theme });
         (0, common_js_1.sendMessage)("savePreferences", { theme });
     }
 };
@@ -730,50 +692,6 @@ btnTheme?.addEventListener('click', () => {
     const newTheme = isLight ? 'dark' : 'light';
     localStorage.setItem('theme', newTheme); // Keep local copy for fast boot
     applyTheme(newTheme, true);
-});
-// --- Settings Logic ---
-const settingsDialog = document.getElementById("settingsDialog");
-document.getElementById("btnSettings")?.addEventListener("click", () => {
-    settingsDialog.showModal();
-});
-document.getElementById("btnCloseSettings")?.addEventListener("click", () => {
-    settingsDialog.close();
-});
-const logLevelSelect = document.getElementById("logLevelSelect");
-logLevelSelect?.addEventListener("change", async () => {
-    const newLevel = logLevelSelect.value;
-    if (preferences) {
-        preferences.logLevel = newLevel;
-        // Update local logger immediately
-        (0, logger_js_1.setLoggerPreferences)(preferences);
-        // Persist
-        await (0, common_js_1.sendMessage)("savePreferences", { logLevel: newLevel });
-        (0, logger_js_1.logDebug)("Log level updated", { level: newLevel });
-    }
-});
-const colorByFieldSelect = document.getElementById("colorByFieldSelect");
-colorByFieldSelect?.addEventListener("change", async () => {
-    if (preferences) {
-        preferences.colorByField = colorByFieldSelect.value;
-        await (0, common_js_1.sendMessage)("savePreferences", { colorByField: preferences.colorByField });
-        (0, logger_js_1.logInfo)("Color by field updated", { field: preferences.colorByField });
-    }
-});
-const enableYoutubeGenreCheckbox = document.getElementById("enableYoutubeGenre");
-enableYoutubeGenreCheckbox?.addEventListener("change", async () => {
-    if (preferences) {
-        preferences.enableYouTubeGenreDetection = enableYoutubeGenreCheckbox.checked;
-        await (0, common_js_1.sendMessage)("savePreferences", { enableYouTubeGenreDetection: preferences.enableYouTubeGenreDetection });
-        (0, logger_js_1.logInfo)("YouTube genre detection updated", { enabled: preferences.enableYouTubeGenreDetection });
-    }
-});
-const youtubeApiKeyInput = document.getElementById("youtubeApiKeyInput");
-youtubeApiKeyInput?.addEventListener("change", async () => {
-    if (preferences) {
-        preferences.youtubeApiKey = youtubeApiKeyInput.value;
-        await (0, common_js_1.sendMessage)("savePreferences", { youtubeApiKey: preferences.youtubeApiKey });
-        (0, logger_js_1.logInfo)("YouTube API key updated");
-    }
 });
 // --- Pin & Resize Logic ---
 const btnPin = document.getElementById("btnPin");
