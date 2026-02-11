@@ -3,7 +3,8 @@ import {
   Preferences,
   SavedState,
   SortingStrategy,
-  LogLevel
+  LogLevel,
+  TabGroup
 } from "../shared/types.js";
 import {
   applyGrouping,
@@ -18,6 +19,7 @@ import {
 } from "./common.js";
 import { getStrategies, STRATEGIES, StrategyDefinition } from "../shared/strategyRegistry.js";
 import { setLoggerPreferences, logDebug, logInfo } from "../shared/logger.js";
+import { fetchLocalState } from "./localState.js";
 
 // Elements
 const searchInput = document.getElementById("tabSearch") as HTMLInputElement;
@@ -549,26 +551,12 @@ function getDragAfterElement(container: HTMLElement, y: number) {
   }, { offset: Number.NEGATIVE_INFINITY, element: null as Element | null }).element;
 }
 
-const loadState = async () => {
-  try {
-    logInfo("Loading popup state");
-    const [stateResult, currentWindowResult, chromeWindowsResult] = await Promise.allSettled([
-      fetchState(),
-      chrome.windows.getCurrent(),
-      chrome.windows.getAll({ windowTypes: ["normal"], populate: true })
-    ]);
-
-    if (stateResult.status !== "fulfilled" || !stateResult.value || !stateResult.value.ok || !stateResult.value.data) {
-      const error = stateResult.status === "rejected" ? stateResult.reason : stateResult.value?.error;
-      console.error("Failed to load state:", error ?? "Unknown error");
-      windowsContainer.innerHTML = `<div class="error-state" style="padding: 20px; color: var(--error-color, red); text-align: center;">
-          Failed to load tabs: ${error ?? "Unknown error"}.<br>
-          Please reload the extension or check permissions.
-      </div>`;
-      return;
-    }
-
-    preferences = stateResult.value.data.preferences;
+const updateUI = (
+  stateData: { groups: TabGroup[]; preferences: Preferences },
+  currentWindow: chrome.windows.Window | undefined,
+  chromeWindows: chrome.windows.Window[]
+) => {
+    preferences = stateData.preferences;
 
     if (preferences) {
       const s = preferences.sorting || [];
@@ -593,20 +581,14 @@ const loadState = async () => {
       }
     }
 
-    if (currentWindowResult.status === "fulfilled") {
-      focusedWindowId = currentWindowResult.value?.id ?? null;
+    if (currentWindow) {
+      focusedWindowId = currentWindow.id ?? null;
     } else {
       focusedWindowId = null;
-      console.warn("Failed to get current window:", currentWindowResult.reason);
+      console.warn("Failed to get current window");
     }
 
     const windowTitles = new Map<number, string>();
-    const chromeWindows = chromeWindowsResult.status === "fulfilled" && Array.isArray(chromeWindowsResult.value)
-      ? chromeWindowsResult.value
-      : [];
-    if (chromeWindowsResult.status === "rejected") {
-      console.warn("Failed to get window list:", chromeWindowsResult.reason);
-    }
 
     chromeWindows.forEach((win) => {
       if (!win.id) return;
@@ -615,12 +597,61 @@ const loadState = async () => {
       windowTitles.set(win.id, title);
     });
 
-    windowState = mapWindows(stateResult.value.data.groups, windowTitles);
+    windowState = mapWindows(stateData.groups, windowTitles);
 
     renderTree();
-  } catch (e) {
-    console.error("Error loading state:", e);
-  }
+};
+
+const loadState = async () => {
+  logInfo("Loading popup state");
+
+  let bgFinished = false;
+
+  const fastLoad = async () => {
+    try {
+        const [localRes, cw, aw] = await Promise.all([
+            fetchLocalState(),
+            chrome.windows.getCurrent().catch(() => undefined),
+            chrome.windows.getAll({ windowTypes: ["normal"], populate: true }).catch(() => [])
+        ]);
+
+        // Only update if background hasn't finished yet
+        if (!bgFinished && localRes.ok && localRes.data) {
+             updateUI(localRes.data, cw, aw as chrome.windows.Window[]);
+        }
+    } catch (e) {
+        console.warn("Fast load failed", e);
+    }
+  };
+
+  const bgLoad = async () => {
+    try {
+        const [bgRes, cw, aw] = await Promise.all([
+            fetchState(),
+            chrome.windows.getCurrent().catch(() => undefined),
+            chrome.windows.getAll({ windowTypes: ["normal"], populate: true }).catch(() => [])
+        ]);
+
+        bgFinished = true; // Mark as finished so fast load doesn't overwrite if it's somehow slow
+
+        if (bgRes.ok && bgRes.data) {
+             updateUI(bgRes.data, cw, aw as chrome.windows.Window[]);
+        } else {
+            console.error("Failed to load state:", bgRes.error ?? "Unknown error");
+            if (windowState.length === 0) { // Only show error if we have NOTHING shown
+                windowsContainer.innerHTML = `<div class="error-state" style="padding: 20px; color: var(--error-color, red); text-align: center;">
+                    Failed to load tabs: ${bgRes.error ?? "Unknown error"}.<br>
+                    Please reload the extension or check permissions.
+                </div>`;
+            }
+        }
+    } catch (e) {
+        console.error("Error loading state:", e);
+    }
+  };
+
+  // Start both concurrently
+  await Promise.all([fastLoad(), bgLoad()]);
 };
 
 const getStrategyIds = (container: HTMLElement): SortingStrategy[] => {
