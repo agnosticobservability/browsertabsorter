@@ -5,7 +5,8 @@
   "license": "MIT",
   "scripts": {
     "prebuild": "node scripts/generate-icons.mjs",
-    "build": "tsc --pretty",
+    "build": "node scripts/build.mjs",
+    "type-check": "tsc --noEmit",
     "postinstall": "npm run build",
     "clean": "rm -rf dist"
   },
