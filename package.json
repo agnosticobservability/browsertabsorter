@@ -6,6 +6,7 @@
   "scripts": {
     "prebuild": "node scripts/generate-icons.mjs",
     "build": "tsc --pretty",
+    "postinstall": "npm run build",
     "clean": "rm -rf dist"
   },
   "devDependencies": {
