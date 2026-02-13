@@ -58,8 +58,15 @@ const handleMessage = async <TData>(
 
       const preferences = sorting ? { ...prefs, sorting } : prefs;
 
+      const onProgress = (completed: number, total: number) => {
+          chrome.runtime.sendMessage({
+              type: "groupingProgress",
+              payload: { completed, total }
+          }).catch(() => {});
+      };
+
       // Use calculateTabGroups to determine the target grouping
-      const groups = await calculateTabGroups(preferences, selection);
+      const groups = await calculateTabGroups(preferences, selection, onProgress);
       await applyTabGroups(groups);
       return { ok: true, data: { groups } as TData };
     }
@@ -72,7 +79,15 @@ const handleMessage = async <TData>(
       const selection = payload.selection ?? {};
       const sorting = payload.sorting?.length ? payload.sorting : undefined;
       const preferences = sorting ? { ...prefs, sorting } : prefs;
-      await applyTabSorting(preferences, selection);
+
+      const onProgress = (completed: number, total: number) => {
+          chrome.runtime.sendMessage({
+              type: "groupingProgress",
+              payload: { completed, total }
+          }).catch(() => {});
+      };
+
+      await applyTabSorting(preferences, selection, onProgress);
       return { ok: true };
     }
     case "mergeSelection": {
