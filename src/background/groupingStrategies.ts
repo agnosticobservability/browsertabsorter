@@ -57,8 +57,24 @@ export const getFieldValue = (tab: TabMetadata, field: string): any => {
         case 'openerTabId': return tab.openerTabId;
         case 'lastAccessed': return tab.lastAccessed;
         case 'context': return tab.context;
-        case 'genre': return tab.contextData?.genre;
-        case 'siteName': return tab.contextData?.siteName;
+
+        // Flattened Context Fields
+        case 'genre': return tab.genre;
+        case 'siteName': return tab.siteName;
+        case 'platform': return tab.platform;
+        case 'objectType': return tab.objectType;
+        case 'objectId': return tab.objectId;
+        case 'extractedTitle': return tab.extractedTitle;
+        case 'extractedDescription': return tab.extractedDescription;
+        case 'authorOrCreator': return tab.authorOrCreator;
+        case 'publishedAt': return tab.publishedAt;
+        case 'modifiedAt': return tab.modifiedAt;
+        case 'language': return tab.language;
+        case 'isAudible': return tab.isAudible;
+        case 'isMuted': return tab.isMuted;
+        case 'hasUnsavedChangesLikely': return tab.hasUnsavedChangesLikely;
+        case 'isAuthenticatedLikely': return tab.isAuthenticatedLikely;
+
         // Derived or mapped fields
         case 'domain': return domainFromUrl(tab.url);
         case 'subdomain': return subdomainFromUrl(tab.url);
@@ -125,7 +141,7 @@ const getLabelComponent = (strategy: GroupingStrategy | string, tabs: TabMetadat
 
   switch (strategy) {
     case "domain": {
-      const siteNames = new Set(tabs.map(t => t.contextData?.siteName).filter(Boolean));
+      const siteNames = new Set(tabs.map(t => t.siteName).filter(Boolean));
       if (siteNames.size === 1) {
         return stripTld(Array.from(siteNames)[0] as string);
       }
@@ -529,7 +545,12 @@ export const groupingKey = (tab: TabMetadata, strategy: GroupingStrategy | strin
 };
 
 function isContextField(field: string): boolean {
-    return field === 'context' || field === 'genre' || field === 'siteName' || field.startsWith('contextData.');
+    return [
+      'context', 'genre', 'siteName', 'platform', 'objectType',
+      'extractedTitle', 'extractedDescription', 'authorOrCreator',
+      'publishedAt', 'modifiedAt', 'language', 'isAudible', 'isMuted',
+      'hasUnsavedChangesLikely', 'isAuthenticatedLikely'
+    ].includes(field);
 }
 
 export const requiresContextAnalysis = (strategyIds: (string | SortingStrategy)[]): boolean => {

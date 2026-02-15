@@ -48,13 +48,19 @@ let columns: ColumnDefinition[] = [
     { key: 'groupId', label: 'Group', visible: true, width: '70px', filterable: true },
     { key: 'title', label: 'Title', visible: true, width: '200px', filterable: true },
     { key: 'url', label: 'URL', visible: true, width: '250px', filterable: true },
+    { key: 'genre', label: 'Genre', visible: true, width: '100px', filterable: true },
+    { key: 'context', label: 'Context', visible: true, width: '100px', filterable: true },
+    { key: 'siteName', label: 'Site Name', visible: false, width: '120px', filterable: true },
+    { key: 'platform', label: 'Platform', visible: false, width: '100px', filterable: true },
+    { key: 'objectType', label: 'Object Type', visible: false, width: '100px', filterable: true },
+    { key: 'extractedTitle', label: 'Extracted Title', visible: false, width: '200px', filterable: true },
+    { key: 'authorOrCreator', label: 'Author', visible: false, width: '120px', filterable: true },
+    { key: 'publishedAt', label: 'Published', visible: false, width: '100px', filterable: true },
     { key: 'status', label: 'Status', visible: false, width: '80px', filterable: true },
     { key: 'active', label: 'Active', visible: false, width: '60px', filterable: true },
     { key: 'pinned', label: 'Pinned', visible: false, width: '60px', filterable: true },
     { key: 'openerTabId', label: 'Opener', visible: false, width: '70px', filterable: true },
     { key: 'parentTitle', label: 'Parent Title', visible: false, width: '150px', filterable: true },
-    { key: 'genre', label: 'Genre', visible: true, width: '100px', filterable: true },
-    { key: 'context', label: 'Extracted Context', visible: true, width: '400px', filterable: true },
     { key: 'lastAccessed', label: 'Last Accessed', visible: true, width: '150px', filterable: false },
     { key: 'actions', label: 'Actions', visible: true, width: '120px', filterable: false }
 ];
@@ -232,7 +238,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Pre-render static content
   await loadPreferencesAndInit(); // Load preferences first to init strategies
   renderAlgorithmsView();
-  loadCustomGenera();
   initStrategyBuilder();
 
   const exportAllBtn = document.getElementById('strategy-list-export-btn');
@@ -376,20 +381,6 @@ async function loadPreferencesAndInit() {
     }
 }
 
-async function loadCustomGenera() {
-    const listContainer = document.getElementById('custom-genera-list');
-    if (!listContainer) return;
-
-    try {
-        const response = await chrome.runtime.sendMessage({ type: 'loadPreferences' });
-        if (response && response.ok && response.data) {
-            const prefs = response.data as Preferences;
-            renderCustomGeneraList(prefs.customGenera || {});
-        }
-    } catch (e) {
-        console.error("Failed to load custom genera", e);
-    }
-}
 
 // ---------------------- STRATEGY BUILDER ----------------------
 
@@ -465,26 +456,24 @@ const FIELD_OPTIONS = `
                     <option value="openerTabId">Opener ID</option>
                     <option value="parentTitle">Parent Title</option>
                     <option value="lastAccessed">Last Accessed</option>
+                </optgroup>
+                <optgroup label="Extraction Fields">
                     <option value="genre">Genre</option>
                     <option value="context">Context Summary</option>
-                </optgroup>
-                <optgroup label="Context Data (JSON)">
-                    <option value="contextData.siteName">Site Name</option>
-                    <option value="contextData.canonicalUrl">Canonical URL</option>
-                    <option value="contextData.normalizedUrl">Normalized URL</option>
-                    <option value="contextData.platform">Platform</option>
-                    <option value="contextData.objectType">Object Type</option>
-                    <option value="contextData.objectId">Object ID</option>
-                    <option value="contextData.title">Extracted Title</option>
-                    <option value="contextData.description">Description</option>
-                    <option value="contextData.authorOrCreator">Author/Creator</option>
-                    <option value="contextData.publishedAt">Published At</option>
-                    <option value="contextData.modifiedAt">Modified At</option>
-                    <option value="contextData.language">Language</option>
-                    <option value="contextData.isAudible">Is Audible</option>
-                    <option value="contextData.isMuted">Is Muted</option>
-                    <option value="contextData.hasUnsavedChangesLikely">Unsaved Changes</option>
-                    <option value="contextData.isAuthenticatedLikely">Authenticated</option>
+                    <option value="siteName">Site Name</option>
+                    <option value="platform">Platform</option>
+                    <option value="objectType">Object Type</option>
+                    <option value="objectId">Object ID</option>
+                    <option value="extractedTitle">Extracted Title</option>
+                    <option value="extractedDescription">Extracted Description</option>
+                    <option value="authorOrCreator">Author/Creator</option>
+                    <option value="publishedAt">Published At</option>
+                    <option value="modifiedAt">Modified At</option>
+                    <option value="language">Language</option>
+                    <option value="isAudible">Is Audible</option>
+                    <option value="isMuted">Is Muted</option>
+                    <option value="hasUnsavedChangesLikely">Unsaved Changes</option>
+                    <option value="isAuthenticatedLikely">Authenticated</option>
                 </optgroup>`;
 
 const OPERATOR_OPTIONS = `
@@ -1612,100 +1601,6 @@ async function deleteCustomStrategy(id: string) {
     }
 }
 
-// ... Genera management ... (kept as is)
-function renderCustomGeneraList(customGenera: Record<string, string>) {
-    const listContainer = document.getElementById('custom-genera-list');
-    if (!listContainer) return;
-
-    if (Object.keys(customGenera).length === 0) {
-        listContainer.innerHTML = '<p style="color: #888; font-style: italic;">No custom entries.</p>';
-        return;
-    }
-
-    listContainer.innerHTML = Object.entries(customGenera).map(([domain, category]) => `
-        <div style="display: flex; justify-content: space-between; align-items: center; padding: 5px; border-bottom: 1px solid #f0f0f0;">
-            <span><b>${escapeHtml(domain)}</b>: ${escapeHtml(category)}</span>
-            <button class="delete-genera-btn" data-domain="${escapeHtml(domain)}" style="background: none; border: none; color: red; cursor: pointer;">&times;</button>
-        </div>
-    `).join('');
-
-    // Re-attach listeners for delete buttons
-    listContainer.querySelectorAll('.delete-genera-btn').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
-            const domain = (e.target as HTMLElement).dataset.domain;
-            if (domain) {
-                await deleteCustomGenera(domain);
-            }
-        });
-    });
-}
-
-async function addCustomGenera() {
-    const domainInput = document.getElementById('new-genera-domain') as HTMLInputElement;
-    const categoryInput = document.getElementById('new-genera-category') as HTMLInputElement;
-
-    if (!domainInput || !categoryInput) return;
-
-    const domain = domainInput.value.trim().toLowerCase();
-    const category = categoryInput.value.trim();
-
-    if (!domain || !category) {
-        alert("Please enter both domain and category.");
-        return;
-    }
-
-    logInfo("Adding custom genera", { domain, category });
-
-    try {
-        // Fetch current to merge
-        const response = await chrome.runtime.sendMessage({ type: 'loadPreferences' });
-        if (response && response.ok && response.data) {
-            const prefs = response.data as Preferences;
-            const newCustomGenera = { ...(prefs.customGenera || {}), [domain]: category };
-
-            await chrome.runtime.sendMessage({
-                type: 'savePreferences',
-                payload: { customGenera: newCustomGenera }
-            });
-
-            domainInput.value = '';
-            categoryInput.value = '';
-            loadCustomGenera();
-            loadTabs(); // Refresh tabs to apply new classification if relevant
-        }
-    } catch (e) {
-        console.error("Failed to add custom genera", e);
-    }
-}
-
-async function deleteCustomGenera(domain: string) {
-    try {
-        logInfo("Deleting custom genera", { domain });
-        const response = await chrome.runtime.sendMessage({ type: 'loadPreferences' });
-        if (response && response.ok && response.data) {
-            const prefs = response.data as Preferences;
-            const newCustomGenera = { ...(prefs.customGenera || {}) };
-            delete newCustomGenera[domain];
-
-            await chrome.runtime.sendMessage({
-                type: 'savePreferences',
-                payload: { customGenera: newCustomGenera }
-            });
-
-            loadCustomGenera();
-            loadTabs();
-        }
-    } catch (e) {
-        console.error("Failed to delete custom genera", e);
-    }
-}
-
-document.addEventListener('click', (event) => {
-    const target = event.target as HTMLElement | null;
-    if (target && target.id === 'add-genera-btn') {
-        addCustomGenera();
-    }
-});
 
 async function loadTabs() {
   logInfo("Loading tabs for DevTools");
@@ -1748,7 +1643,13 @@ function getMappedTabs(): TabMetadata[] {
         const contextResult = currentContextMap.get(metadata.id);
         if (contextResult) {
             metadata.context = contextResult.context;
-            metadata.contextData = contextResult.data;
+            // Flatten context data
+            if (contextResult.data) {
+                const { title, description, ...rest } = contextResult.data;
+                Object.assign(metadata, rest);
+                metadata.extractedTitle = title;
+                metadata.extractedDescription = description;
+            }
         }
         return metadata;
     })
@@ -1776,13 +1677,20 @@ function updateHeaderStyles() {
 }
 
 function getSortValue(tab: chrome.tabs.Tab, key: string): any {
+  const ctx = tab.id ? currentContextMap.get(tab.id) : undefined;
+  const data = (ctx?.data || {}) as any;
+
   switch (key) {
     case 'parentTitle':
       return tab.openerTabId ? (tabTitles.get(tab.openerTabId) || '') : '';
-    case 'genre':
-      return (tab.id && currentContextMap.get(tab.id)?.data?.genre) || '';
-    case 'context':
-      return (tab.id && currentContextMap.get(tab.id)?.context) || '';
+    case 'genre': return data.genre || '';
+    case 'siteName': return data.siteName || '';
+    case 'platform': return data.platform || '';
+    case 'objectType': return data.objectType || '';
+    case 'extractedTitle': return data.title || '';
+    case 'authorOrCreator': return data.authorOrCreator || '';
+    case 'publishedAt': return data.publishedAt || '';
+    case 'context': return ctx?.context || '';
     case 'active':
     case 'pinned':
       return (tab as any)[key] ? 1 : 0;
@@ -1875,6 +1783,8 @@ function stripHtml(html: string) {
 
 function getCellValue(tab: chrome.tabs.Tab, key: string): string | HTMLElement {
     const escape = escapeHtml;
+    const ctx = tab.id ? currentContextMap.get(tab.id) : undefined;
+    const data = (ctx?.data || {}) as any;
 
     switch (key) {
         case 'id': return String(tab.id ?? 'N/A');
@@ -1889,46 +1799,17 @@ function getCellValue(tab: chrome.tabs.Tab, key: string): string | HTMLElement {
         case 'openerTabId': return String(tab.openerTabId ?? '-');
         case 'parentTitle':
              return escape(tab.openerTabId ? (tabTitles.get(tab.openerTabId) || 'Unknown') : '-');
-        case 'genre':
-             return escape((tab.id && currentContextMap.get(tab.id)?.data?.genre) || '-');
+        case 'genre': return escape(data.genre || '-');
+        case 'siteName': return escape(data.siteName || '-');
+        case 'platform': return escape(data.platform || '-');
+        case 'objectType': return escape(data.objectType || '-');
+        case 'extractedTitle': return escape(data.title || '-');
+        case 'authorOrCreator': return escape(data.authorOrCreator || '-');
+        case 'publishedAt': return escape(data.publishedAt || '-');
+
         case 'context': {
-            const contextResult = tab.id ? currentContextMap.get(tab.id) : undefined;
-            if (!contextResult) return 'N/A';
-
-            let cellStyle = '';
-            let aiContext = '';
-
-            if (contextResult.status === 'RESTRICTED') {
-                aiContext = 'Unextractable (restricted)';
-                cellStyle = 'color: gray; font-style: italic;';
-            } else if (contextResult.error) {
-                aiContext = `Error (${contextResult.error})`;
-                cellStyle = 'color: red;';
-            } else if (contextResult.source === 'Extraction') {
-                aiContext = `${contextResult.context} (Extracted)`;
-                cellStyle = 'color: green; font-weight: bold;';
-            } else {
-                 aiContext = `${contextResult.context}`;
-            }
-
-            const container = document.createElement('div');
-            container.style.display = 'flex';
-            container.style.flexDirection = 'column';
-            container.style.gap = '5px';
-
-            const summaryDiv = document.createElement('div');
-            summaryDiv.style.cssText = cellStyle;
-            summaryDiv.textContent = aiContext;
-            container.appendChild(summaryDiv);
-
-            if (contextResult.data) {
-                const details = document.createElement('pre');
-                details.style.cssText = 'max-height: 300px; overflow: auto; font-size: 11px; text-align: left; background: #f5f5f5; padding: 5px; border: 1px solid #ddd; margin: 0; white-space: pre-wrap; font-family: monospace;';
-                details.textContent = JSON.stringify(contextResult.data, null, 2);
-                container.appendChild(details);
-            }
-
-            return container;
+            if (!ctx) return 'N/A';
+            return escape(ctx.context || 'Uncategorized');
         }
         case 'lastAccessed':
             return new Date((tab as any).lastAccessed || 0).toLocaleString();

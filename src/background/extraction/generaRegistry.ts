@@ -203,20 +203,8 @@ export const GENERA_REGISTRY: Record<string, string> = {
   'polygon.com': 'Gaming'
 };
 
-export function getGenera(hostname: string, customRegistry?: Record<string, string>): string | null {
+export function getGenera(hostname: string): string | null {
   if (!hostname) return null;
-
-  // 0. Check custom registry first
-  if (customRegistry) {
-      const parts = hostname.split('.');
-      // Check full hostname and progressively shorter suffixes
-      for (let i = 0; i < parts.length - 1; i++) {
-          const domain = parts.slice(i).join('.');
-          if (customRegistry[domain]) {
-              return customRegistry[domain];
-          }
-      }
-  }
 
   // 1. Exact match
   if (GENERA_REGISTRY[hostname]) {
