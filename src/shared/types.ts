@@ -200,7 +200,8 @@ export interface RuntimeMessage<TPayload = unknown> {
     | "splitSelection"
     | "getLogs"
     | "clearLogs"
-    | "logEntry";
+    | "logEntry"
+    | "groupingProgress";
   payload?: TPayload;
 }
 

@@ -12,8 +12,16 @@ export interface ContextResult {
 
 const contextCache = new Map<string, ContextResult>();
 
-export const analyzeTabContext = async (tabs: TabMetadata[]): Promise<Map<number, ContextResult>> => {
+export const analyzeTabContext = async (
+  tabs: TabMetadata[],
+  onProgress?: (processed: number, total: number) => void
+): Promise<Map<number, ContextResult>> => {
   const contextMap = new Map<number, ContextResult>();
+  let processedCount = 0;
+  const total = tabs.length;
+
+  // Initial update
+  if (onProgress) onProgress(0, total);
 
   const promises = tabs.map(async (tab) => {
     try {
@@ -35,6 +43,9 @@ export const analyzeTabContext = async (tabs: TabMetadata[]): Promise<Map<number
       logError(`Failed to analyze context for tab ${tab.id}`, { error: String(error) });
       // Even if fetchContextForTab fails completely, we try a safe sync fallback
       contextMap.set(tab.id, { context: "Uncategorized", source: 'Heuristic', error: String(error), status: 'ERROR' });
+    } finally {
+      processedCount++;
+      if (onProgress) onProgress(processedCount, total);
     }
   });
 

@@ -37,6 +37,10 @@ const strategiesList = document.getElementById("strategiesList") as HTMLDivEleme
 const toggleStrategies = document.getElementById("toggleStrategies") as HTMLDivElement;
 const allStrategiesContainer = document.getElementById("all-strategies") as HTMLDivElement;
 
+// Progress
+const progressDialog = document.getElementById("progressDialog") as HTMLDialogElement;
+const progressText = document.getElementById("progressText") as HTMLElement;
+
 // Stats
 const statTabs = document.getElementById("statTabs") as HTMLElement;
 const statGroups = document.getElementById("statGroups") as HTMLElement;
@@ -668,9 +672,27 @@ const getSelectedSorting = (): SortingStrategy[] => {
 const triggerGroup = async (selection?: GroupingSelection) => {
     logInfo("Triggering grouping", { selection });
     const sorting = getSelectedSorting();
-    await applyGrouping({ selection, sorting });
-    await loadState();
+
+    if (progressDialog && progressText) {
+        progressText.textContent = "Starting...";
+        progressDialog.showModal();
+    }
+
+    try {
+        await applyGrouping({ selection, sorting });
+        await loadState();
+    } finally {
+        if (progressDialog) progressDialog.close();
+    }
 };
+
+chrome.runtime.onMessage.addListener((message) => {
+    if (message.type === "groupingProgress") {
+        const { processed, total } = message.payload;
+        if (progressDialog && !progressDialog.open) progressDialog.showModal();
+        if (progressText) progressText.textContent = `Processing... ${processed} / ${total}`;
+    }
+});
 
 // Listeners
 selectAllCheckbox.addEventListener("change", (e) => {
