@@ -59,47 +59,8 @@ export interface TabMetadata {
   lastAccessed?: number;
   openerTabId?: number;
   favIconUrl?: string;
-  context?: string; // Classification Summary (e.g. "Work", "Entertainment")
-
-  // Flattened PageContext Fields
-  genre?: string;
-  siteName?: string | null;
-  platform?: string | null;
-  objectType?: 'video' | 'article' | 'doc' | 'ticket' | 'repo' | 'product' | 'search' | 'dashboard' | 'login' | 'unknown';
-  objectId?: string | null;
-
-  extractedTitle?: string | null;
-  extractedDescription?: string | null;
-  authorOrCreator?: string | null;
-  publishedAt?: string | null;
-  modifiedAt?: string | null;
-  language?: string | null;
-
-  tags?: string[];
-  breadcrumbs?: string[];
-
-  // Session State
-  isAudible?: boolean;
-  isMuted?: boolean;
-  isCapturing?: boolean;
-  progress?: number | null;
-  hasUnsavedChangesLikely?: boolean;
-  isAuthenticatedLikely?: boolean;
-
-  youtube?: {
-    videoId: string | null;
-    channelId: string | null;
-    contentSubtype: 'shorts' | 'live' | 'premiere' | 'standard' | null;
-    durationSeconds: number | null;
-    playbackProgress: {
-      currentSeconds: number;
-      durationSeconds: number;
-      percent: number;
-    } | null;
-    playlistId: string | null;
-    playlistIndex: number | null;
-  };
-
+  context?: string;
+  contextData?: PageContext;
   groupId?: number;
   index: number;
   active: boolean;
@@ -219,6 +180,7 @@ export interface Preferences {
   debug: boolean;
   logLevel?: LogLevel;
   theme?: "light" | "dark";
+  customGenera?: Record<string, string>;
   customStrategies?: CustomStrategy[];
 }
 

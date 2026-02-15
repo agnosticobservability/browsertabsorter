@@ -6,7 +6,8 @@ import { sortTabs } from "../background/sortingStrategies.js";
 const defaultPreferences: Preferences = {
   sorting: ["pinned", "recency"],
   debug: false,
-  theme: "dark"
+  theme: "dark",
+  customGenera: {}
 };
 
 export const fetchLocalState = async () => {
