@@ -7,7 +7,8 @@ import { getStoredValue, setStoredValue } from "./storage.js";
 import { mapChromeTab, asArray } from "../shared/utils.js";
 
 export const fetchCurrentTabGroups = async (
-  preferences: Preferences
+  preferences: Preferences,
+  onProgress?: (completed: number, total: number) => void
 ): Promise<TabGroup[]> => {
   try {
   const tabs = await chrome.tabs.query({});
@@ -18,7 +19,7 @@ export const fetchCurrentTabGroups = async (
   const mapped = tabs.map(mapChromeTab).filter((t): t is TabMetadata => Boolean(t));
 
   if (requiresContextAnalysis(preferences.sorting)) {
-      const contextMap = await analyzeTabContext(mapped);
+      const contextMap = await analyzeTabContext(mapped, onProgress);
       mapped.forEach(tab => {
         const res = contextMap.get(tab.id);
         tab.context = res?.context;
@@ -82,7 +83,8 @@ export const fetchCurrentTabGroups = async (
 
 export const calculateTabGroups = async (
   preferences: Preferences,
-  filter?: GroupingSelection
+  filter?: GroupingSelection,
+  onProgress?: (completed: number, total: number) => void
 ): Promise<TabGroup[]> => {
   const chromeTabs = await chrome.tabs.query({});
   const windowIdSet = new Set(filter?.windowIds ?? []);
@@ -97,7 +99,7 @@ export const calculateTabGroups = async (
     .filter((tab): tab is TabMetadata => Boolean(tab));
 
   if (requiresContextAnalysis(preferences.sorting)) {
-    const contextMap = await analyzeTabContext(mapped);
+    const contextMap = await analyzeTabContext(mapped, onProgress);
     mapped.forEach(tab => {
       const res = contextMap.get(tab.id);
       tab.context = res?.context;
@@ -247,7 +249,8 @@ export const applyTabGroups = async (groups: TabGroup[]) => {
 
 export const applyTabSorting = async (
   preferences: Preferences,
-  filter?: GroupingSelection
+  filter?: GroupingSelection,
+  onProgress?: (completed: number, total: number) => void
 ) => {
   const chromeTabs = await chrome.tabs.query({});
 
@@ -270,7 +273,7 @@ export const applyTabSorting = async (
       const mapped = windowTabs.map(mapChromeTab).filter((t): t is TabMetadata => Boolean(t));
 
       if (requiresContextAnalysis(preferences.sorting)) {
-        const contextMap = await analyzeTabContext(mapped);
+        const contextMap = await analyzeTabContext(mapped, onProgress);
         mapped.forEach(tab => {
           const res = contextMap.get(tab.id);
           tab.context = res?.context;

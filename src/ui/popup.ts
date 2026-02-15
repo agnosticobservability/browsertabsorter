@@ -42,6 +42,30 @@ const statTabs = document.getElementById("statTabs") as HTMLElement;
 const statGroups = document.getElementById("statGroups") as HTMLElement;
 const statWindows = document.getElementById("statWindows") as HTMLElement;
 
+const progressOverlay = document.getElementById("progressOverlay") as HTMLDivElement;
+const progressText = document.getElementById("progressText") as HTMLDivElement;
+const progressCount = document.getElementById("progressCount") as HTMLDivElement;
+
+const showLoading = (text: string) => {
+    if (progressOverlay) {
+        progressText.textContent = text;
+        progressCount.textContent = "";
+        progressOverlay.classList.remove("hidden");
+    }
+};
+
+const hideLoading = () => {
+    if (progressOverlay) {
+        progressOverlay.classList.add("hidden");
+    }
+};
+
+const updateProgress = (completed: number, total: number) => {
+    if (progressOverlay && !progressOverlay.classList.contains("hidden")) {
+        progressCount.textContent = `${completed} / ${total}`;
+    }
+};
+
 let windowState: WindowView[] = [];
 let focusedWindowId: number | null = null;
 const selectedTabs = new Set<number>();
@@ -667,10 +691,22 @@ const getSelectedSorting = (): SortingStrategy[] => {
 
 const triggerGroup = async (selection?: GroupingSelection) => {
     logInfo("Triggering grouping", { selection });
-    const sorting = getSelectedSorting();
-    await applyGrouping({ selection, sorting });
-    await loadState();
+    showLoading("Applying Strategy...");
+    try {
+        const sorting = getSelectedSorting();
+        await applyGrouping({ selection, sorting });
+        await loadState();
+    } finally {
+        hideLoading();
+    }
 };
+
+chrome.runtime.onMessage.addListener((message) => {
+    if (message.type === 'groupingProgress') {
+        const { completed, total } = message.payload;
+        updateProgress(completed, total);
+    }
+});
 
 // Listeners
 selectAllCheckbox.addEventListener("change", (e) => {
