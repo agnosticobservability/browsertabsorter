@@ -2,7 +2,10 @@ from playwright.sync_api import sync_playwright
 import os
 
 def verify_dropdown():
-    os.makedirs("/home/jules/verification", exist_ok=True)
+    # Use a relative path for verification output
+    verification_dir = os.path.join(os.getcwd(), "verification")
+    os.makedirs(verification_dir, exist_ok=True)
+
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         # Create context to allow setting viewport size
@@ -73,11 +76,14 @@ def verify_dropdown():
             else:
                 print("SUCCESS: No <optgroup> tag found.")
 
-            page.screenshot(path="/home/jules/verification/dropdown_verification.png")
+            screenshot_path = os.path.join(verification_dir, "dropdown_verification.png")
+            page.screenshot(path=screenshot_path)
+            print(f"Screenshot saved to: {screenshot_path}")
 
         except Exception as e:
             print(f"Error: {e}")
-            page.screenshot(path="/home/jules/verification/error_screenshot.png")
+            error_path = os.path.join(verification_dir, "error_screenshot.png")
+            page.screenshot(path=error_path)
         finally:
             browser.close()
 
