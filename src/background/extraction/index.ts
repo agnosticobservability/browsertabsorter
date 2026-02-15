@@ -65,7 +65,7 @@ export const extractPageContext = async (tab: TabMetadata | chrome.tabs.Tab): Pr
     }
 
     const prefs = await loadPreferences();
-    let baseline = buildBaselineContext(tab as chrome.tabs.Tab);
+    let baseline = buildBaselineContext(tab as chrome.tabs.Tab, prefs.customGenera);
 
     // Fetch and enrich for YouTube if author is missing and it is a video
     const targetUrl = tab.url;
@@ -108,7 +108,7 @@ export const extractPageContext = async (tab: TabMetadata | chrome.tabs.Tab): Pr
   }
 };
 
-const buildBaselineContext = (tab: chrome.tabs.Tab): PageContext => {
+const buildBaselineContext = (tab: chrome.tabs.Tab, customGenera?: Record<string, string>): PageContext => {
   const url = tab.url || "";
   let hostname = "";
   try {
@@ -161,7 +161,7 @@ const buildBaselineContext = (tab: chrome.tabs.Tab): PageContext => {
 
   // Priority 2: Fallback to Registry
   if (!genre) {
-     genre = getGenera(hostname) || undefined;
+     genre = getGenera(hostname, customGenera) || undefined;
   }
 
   return {
