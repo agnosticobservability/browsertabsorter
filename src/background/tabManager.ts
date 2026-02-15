@@ -22,15 +22,8 @@ export const fetchCurrentTabGroups = async (
       const contextMap = await analyzeTabContext(mapped, onProgress);
       mapped.forEach(tab => {
         const res = contextMap.get(tab.id);
-        if (res) {
-          tab.context = res.context;
-          if (res.data) {
-             const { title, description, ...rest } = res.data;
-             Object.assign(tab, rest);
-             tab.extractedTitle = title;
-             tab.extractedDescription = description;
-          }
-        }
+        tab.context = res?.context;
+        tab.contextData = res?.data;
       });
   }
 
@@ -109,15 +102,8 @@ export const calculateTabGroups = async (
     const contextMap = await analyzeTabContext(mapped, onProgress);
     mapped.forEach(tab => {
       const res = contextMap.get(tab.id);
-      if (res) {
-          tab.context = res.context;
-          if (res.data) {
-             const { title, description, ...rest } = res.data;
-             Object.assign(tab, rest);
-             tab.extractedTitle = title;
-             tab.extractedDescription = description;
-          }
-      }
+      tab.context = res?.context;
+      tab.contextData = res?.data;
     });
   }
 
@@ -290,15 +276,8 @@ export const applyTabSorting = async (
         const contextMap = await analyzeTabContext(mapped, onProgress);
         mapped.forEach(tab => {
           const res = contextMap.get(tab.id);
-          if (res) {
-              tab.context = res.context;
-              if (res.data) {
-                 const { title, description, ...rest } = res.data;
-                 Object.assign(tab, rest);
-                 tab.extractedTitle = title;
-                 tab.extractedDescription = description;
-              }
-          }
+          tab.context = res?.context;
+          tab.contextData = res?.data;
         });
       }
 

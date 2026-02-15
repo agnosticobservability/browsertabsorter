@@ -9,7 +9,8 @@ export const defaultPreferences: Preferences = {
   sorting: ["pinned", "recency"],
   debug: false,
   logLevel: "info",
-  theme: "dark"
+  theme: "dark",
+  customGenera: {}
 };
 
 const normalizeSorting = (sorting: unknown): SortingStrategy[] => {
