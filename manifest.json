@@ -11,7 +11,7 @@
     "default_popup": "ui/popup.html"
   },
   "background": {
-    "service_worker": "dist/background/serviceWorker.js",
+    "service_worker": "build/background/serviceWorker.js",
     "type": "module"
   },
   "icons": {
