@@ -71,15 +71,17 @@
     </header>
 
     <div class="sort-section">
-      <div class="section-header" id="toggleStrategies" style="cursor: pointer; display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-weight: 500;">
-          <span class="toggle-icon">▼</span>
-          <span>Strategies</span>
+      <div class="active-strategies-section">
+        <div class="section-header">Active Strategies</div>
+        <div id="activeStrategiesList" class="strategy-list"></div>
       </div>
-      <div class="strategies-container" id="strategiesList">
-        <div id="all-strategies" class="strategy-list"></div>
-      </div>
-      <div class="action-bar">
-        <button id="btnApply" class="btn primary">Apply</button>
+      <div class="separator"></div>
+      <div class="add-strategy-section">
+        <div class="section-header">Add Strategy</div>
+        <select id="addStrategySelect" class="strategy-select">
+          <option value="" disabled selected>Topic</option>
+        </select>
+        <button id="btnApply" class="btn primary full-width">Apply</button>
       </div>
     </div>
 
