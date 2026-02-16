@@ -579,7 +579,8 @@ function getDragAfterElement(container: HTMLElement, y: number) {
 const updateUI = (
   stateData: { groups: TabGroup[]; preferences: Preferences },
   currentWindow: chrome.windows.Window | undefined,
-  chromeWindows: chrome.windows.Window[]
+  chromeWindows: chrome.windows.Window[],
+  isPreliminary = false
 ) => {
     preferences = stateData.preferences;
 
@@ -629,7 +630,10 @@ const updateUI = (
         if (activeWindow) {
              expandedNodes.add(`w-${activeWindow.id}`);
              activeWindow.tabs.forEach(t => selectedTabs.add(t.id));
-             initialSelectionDone = true;
+
+             if (!isPreliminary) {
+                 initialSelectionDone = true;
+             }
         }
     }
 
@@ -651,7 +655,7 @@ const loadState = async () => {
 
         // Only update if background hasn't finished yet
         if (!bgFinished && localRes.ok && localRes.data) {
-             updateUI(localRes.data, cw, aw as chrome.windows.Window[]);
+             updateUI(localRes.data, cw, aw as chrome.windows.Window[], true);
         }
     } catch (e) {
         console.warn("Fast load failed", e);
