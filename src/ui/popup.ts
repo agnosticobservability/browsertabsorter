@@ -514,7 +514,15 @@ function renderStrategyList(
                 if (!preferences) return;
 
                 const targetState = !isActive;
-                let currentSorting = preferences.sorting || [];
+                // Handle legacy sorting formats (string vs array)
+                const rawSorting = preferences.sorting;
+                let currentSorting: SortingStrategy[] = [];
+
+                if (Array.isArray(rawSorting)) {
+                    currentSorting = [...rawSorting];
+                } else if (typeof rawSorting === "string") {
+                    currentSorting = [rawSorting];
+                }
 
                 if (targetState) {
                     if (!currentSorting.includes(strategy.id)) {
@@ -524,11 +532,15 @@ function renderStrategyList(
                     currentSorting = currentSorting.filter(id => id !== strategy.id);
                 }
 
+                // If user toggles strategies, apply them.
+                // Since we removed drag and drop, the application order is now "append on enable".
+                // We keep this behavior for predictability.
+
                 preferences.sorting = currentSorting;
                 await sendMessage("savePreferences", { sorting: currentSorting });
 
                 // Re-render to update UI state
-                renderStrategyList(container, strategies, preferences.sorting, preferences.favorites);
+                renderStrategyList(container, strategies, getSelectedSorting(), preferences.favorites);
             });
 
             grid.appendChild(chip);
@@ -647,7 +659,14 @@ const loadState = async () => {
 };
 
 const getSelectedSorting = (): SortingStrategy[] => {
-  return preferences?.sorting || [];
+  if (!preferences) return [];
+  if (Array.isArray(preferences.sorting)) {
+    return preferences.sorting;
+  }
+  if (typeof preferences.sorting === "string") {
+    return [preferences.sorting];
+  }
+  return [];
 };
 
 const triggerGroup = async (selection?: GroupingSelection) => {
