@@ -2,8 +2,8 @@ import * as esbuild from 'esbuild';
 import { rmSync, existsSync } from 'fs';
 
 // Clean dist directory first
-if (existsSync('dist')) {
-  rmSync('dist', { recursive: true, force: true });
+if (existsSync('build')) {
+  rmSync('build', { recursive: true, force: true });
 }
 
 try {
@@ -14,7 +14,7 @@ try {
       'src/ui/devtools.ts'
     ],
     bundle: true,
-    outdir: 'dist',
+    outdir: 'build',
     format: 'esm',
     target: ['es2020'],
     platform: 'browser',

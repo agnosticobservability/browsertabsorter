@@ -12,18 +12,18 @@ A Chromium Manifest V3 extension that automatically groups and sorts tabs with a
 ## Project layout
 - `manifest.json` – MV3 manifest referencing the compiled background service worker and UI assets.
 - `src/` – TypeScript sources for background logic, shared types, and UI scripts.
-- `ui/` – Popup and options page HTML/CSS that load compiled JS from `dist/`.
-- `dist/` – Generated JS compiled from TypeScript via `npm run build`.
+- `ui/` – Popup and options page HTML/CSS that load compiled JS from `build/`.
+- `build/` – Generated JS compiled from TypeScript via `npm run build` and committed so the extension can be loaded without a local toolchain.
 
 ## Building
 ```bash
 npm install
 npm run build
 ```
-The build emits compiled files in `dist/` which are referenced by the manifest and UI pages. A prebuild step also generates lightweight placeholder PNG icons into `icons/` so no binary assets need to be tracked in git.
+The build emits compiled files in `build/` which are referenced by the manifest and UI pages. A prebuild step also generates lightweight placeholder PNG icons into `icons/` so no binary assets need to be tracked in git.
 
 ## Loading in Chromium
-1. Run the build to produce `dist/`.
+1. (Optional) Run the build to refresh the committed `build/` assets after source changes.
 2. Open `chrome://extensions` (or equivalent) and enable **Developer mode**.
 3. Click **Load unpacked** and choose the repository folder.
 4. Pin the extension and open the popup to view grouped tabs.
