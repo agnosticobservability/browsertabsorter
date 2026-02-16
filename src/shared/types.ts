@@ -126,7 +126,8 @@ export interface RuleCondition {
 export interface GroupingRule {
   source: "field" | "fixed";
   value: string;
-  color?: string; // hex code or "random"
+  color?: string; // hex code or "random" or "match" or "field"
+  colorField?: string;
   transform?: "none" | "stripTld" | "lowercase" | "uppercase" | "firstChar" | "domain" | "hostname" | "regex";
   transformPattern?: string;
   windowMode?: "current" | "new" | "compound";

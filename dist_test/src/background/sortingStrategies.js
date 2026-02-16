@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.compareBy = exports.sortTabs = exports.pinnedScore = exports.hierarchyScore = exports.recencyScore = void 0;
 const groupingStrategies_js_1 = require("./groupingStrategies.js");
-const logger_js_1 = require("./logger.js");
+const logger_js_1 = require("../shared/logger.js");
 const utils_js_1 = require("../shared/utils.js");
 const recencyScore = (tab) => tab.lastAccessed ?? 0;
 exports.recencyScore = recencyScore;

@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.requiresContextAnalysis = exports.groupingKey = exports.getGroupingResult = exports.checkCondition = exports.groupTabs = exports.navigationKey = exports.semanticBucket = exports.getFieldValue = exports.subdomainFromUrl = exports.domainFromUrl = exports.getCustomStrategies = exports.setCustomStrategies = void 0;
 const strategyRegistry_js_1 = require("../shared/strategyRegistry.js");
-const logger_js_1 = require("./logger.js");
+const logger_js_1 = require("../shared/logger.js");
 const utils_js_1 = require("../shared/utils.js");
 let customStrategies = [];
 const setCustomStrategies = (strategies) => {
@@ -11,7 +11,7 @@ const setCustomStrategies = (strategies) => {
 exports.setCustomStrategies = setCustomStrategies;
 const getCustomStrategies = () => customStrategies;
 exports.getCustomStrategies = getCustomStrategies;
-const COLORS = ["blue", "cyan", "green", "orange", "purple", "red", "yellow"];
+const COLORS = ["grey", "blue", "red", "yellow", "green", "pink", "purple", "cyan", "orange"];
 const regexCache = new Map();
 const domainFromUrl = (url) => {
     try {
@@ -176,7 +176,7 @@ const generateLabel = (strategies, tabs, allTabsMap) => {
         return "Group";
     return Array.from(new Set(labels)).join(" - ");
 };
-const getStrategyColor = (strategyId) => {
+const getStrategyColorRule = (strategyId) => {
     const custom = customStrategies.find(s => s.id === strategyId);
     if (!custom)
         return undefined;
@@ -185,7 +185,7 @@ const getStrategyColor = (strategyId) => {
     for (let i = groupingRulesList.length - 1; i >= 0; i--) {
         const rule = groupingRulesList[i];
         if (rule && rule.color && rule.color !== 'random') {
-            return rule.color;
+            return rule;
         }
     }
     return undefined;
@@ -226,24 +226,35 @@ const groupTabs = (tabs, strategies) => {
             return;
         }
         const effectiveMode = resolveWindowMode(collectedModes);
+        const valueKey = keys.join("::");
         let bucketKey = "";
         if (effectiveMode === 'current') {
-            bucketKey = `window-${tab.windowId}::` + keys.join("::");
+            bucketKey = `window-${tab.windowId}::` + valueKey;
         }
         else {
-            bucketKey = `global::` + keys.join("::");
+            bucketKey = `global::` + valueKey;
         }
         let group = buckets.get(bucketKey);
         if (!group) {
             let groupColor = null;
+            let colorField;
             for (const sId of appliedStrategies) {
-                const color = getStrategyColor(sId);
-                if (color) {
-                    groupColor = color;
+                const rule = getStrategyColorRule(sId);
+                if (rule) {
+                    groupColor = rule.color;
+                    colorField = rule.colorField;
                     break;
                 }
             }
-            if (!groupColor) {
+            if (groupColor === 'match') {
+                groupColor = colorForKey(valueKey, 0);
+            }
+            else if (groupColor === 'field' && colorField) {
+                const val = (0, exports.getFieldValue)(tab, colorField);
+                const key = val !== undefined && val !== null ? String(val) : "";
+                groupColor = colorForKey(key, 0);
+            }
+            else if (!groupColor || groupColor === 'field') {
                 groupColor = colorForKey(bucketKey, buckets.size);
             }
             group = {
@@ -562,6 +573,8 @@ const requiresContextAnalysis = (strategyIds) => {
             const filterGroupsList = (0, utils_js_1.asArray)(custom.filterGroups);
             for (const rule of groupRulesList) {
                 if (rule && rule.source === 'field' && isContextField(rule.value))
+                    return true;
+                if (rule && rule.color === 'field' && rule.colorField && isContextField(rule.colorField))
                     return true;
             }
             for (const rule of sortRulesList) {

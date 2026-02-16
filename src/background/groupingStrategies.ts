@@ -179,7 +179,7 @@ const generateLabel = (
   return Array.from(new Set(labels)).join(" - ");
 };
 
-const getStrategyColor = (strategyId: string): string | undefined => {
+const getStrategyColorRule = (strategyId: string): GroupingRule | undefined => {
     const custom = customStrategies.find(s => s.id === strategyId);
     if (!custom) return undefined;
 
@@ -188,7 +188,7 @@ const getStrategyColor = (strategyId: string): string | undefined => {
     for (let i = groupingRulesList.length - 1; i >= 0; i--) {
         const rule = groupingRulesList[i];
         if (rule && rule.color && rule.color !== 'random') {
-            return rule.color;
+            return rule;
         }
     }
     return undefined;
@@ -247,14 +247,24 @@ export const groupTabs = (
     let group = buckets.get(bucketKey);
     if (!group) {
       let groupColor = null;
+      let colorField: string | undefined;
+
       for (const sId of appliedStrategies) {
-        const color = getStrategyColor(sId);
-        if (color) { groupColor = color; break; }
+        const rule = getStrategyColorRule(sId);
+        if (rule) {
+            groupColor = rule.color;
+            colorField = rule.colorField;
+            break;
+        }
       }
 
       if (groupColor === 'match') {
         groupColor = colorForKey(valueKey, 0);
-      } else if (!groupColor) {
+      } else if (groupColor === 'field' && colorField) {
+        const val = getFieldValue(tab, colorField);
+        const key = val !== undefined && val !== null ? String(val) : "";
+        groupColor = colorForKey(key, 0);
+      } else if (!groupColor || groupColor === 'field') {
         groupColor = colorForKey(bucketKey, buckets.size);
       }
 
@@ -555,6 +565,7 @@ export const requiresContextAnalysis = (strategyIds: (string | SortingStrategy)[
 
              for (const rule of groupRulesList) {
                  if (rule && rule.source === 'field' && isContextField(rule.value)) return true;
+                 if (rule && rule.color === 'field' && rule.colorField && isContextField(rule.colorField)) return true;
              }
 
              for (const rule of sortRulesList) {

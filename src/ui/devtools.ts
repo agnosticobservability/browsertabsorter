@@ -820,6 +820,10 @@ function addBuilderRow(type: 'group' | 'sort' | 'groupSort', data?: any) {
                 <option value="cyan">Cyan</option>
                 <option value="orange">Orange</option>
                 <option value="match">Match Value</option>
+                <option value="field">Color by Field</option>
+            </select>
+            <select class="color-field-select" style="display:none;">
+                ${FIELD_OPTIONS}
             </select>
             <label><input type="checkbox" class="random-color-check" checked> Random</label>
 
@@ -833,6 +837,7 @@ function addBuilderRow(type: 'group' | 'sort' | 'groupSort', data?: any) {
         const fieldSelect = div.querySelector('.value-input-field') as HTMLElement;
         const textInput = div.querySelector('.value-input-text') as HTMLElement;
         const colorInput = div.querySelector('.color-input') as HTMLSelectElement;
+        const colorFieldSelect = div.querySelector('.color-field-select') as HTMLSelectElement;
         const randomCheck = div.querySelector('.random-color-check') as HTMLInputElement;
 
         // Regex Logic
@@ -901,12 +906,19 @@ function addBuilderRow(type: 'group' | 'sort' | 'groupSort', data?: any) {
             if (randomCheck.checked) {
                 colorInput.disabled = true;
                 colorInput.style.opacity = '0.5';
+                colorFieldSelect.style.display = 'none';
             } else {
                 colorInput.disabled = false;
                 colorInput.style.opacity = '1';
+                if (colorInput.value === 'field') {
+                    colorFieldSelect.style.display = 'inline-block';
+                } else {
+                    colorFieldSelect.style.display = 'none';
+                }
             }
         };
         randomCheck.addEventListener('change', toggleColor);
+        colorInput.addEventListener('change', toggleColor);
         toggleColor(); // init
 
     } else if (type === 'sort' || type === 'groupSort') {
@@ -932,6 +944,7 @@ function addBuilderRow(type: 'group' | 'sort' | 'groupSort', data?: any) {
             const textInput = div.querySelector('.value-input-text') as HTMLInputElement;
             const transformSelect = div.querySelector('.transform-select') as HTMLSelectElement;
             const colorInput = div.querySelector('.color-input') as HTMLSelectElement;
+            const colorFieldSelect = div.querySelector('.color-field-select') as HTMLSelectElement;
             const randomCheck = div.querySelector('.random-color-check') as HTMLInputElement;
             const windowModeSelect = div.querySelector('.window-mode-select') as HTMLSelectElement;
 
@@ -957,6 +970,9 @@ function addBuilderRow(type: 'group' | 'sort' | 'groupSort', data?: any) {
             if (data.color && data.color !== 'random') {
                 randomCheck.checked = false;
                 colorInput.value = data.color;
+                if (data.color === 'field' && data.colorField) {
+                    colorFieldSelect.value = data.colorField;
+                }
             } else {
                 randomCheck.checked = true;
             }
@@ -1252,14 +1268,20 @@ function getBuilderStrategy(ignoreValidation: boolean = false): CustomStrategy |
 
         const randomCheck = row.querySelector('.random-color-check') as HTMLInputElement;
         const colorInput = row.querySelector('.color-input') as HTMLSelectElement;
+        const colorFieldSelect = row.querySelector('.color-field-select') as HTMLSelectElement;
 
         let color = 'random';
+        let colorField: string | undefined;
+
         if (!randomCheck.checked) {
             color = colorInput.value;
+            if (color === 'field') {
+                colorField = colorFieldSelect.value;
+            }
         }
 
         if (value) {
-            groupingRules.push({ source, value, color, transform, transformPattern: transform === 'regex' ? transformPattern : undefined, windowMode });
+            groupingRules.push({ source, value, color, colorField, transform, transformPattern: transform === 'regex' ? transformPattern : undefined, windowMode });
         }
     });
 
