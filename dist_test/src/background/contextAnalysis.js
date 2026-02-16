@@ -1,19 +1,36 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.analyzeTabContext = void 0;
-const logger_js_1 = require("./logger.js");
+const logger_js_1 = require("../shared/logger.js");
 const index_js_1 = require("./extraction/index.js");
-const analyzeTabContext = async (tabs) => {
+const contextCache = new Map();
+const analyzeTabContext = async (tabs, onProgress) => {
     const contextMap = new Map();
+    let completed = 0;
+    const total = tabs.length;
     const promises = tabs.map(async (tab) => {
         try {
+            const cacheKey = `${tab.id}::${tab.url}`;
+            if (contextCache.has(cacheKey)) {
+                contextMap.set(tab.id, contextCache.get(cacheKey));
+                return;
+            }
             const result = await fetchContextForTab(tab);
+            // Only cache valid results to allow retrying on transient errors?
+            // Actually, if we cache error, we stop retrying.
+            // Let's cache everything for now to prevent spamming if it keeps failing.
+            contextCache.set(cacheKey, result);
             contextMap.set(tab.id, result);
         }
         catch (error) {
             (0, logger_js_1.logError)(`Failed to analyze context for tab ${tab.id}`, { error: String(error) });
             // Even if fetchContextForTab fails completely, we try a safe sync fallback
             contextMap.set(tab.id, { context: "Uncategorized", source: 'Heuristic', error: String(error), status: 'ERROR' });
+        }
+        finally {
+            completed++;
+            if (onProgress)
+                onProgress(completed, total);
         }
     });
     await Promise.all(promises);
@@ -26,7 +43,7 @@ const fetchContextForTab = async (tab) => {
     let error;
     let status;
     try {
-        const extraction = await (0, index_js_1.extractPageContext)(tab.id);
+        const extraction = await (0, index_js_1.extractPageContext)(tab);
         data = extraction.data;
         error = extraction.error;
         status = extraction.status;

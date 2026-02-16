@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.restoreState = exports.undo = exports.deleteSavedState = exports.getSavedStates = exports.saveState = exports.pushUndoState = exports.captureCurrentState = void 0;
 const storage_js_1 = require("./storage.js");
-const logger_js_1 = require("./logger.js");
+const logger_js_1 = require("../shared/logger.js");
 const MAX_UNDO_STACK = 10;
 const UNDO_STACK_KEY = "undoStack";
 const SAVED_STATES_KEY = "savedStates";

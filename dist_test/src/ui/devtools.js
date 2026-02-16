@@ -7,6 +7,7 @@ const sortingStrategies_js_1 = require("../background/sortingStrategies.js");
 const utils_js_1 = require("../shared/utils.js");
 const groupingStrategies_js_2 = require("../background/groupingStrategies.js");
 const strategyRegistry_js_1 = require("../shared/strategyRegistry.js");
+const logger_js_1 = require("../shared/logger.js");
 // State
 let currentTabs = [];
 let localCustomStrategies = [];
@@ -25,6 +26,14 @@ let columns = [
     { key: 'groupId', label: 'Group', visible: true, width: '70px', filterable: true },
     { key: 'title', label: 'Title', visible: true, width: '200px', filterable: true },
     { key: 'url', label: 'URL', visible: true, width: '250px', filterable: true },
+    { key: 'genre', label: 'Genre', visible: true, width: '100px', filterable: true },
+    { key: 'context', label: 'Category', visible: true, width: '100px', filterable: true },
+    { key: 'siteName', label: 'Site Name', visible: true, width: '120px', filterable: true },
+    { key: 'platform', label: 'Platform', visible: true, width: '100px', filterable: true },
+    { key: 'objectType', label: 'Object Type', visible: true, width: '100px', filterable: true },
+    { key: 'extractedTitle', label: 'Extracted Title', visible: false, width: '200px', filterable: true },
+    { key: 'authorOrCreator', label: 'Author', visible: true, width: '120px', filterable: true },
+    { key: 'publishedAt', label: 'Published', visible: false, width: '100px', filterable: true },
     { key: 'status', label: 'Status', visible: false, width: '80px', filterable: true },
     { key: 'active', label: 'Active', visible: false, width: '60px', filterable: true },
     { key: 'pinned', label: 'Pinned', visible: false, width: '60px', filterable: true },
@@ -52,6 +61,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const targetId = btn.dataset.target;
             if (targetId) {
                 document.getElementById(targetId)?.classList.add('active');
+                (0, logger_js_1.logInfo)("Switched view", { targetId });
             }
             // If switching to algorithms, populate reference if empty
             if (targetId === 'view-algorithms') {
@@ -60,8 +70,28 @@ document.addEventListener('DOMContentLoaded', async () => {
             else if (targetId === 'view-strategy-list') {
                 renderStrategyListTable();
             }
+            else if (targetId === 'view-logs') {
+                loadLogs();
+                loadGlobalLogLevel();
+            }
         });
     });
+    // Log Viewer Logic
+    const refreshLogsBtn = document.getElementById('refresh-logs-btn');
+    if (refreshLogsBtn)
+        refreshLogsBtn.addEventListener('click', loadLogs);
+    const clearLogsBtn = document.getElementById('clear-logs-btn');
+    if (clearLogsBtn)
+        clearLogsBtn.addEventListener('click', clearRemoteLogs);
+    const logLevelFilter = document.getElementById('log-level-filter');
+    if (logLevelFilter)
+        logLevelFilter.addEventListener('change', renderLogs);
+    const logSearch = document.getElementById('log-search');
+    if (logSearch)
+        logSearch.addEventListener('input', renderLogs);
+    const globalLogLevel = document.getElementById('global-log-level');
+    if (globalLogLevel)
+        globalLogLevel.addEventListener('change', updateGlobalLogLevel);
     // Simulation Logic
     const runSimBtn = document.getElementById('runSimBtn');
     if (runSimBtn) {
@@ -91,7 +121,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (resetViewBtn) {
         resetViewBtn.addEventListener('click', () => {
             // Reset columns to defaults (simplified, just show all reasonable ones)
-            columns.forEach(c => c.visible = ['id', 'title', 'url', 'windowId', 'groupId', 'genre', 'context', 'actions'].includes(c.key));
+            columns.forEach(c => c.visible = ['id', 'title', 'url', 'windowId', 'groupId', 'genre', 'context', 'siteName', 'platform', 'objectType', 'authorOrCreator', 'actions'].includes(c.key));
             globalSearchQuery = '';
             if (globalSearchInput)
                 globalSearchInput.value = '';
@@ -376,43 +406,39 @@ function getBuiltInStrategyConfig(id) {
     return base;
 }
 const FIELD_OPTIONS = `
-                <optgroup label="Standard Fields">
-                    <option value="url">URL</option>
-                    <option value="title">Title</option>
-                    <option value="domain">Domain</option>
-                    <option value="subdomain">Subdomain</option>
-                    <option value="id">ID</option>
-                    <option value="index">Index</option>
-                    <option value="windowId">Window ID</option>
-                    <option value="groupId">Group ID</option>
-                    <option value="active">Active</option>
-                    <option value="selected">Selected</option>
-                    <option value="pinned">Pinned</option>
-                    <option value="status">Status</option>
-                    <option value="openerTabId">Opener ID</option>
-                    <option value="parentTitle">Parent Title</option>
-                    <option value="lastAccessed">Last Accessed</option>
-                    <option value="genre">Genre</option>
-                    <option value="context">Context Summary</option>
-                </optgroup>
-                <optgroup label="Context Data (JSON)">
-                    <option value="contextData.siteName">Site Name</option>
-                    <option value="contextData.canonicalUrl">Canonical URL</option>
-                    <option value="contextData.normalizedUrl">Normalized URL</option>
-                    <option value="contextData.platform">Platform</option>
-                    <option value="contextData.objectType">Object Type</option>
-                    <option value="contextData.objectId">Object ID</option>
-                    <option value="contextData.title">Extracted Title</option>
-                    <option value="contextData.description">Description</option>
-                    <option value="contextData.authorOrCreator">Author/Creator</option>
-                    <option value="contextData.publishedAt">Published At</option>
-                    <option value="contextData.modifiedAt">Modified At</option>
-                    <option value="contextData.language">Language</option>
-                    <option value="contextData.isAudible">Is Audible</option>
-                    <option value="contextData.isMuted">Is Muted</option>
-                    <option value="contextData.hasUnsavedChangesLikely">Unsaved Changes</option>
-                    <option value="contextData.isAuthenticatedLikely">Authenticated</option>
-                </optgroup>`;
+                <option value="url">URL</option>
+                <option value="title">Title</option>
+                <option value="domain">Domain</option>
+                <option value="subdomain">Subdomain</option>
+                <option value="id">ID</option>
+                <option value="index">Index</option>
+                <option value="windowId">Window ID</option>
+                <option value="groupId">Group ID</option>
+                <option value="active">Active</option>
+                <option value="selected">Selected</option>
+                <option value="pinned">Pinned</option>
+                <option value="status">Status</option>
+                <option value="openerTabId">Opener ID</option>
+                <option value="parentTitle">Parent Title</option>
+                <option value="lastAccessed">Last Accessed</option>
+                <option value="genre">Genre</option>
+                <option value="context">Context Summary</option>
+                <option value="contextData.siteName">Site Name</option>
+                <option value="contextData.canonicalUrl">Canonical URL</option>
+                <option value="contextData.normalizedUrl">Normalized URL</option>
+                <option value="contextData.platform">Platform</option>
+                <option value="contextData.objectType">Object Type</option>
+                <option value="contextData.objectId">Object ID</option>
+                <option value="contextData.title">Extracted Title</option>
+                <option value="contextData.description">Description</option>
+                <option value="contextData.authorOrCreator">Author/Creator</option>
+                <option value="contextData.publishedAt">Published At</option>
+                <option value="contextData.modifiedAt">Modified At</option>
+                <option value="contextData.language">Language</option>
+                <option value="contextData.isAudible">Is Audible</option>
+                <option value="contextData.isMuted">Is Muted</option>
+                <option value="contextData.hasUnsavedChangesLikely">Unsaved Changes</option>
+                <option value="contextData.isAuthenticatedLikely">Authenticated</option>`;
 const OPERATOR_OPTIONS = `
                 <option value="contains">contains</option>
                 <option value="doesNotContain">does not contain</option>
@@ -735,6 +761,11 @@ function addBuilderRow(type, data) {
                 <option value="purple">Purple</option>
                 <option value="cyan">Cyan</option>
                 <option value="orange">Orange</option>
+                <option value="match">Match Value</option>
+                <option value="field">Color by Field</option>
+            </select>
+            <select class="color-field-select" style="display:none;">
+                ${FIELD_OPTIONS}
             </select>
             <label><input type="checkbox" class="random-color-check" checked> Random</label>
 
@@ -747,6 +778,7 @@ function addBuilderRow(type, data) {
         const fieldSelect = div.querySelector('.value-input-field');
         const textInput = div.querySelector('.value-input-text');
         const colorInput = div.querySelector('.color-input');
+        const colorFieldSelect = div.querySelector('.color-field-select');
         const randomCheck = div.querySelector('.random-color-check');
         // Regex Logic
         const transformSelect = div.querySelector('.transform-select');
@@ -813,13 +845,21 @@ function addBuilderRow(type, data) {
             if (randomCheck.checked) {
                 colorInput.disabled = true;
                 colorInput.style.opacity = '0.5';
+                colorFieldSelect.style.display = 'none';
             }
             else {
                 colorInput.disabled = false;
                 colorInput.style.opacity = '1';
+                if (colorInput.value === 'field') {
+                    colorFieldSelect.style.display = 'inline-block';
+                }
+                else {
+                    colorFieldSelect.style.display = 'none';
+                }
             }
         };
         randomCheck.addEventListener('change', toggleColor);
+        colorInput.addEventListener('change', toggleColor);
         toggleColor(); // init
     }
     else if (type === 'sort' || type === 'groupSort') {
@@ -844,6 +884,7 @@ function addBuilderRow(type, data) {
             const textInput = div.querySelector('.value-input-text');
             const transformSelect = div.querySelector('.transform-select');
             const colorInput = div.querySelector('.color-input');
+            const colorFieldSelect = div.querySelector('.color-field-select');
             const randomCheck = div.querySelector('.random-color-check');
             const windowModeSelect = div.querySelector('.window-mode-select');
             if (data.source)
@@ -869,6 +910,9 @@ function addBuilderRow(type, data) {
             if (data.color && data.color !== 'random') {
                 randomCheck.checked = false;
                 colorInput.value = data.color;
+                if (data.color === 'field' && data.colorField) {
+                    colorFieldSelect.value = data.colorField;
+                }
             }
             else {
                 randomCheck.checked = true;
@@ -930,6 +974,7 @@ function exportBuilderStrategy() {
         alert("Please define a strategy to export (ID and Label required).");
         return;
     }
+    (0, logger_js_1.logInfo)("Exporting strategy", { id: strat.id });
     const json = JSON.stringify(strat, null, 2);
     const content = `
         <p>Copy the JSON below:</p>
@@ -953,6 +998,7 @@ function importBuilderStrategy() {
                 alert("Invalid strategy: ID and Label are required.");
                 return;
             }
+            (0, logger_js_1.logInfo)("Importing strategy", { id: json.id });
             populateBuilderFromStrategy(json);
             document.querySelector('.modal-overlay')?.remove();
         }
@@ -963,6 +1009,7 @@ function importBuilderStrategy() {
     showModal("Import Strategy", content);
 }
 function exportAllStrategies() {
+    (0, logger_js_1.logInfo)("Exporting all strategies", { count: localCustomStrategies.length });
     const json = JSON.stringify(localCustomStrategies, null, 2);
     const content = `
         <p>Copy the JSON below (contains ${localCustomStrategies.length} strategies):</p>
@@ -1001,6 +1048,7 @@ function importAllStrategies() {
                 count++;
             });
             const newStrategies = Array.from(stratMap.values());
+            (0, logger_js_1.logInfo)("Importing all strategies", { count: newStrategies.length });
             // Save
             await chrome.runtime.sendMessage({
                 type: 'savePreferences',
@@ -1129,12 +1177,17 @@ function getBuilderStrategy(ignoreValidation = false) {
         const windowMode = row.querySelector('.window-mode-select').value;
         const randomCheck = row.querySelector('.random-color-check');
         const colorInput = row.querySelector('.color-input');
+        const colorFieldSelect = row.querySelector('.color-field-select');
         let color = 'random';
+        let colorField;
         if (!randomCheck.checked) {
             color = colorInput.value;
+            if (color === 'field') {
+                colorField = colorFieldSelect.value;
+            }
         }
         if (value) {
-            groupingRules.push({ source, value, color, transform, transformPattern: transform === 'regex' ? transformPattern : undefined, windowMode });
+            groupingRules.push({ source, value, color, colorField, transform, transformPattern: transform === 'regex' ? transformPattern : undefined, windowMode });
         }
     });
     const sortingRules = [];
@@ -1169,6 +1222,7 @@ function runBuilderSimulation() {
     const newStatePanel = document.getElementById('new-state-panel');
     if (!strat)
         return; // Should not happen with ignoreValidation=true
+    (0, logger_js_1.logInfo)("Running builder simulation", { strategy: strat.id });
     // For simulation, we can mock an ID/Label if missing
     const simStrat = strat;
     if (!resultContainer || !newStatePanel)
@@ -1267,6 +1321,7 @@ async function saveCustomStrategyFromBuilder(showSuccess = true) {
 }
 async function saveStrategy(strat, showSuccess) {
     try {
+        (0, logger_js_1.logInfo)("Saving strategy", { id: strat.id });
         const response = await chrome.runtime.sendMessage({ type: 'loadPreferences' });
         if (response && response.ok && response.data) {
             const prefs = response.data;
@@ -1306,6 +1361,7 @@ async function runBuilderLive() {
         alert("Please fill in ID and Label to run live.");
         return;
     }
+    (0, logger_js_1.logInfo)("Applying strategy live", { id: strat.id });
     // Save silently first to ensure backend has the definition
     const saved = await saveStrategy(strat, false);
     if (!saved)
@@ -1430,6 +1486,7 @@ function renderStrategyListTable() {
 }
 async function deleteCustomStrategy(id) {
     try {
+        (0, logger_js_1.logInfo)("Deleting strategy", { id });
         const response = await chrome.runtime.sendMessage({ type: 'loadPreferences' });
         if (response && response.ok && response.data) {
             const prefs = response.data;
@@ -1485,6 +1542,7 @@ async function addCustomGenera() {
         alert("Please enter both domain and category.");
         return;
     }
+    (0, logger_js_1.logInfo)("Adding custom genera", { domain, category });
     try {
         // Fetch current to merge
         const response = await chrome.runtime.sendMessage({ type: 'loadPreferences' });
@@ -1507,6 +1565,7 @@ async function addCustomGenera() {
 }
 async function deleteCustomGenera(domain) {
     try {
+        (0, logger_js_1.logInfo)("Deleting custom genera", { domain });
         const response = await chrome.runtime.sendMessage({ type: 'loadPreferences' });
         if (response && response.ok && response.data) {
             const prefs = response.data;
@@ -1531,6 +1590,7 @@ document.addEventListener('click', (event) => {
     }
 });
 async function loadTabs() {
+    (0, logger_js_1.logInfo)("Loading tabs for DevTools");
     const tabs = await chrome.tabs.query({});
     currentTabs = tabs;
     const totalTabsEl = document.getElementById('totalTabs');
@@ -2145,5 +2205,102 @@ async function renderLiveView() {
     }
     catch (e) {
         container.innerHTML = `<p style="color:red">Error loading live view: ${e}</p>`;
+    }
+}
+// ---------------------- LOG VIEWER ----------------------
+let currentLogs = [];
+async function loadLogs() {
+    try {
+        const response = await chrome.runtime.sendMessage({ type: 'getLogs' });
+        if (response && response.ok && response.data) {
+            currentLogs = response.data;
+            renderLogs();
+        }
+    }
+    catch (e) {
+        console.error("Failed to load logs", e);
+    }
+}
+async function clearRemoteLogs() {
+    try {
+        await chrome.runtime.sendMessage({ type: 'clearLogs' });
+        loadLogs();
+    }
+    catch (e) {
+        console.error("Failed to clear logs", e);
+    }
+}
+function renderLogs() {
+    const tbody = document.getElementById('logs-table-body');
+    const levelFilter = document.getElementById('log-level-filter').value;
+    const searchText = document.getElementById('log-search').value.toLowerCase();
+    if (!tbody)
+        return;
+    tbody.innerHTML = '';
+    const filtered = currentLogs.filter(entry => {
+        if (levelFilter !== 'all' && entry.level !== levelFilter)
+            return false;
+        if (searchText) {
+            const text = `${entry.message} ${JSON.stringify(entry.context || {})}`.toLowerCase();
+            if (!text.includes(searchText))
+                return false;
+        }
+        return true;
+    });
+    if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="padding: 10px; text-align: center; color: #888;">No logs found.</td></tr>';
+        return;
+    }
+    filtered.forEach(entry => {
+        const row = document.createElement('tr');
+        // Color code level
+        let color = '#333';
+        if (entry.level === 'error' || entry.level === 'critical')
+            color = 'red';
+        else if (entry.level === 'warn')
+            color = 'orange';
+        else if (entry.level === 'debug')
+            color = 'blue';
+        row.innerHTML = `
+            <td style="padding: 8px; border-bottom: 1px solid #eee; white-space: nowrap;">${new Date(entry.timestamp).toLocaleTimeString()} (${entry.timestamp})</td>
+            <td style="padding: 8px; border-bottom: 1px solid #eee; color: ${color}; font-weight: bold;">${entry.level.toUpperCase()}</td>
+            <td style="padding: 8px; border-bottom: 1px solid #eee;">${escapeHtml(entry.message)}</td>
+            <td style="padding: 8px; border-bottom: 1px solid #eee;">
+               <div style="max-height: 100px; overflow-y: auto;">
+                  ${entry.context ? `<pre style="margin: 0;">${escapeHtml(JSON.stringify(entry.context, null, 2))}</pre>` : '-'}
+               </div>
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+async function loadGlobalLogLevel() {
+    try {
+        const response = await chrome.runtime.sendMessage({ type: 'loadPreferences' });
+        if (response && response.ok && response.data) {
+            const prefs = response.data;
+            const select = document.getElementById('global-log-level');
+            if (select) {
+                select.value = prefs.logLevel || 'info';
+            }
+        }
+    }
+    catch (e) {
+        console.error("Failed to load prefs for logs", e);
+    }
+}
+async function updateGlobalLogLevel() {
+    const select = document.getElementById('global-log-level');
+    if (!select)
+        return;
+    const level = select.value;
+    try {
+        await chrome.runtime.sendMessage({
+            type: 'savePreferences',
+            payload: { logLevel: level }
+        });
+    }
+    catch (e) {
+        console.error("Failed to save log level", e);
     }
 }

@@ -4,9 +4,9 @@ exports.splitTabs = exports.mergeTabs = exports.closeGroup = exports.applyTabSor
 const groupingStrategies_js_1 = require("./groupingStrategies.js");
 const sortingStrategies_js_1 = require("./sortingStrategies.js");
 const contextAnalysis_js_1 = require("./contextAnalysis.js");
-const logger_js_1 = require("./logger.js");
+const logger_js_1 = require("../shared/logger.js");
 const utils_js_1 = require("../shared/utils.js");
-const fetchCurrentTabGroups = async (preferences) => {
+const fetchCurrentTabGroups = async (preferences, onProgress) => {
     try {
         const tabs = await chrome.tabs.query({});
         const groups = await chrome.tabGroups.query({});
@@ -14,7 +14,7 @@ const fetchCurrentTabGroups = async (preferences) => {
         // Map tabs to metadata
         const mapped = tabs.map(utils_js_1.mapChromeTab).filter((t) => Boolean(t));
         if ((0, groupingStrategies_js_1.requiresContextAnalysis)(preferences.sorting)) {
-            const contextMap = await (0, contextAnalysis_js_1.analyzeTabContext)(mapped);
+            const contextMap = await (0, contextAnalysis_js_1.analyzeTabContext)(mapped, onProgress);
             mapped.forEach(tab => {
                 const res = contextMap.get(tab.id);
                 tab.context = res?.context;
@@ -74,7 +74,7 @@ const fetchCurrentTabGroups = async (preferences) => {
     }
 };
 exports.fetchCurrentTabGroups = fetchCurrentTabGroups;
-const calculateTabGroups = async (preferences, filter) => {
+const calculateTabGroups = async (preferences, filter, onProgress) => {
     const chromeTabs = await chrome.tabs.query({});
     const windowIdSet = new Set(filter?.windowIds ?? []);
     const tabIdSet = new Set(filter?.tabIds ?? []);
@@ -88,7 +88,7 @@ const calculateTabGroups = async (preferences, filter) => {
         .map(utils_js_1.mapChromeTab)
         .filter((tab) => Boolean(tab));
     if ((0, groupingStrategies_js_1.requiresContextAnalysis)(preferences.sorting)) {
-        const contextMap = await (0, contextAnalysis_js_1.analyzeTabContext)(mapped);
+        const contextMap = await (0, contextAnalysis_js_1.analyzeTabContext)(mapped, onProgress);
         mapped.forEach(tab => {
             const res = contextMap.get(tab.id);
             tab.context = res?.context;
@@ -228,9 +228,10 @@ const applyTabGroups = async (groups) => {
             await chrome.tabGroups.update(finalGroupId, updateProps);
         }
     }
+    (0, logger_js_1.logInfo)("Applied tab groups", { count: groups.length });
 };
 exports.applyTabGroups = applyTabGroups;
-const applyTabSorting = async (preferences, filter) => {
+const applyTabSorting = async (preferences, filter, onProgress) => {
     const chromeTabs = await chrome.tabs.query({});
     const targetWindowIds = new Set();
     if (!filter || (!filter.windowIds?.length && !filter.tabIds?.length)) {
@@ -251,7 +252,7 @@ const applyTabSorting = async (preferences, filter) => {
         const windowTabs = chromeTabs.filter(t => t.windowId === windowId);
         const mapped = windowTabs.map(utils_js_1.mapChromeTab).filter((t) => Boolean(t));
         if ((0, groupingStrategies_js_1.requiresContextAnalysis)(preferences.sorting)) {
-            const contextMap = await (0, contextAnalysis_js_1.analyzeTabContext)(mapped);
+            const contextMap = await (0, contextAnalysis_js_1.analyzeTabContext)(mapped, onProgress);
             mapped.forEach(tab => {
                 const res = contextMap.get(tab.id);
                 tab.context = res?.context;
@@ -295,6 +296,7 @@ const applyTabSorting = async (preferences, filter) => {
         // 3. Sort Groups (if enabled)
         await sortGroupsIfEnabled(windowId, preferences.sorting, tabsByGroup);
     }
+    (0, logger_js_1.logInfo)("Applied tab sorting");
 };
 exports.applyTabSorting = applyTabSorting;
 const compareBySortingRules = (sortingRulesArg, a, b) => {
@@ -400,7 +402,7 @@ const sortGroupsIfEnabled = async (windowId, sortingPreferences, tabsByGroup) =>
 const closeGroup = async (group) => {
     const ids = group.tabs.map((tab) => tab.id);
     await chrome.tabs.remove(ids);
-    (0, logger_js_1.logDebug)("Closed group", { label: group.label, count: ids.length });
+    (0, logger_js_1.logInfo)("Closed group", { label: group.label, count: ids.length });
 };
 exports.closeGroup = closeGroup;
 const mergeTabs = async (tabIds) => {
