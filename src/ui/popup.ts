@@ -425,154 +425,121 @@ const renderTree = () => {
 };
 
 // Strategy Rendering
-function renderStrategyList(container: HTMLElement, strategies: StrategyDefinition[], defaultEnabled: string[]) {
+function renderStrategyList(
+    container: HTMLElement,
+    strategies: StrategyDefinition[],
+    activeIds: string[],
+    favoritesIds: string[] = []
+) {
     container.innerHTML = '';
 
-    // Sort enabled by their index in defaultEnabled to maintain priority
-    const enabled = strategies.filter(s => defaultEnabled.includes(s.id));
-    enabled.sort((a, b) => defaultEnabled.indexOf(a.id) - defaultEnabled.indexOf(b.id));
+    const favs = strategies.filter(s => favoritesIds.includes(s.id));
+    const others = strategies.filter(s => !favoritesIds.includes(s.id));
 
-    const disabled = strategies.filter(s => !defaultEnabled.includes(s.id));
+    // Sort alphabetically
+    favs.sort((a, b) => a.label.localeCompare(b.label));
+    others.sort((a, b) => a.label.localeCompare(b.label));
 
-    // Initial render order: Enabled (ordered) then Disabled
-    const ordered = [...enabled, ...disabled];
+    const createSection = (title: string, items: StrategyDefinition[]) => {
+        if (items.length === 0) return;
 
-    ordered.forEach(strategy => {
-        const isChecked = defaultEnabled.includes(strategy.id);
-        const row = document.createElement('div');
-        row.className = `strategy-row ${isChecked ? 'active' : ''}`;
-        row.dataset.id = strategy.id;
-        row.draggable = true;
+        const section = document.createElement('div');
+        section.className = 'strategy-section';
 
-        let tagsHtml = '';
-        if (strategy.tags) {
-            strategy.tags.forEach(tag => {
-                tagsHtml += `<span class="tag tag-${tag}">${tag}</span>`;
-            });
-        }
+        const header = document.createElement('div');
+        header.className = 'strategy-section-title';
+        header.textContent = title;
+        section.appendChild(header);
 
-        row.innerHTML = `
-            <div class="strategy-drag-handle">☰</div>
-            <input type="checkbox" ${isChecked ? 'checked' : ''}>
-            <span class="strategy-label">${strategy.label}</span>
-            ${tagsHtml}
-        `;
+        const grid = document.createElement('div');
+        grid.className = 'strategy-grid';
 
-        if (strategy.isCustom) {
-            const autoRunBtn = document.createElement("button");
-            autoRunBtn.className = `action-btn auto-run ${strategy.autoRun ? 'active' : ''}`;
-            autoRunBtn.innerHTML = ICONS.autoRun;
-            autoRunBtn.title = `Auto Run: ${strategy.autoRun ? 'ON' : 'OFF'}`;
-            autoRunBtn.style.marginLeft = "auto";
-            autoRunBtn.style.opacity = strategy.autoRun ? "1" : "0.3";
+        items.forEach(strategy => {
+            const isActive = activeIds.includes(strategy.id);
+            const isFav = favoritesIds.includes(strategy.id);
 
-            autoRunBtn.onclick = async (e) => {
+            const chip = document.createElement('div');
+            chip.className = `strategy-chip ${isActive ? 'active' : ''}`;
+            chip.dataset.id = strategy.id;
+
+            const label = document.createElement('span');
+            label.className = 'chip-label';
+            label.textContent = strategy.label;
+            chip.appendChild(label);
+
+            const actions = document.createElement('div');
+            actions.className = 'chip-actions';
+
+            // Star Button
+            const starBtn = document.createElement('button');
+            starBtn.className = `star-btn ${isFav ? 'favorited' : ''}`;
+            starBtn.innerHTML = isFav ? ICONS.starFilled : ICONS.star;
+            starBtn.title = isFav ? "Remove from favorites" : "Add to favorites";
+            starBtn.onclick = async (e) => {
                 e.stopPropagation();
-                if (!preferences?.customStrategies) return;
+                if (!preferences) return;
 
-                const customStratIndex = preferences.customStrategies.findIndex(s => s.id === strategy.id);
-                if (customStratIndex !== -1) {
-                    const strat = preferences.customStrategies[customStratIndex];
-                    strat.autoRun = !strat.autoRun;
+                const currentFavs = new Set(preferences.favorites || []);
+                if (currentFavs.has(strategy.id)) {
+                    currentFavs.delete(strategy.id);
+                } else {
+                    currentFavs.add(strategy.id);
+                }
 
-                    // Update UI immediately
-                    const isActive = !!strat.autoRun;
-                    autoRunBtn.classList.toggle('active', isActive);
-                    autoRunBtn.style.opacity = isActive ? "1" : "0.3";
-                    autoRunBtn.title = `Auto Run: ${isActive ? 'ON' : 'OFF'}`;
-
-                    // Save
-                    await sendMessage("savePreferences", { customStrategies: preferences.customStrategies });
-                    // No need to reload state entirely for this, but if we wanted to reflect changes that depend on it...
-                    // loadState();
+                preferences.favorites = Array.from(currentFavs);
+                await sendMessage("savePreferences", { favorites: preferences.favorites });
+                // Re-render immediately to reflect state
+                if (preferences) {
+                    renderStrategyList(container, strategies, preferences.sorting, preferences.favorites);
                 }
             };
-            row.appendChild(autoRunBtn);
-        }
+            actions.appendChild(starBtn);
 
-        // Add listeners
-        const checkbox = row.querySelector('input[type="checkbox"]');
-        checkbox?.addEventListener('change', async (e) => {
-            const checked = (e.target as HTMLInputElement).checked;
-            row.classList.toggle('active', checked);
-            logInfo("Strategy toggled", { id: strategy.id, checked });
+            // Auto Run Indicator (if custom)
+            if (strategy.isCustom && strategy.autoRun) {
+                const autoRunIcon = document.createElement('span');
+                autoRunIcon.className = 'auto-run-icon';
+                autoRunIcon.innerHTML = ICONS.autoRun;
+                autoRunIcon.title = "Auto-run enabled";
+                actions.appendChild(autoRunIcon);
+            }
 
-            // Immediate save on interaction
-            if (preferences) {
-                // Update local preference state
-                const currentSorting = getSelectedSorting();
+            chip.appendChild(actions);
+
+            // Chip Click (Toggle Selection)
+            chip.addEventListener('click', async (e) => {
+                // Prevent toggling if clicking actions
+                if ((e.target as HTMLElement).closest('.chip-actions')) return;
+
+                if (!preferences) return;
+
+                const targetState = !isActive;
+                let currentSorting = preferences.sorting || [];
+
+                if (targetState) {
+                    if (!currentSorting.includes(strategy.id)) {
+                        currentSorting.push(strategy.id);
+                    }
+                } else {
+                    currentSorting = currentSorting.filter(id => id !== strategy.id);
+                }
+
                 preferences.sorting = currentSorting;
-                // We should also persist this to storage, so if user reloads they see it
                 await sendMessage("savePreferences", { sorting: currentSorting });
-            }
+
+                // Re-render to update UI state
+                renderStrategyList(container, strategies, preferences.sorting, preferences.favorites);
+            });
+
+            grid.appendChild(chip);
         });
 
-        // Basic Click to toggle (for better UX)
-        row.addEventListener('click', (e) => {
-            if ((e.target as HTMLElement).closest('.action-btn')) return;
-            if (e.target !== checkbox) {
-                (checkbox as HTMLElement).click();
-            }
-        });
+        section.appendChild(grid);
+        container.appendChild(section);
+    };
 
-        addDnDListeners(row);
-
-        container.appendChild(row);
-    });
-}
-
-function addDnDListeners(row: HTMLElement) {
-  row.addEventListener('dragstart', (e) => {
-    row.classList.add('dragging');
-    if (e.dataTransfer) {
-        e.dataTransfer.effectAllowed = 'move';
-    }
-  });
-
-  row.addEventListener('dragend', async () => {
-    row.classList.remove('dragging');
-    // Save order on drag end
-    if (preferences) {
-        const currentSorting = getSelectedSorting();
-        preferences.sorting = currentSorting;
-        await sendMessage("savePreferences", { sorting: currentSorting });
-    }
-  });
-}
-
-function setupContainerDnD(container: HTMLElement) {
-    container.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        const afterElement = getDragAfterElement(container, e.clientY);
-
-        // Scope draggable to be a strategy-row
-        const draggableRow = document.querySelector('.strategy-row.dragging');
-        // Ensure we only drag within the same container (prevent cross-list dragging)
-        if (draggableRow && draggableRow.parentElement === container) {
-             if (afterElement == null) {
-                container.appendChild(draggableRow);
-             } else {
-                container.insertBefore(draggableRow, afterElement);
-             }
-        }
-    });
-}
-
-// Initialize DnD on containers once
-setupContainerDnD(allStrategiesContainer);
-
-function getDragAfterElement(container: HTMLElement, y: number) {
-  const draggableElements = Array.from(container.querySelectorAll('.strategy-row:not(.dragging)'));
-
-  return draggableElements.reduce((closest, child) => {
-    const box = child.getBoundingClientRect();
-    const offset = y - box.top - box.height / 2;
-    if (offset < 0 && offset > closest.offset) {
-      return { offset: offset, element: child };
-    } else {
-      return closest;
-    }
-  }, { offset: Number.NEGATIVE_INFINITY, element: null as Element | null }).element;
+    createSection("Favorites", favs);
+    createSection(favs.length > 0 ? "Other Strategies" : "All Strategies", others);
 }
 
 const updateUI = (
@@ -584,6 +551,7 @@ const updateUI = (
 
     if (preferences) {
       const s = preferences.sorting || [];
+      const f = preferences.favorites || [];
 
       // Initialize Logger
       setLoggerPreferences(preferences);
@@ -591,7 +559,7 @@ const updateUI = (
       const allStrategies = getStrategies(preferences.customStrategies);
 
       // Render unified strategy list
-      renderStrategyList(allStrategiesContainer, allStrategies, s);
+      renderStrategyList(allStrategiesContainer, allStrategies, s, f);
 
       // Initial theme load
       if (preferences.theme) {
@@ -678,15 +646,8 @@ const loadState = async () => {
   await Promise.all([fastLoad(), bgLoad()]);
 };
 
-const getStrategyIds = (container: HTMLElement): SortingStrategy[] => {
-    return Array.from(container.children)
-        .filter(row => (row.querySelector('input[type="checkbox"]') as HTMLInputElement).checked)
-        .map(row => (row as HTMLElement).dataset.id as SortingStrategy);
-};
-
 const getSelectedSorting = (): SortingStrategy[] => {
-  // Use the single unified container
-  return getStrategyIds(allStrategiesContainer);
+  return preferences?.sorting || [];
 };
 
 const triggerGroup = async (selection?: GroupingSelection) => {

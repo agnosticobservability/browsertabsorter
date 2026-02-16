@@ -412,14 +412,15 @@ body {
   user-select: none;
 }
 
-/* Strategy Lists (New) */
+/* Strategy Lists (Grid/Chips) */
 .strategies-container {
   display: flex;
-  gap: 8px;
+  flex-direction: column;
+  gap: 12px;
   margin-bottom: 8px;
   overflow: hidden;
   transition: max-height 0.3s ease-in-out;
-  max-height: 500px; /* Arbitrary large height for transition */
+  max-height: 800px;
 }
 
 .strategies-container.collapsed {
@@ -435,109 +436,95 @@ body {
     transform: rotate(-90deg);
 }
 
-
-.strategy-group {
-  flex: 1;
+.strategy-section {
+    margin-bottom: 4px;
 }
 
 .strategy-section-title {
   font-size: 10px;
   text-transform: uppercase;
   color: var(--text-muted);
-  margin-bottom: 4px;
+  margin-bottom: 6px;
   font-weight: 700;
   letter-spacing: 0.5px;
 }
 
-.strategy-list {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+.strategy-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
 }
 
-.strategy-row {
-  display: flex;
-  align-items: center;
-  padding: 2px 4px;
-  border-radius: 4px;
-  cursor: pointer;
-  user-select: none;
-  font-size: 12px;
-  border: 1px solid transparent;
-  color: var(--text-muted);
+.strategy-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 10px;
+    border-radius: 16px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    cursor: pointer;
+    user-select: none;
+    font-size: 12px;
+    transition: all 0.2s ease;
+    color: var(--text-muted);
 }
 
-.strategy-row:hover {
-  background: var(--hover-bg);
-  color: var(--text-main);
+.strategy-chip:hover {
+    border-color: var(--text-main);
+    color: var(--text-main);
 }
 
-.strategy-row.active {
-  background: var(--selected-bg);
-  border-color: var(--selected-border);
-  color: var(--primary-color);
-  font-weight: 500;
+.strategy-chip.active {
+    background: var(--selected-bg);
+    color: var(--primary-color);
+    border-color: var(--selected-border);
+    font-weight: 500;
 }
 
-.strategy-row input {
-  margin-right: 6px;
-  cursor: pointer;
+.strategy-chip .chip-label {
+    margin-right: 6px;
 }
 
-.strategy-drag-handle {
-  color: var(--text-muted);
-  margin-right: 4px;
-  opacity: 0.5;
-  cursor: grab;
-  font-size: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 12px;
+.strategy-chip .chip-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: auto;
+    padding-left: 4px;
+    border-left: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.strategy-row:hover .strategy-drag-handle {
-  opacity: 1;
+body.light-mode .strategy-chip .chip-actions {
+     border-left: 1px solid rgba(0, 0, 0, 0.1);
 }
 
-.strategy-row.dragging {
-  opacity: 0.5;
-  background: var(--hover-bg);
+.strategy-chip .star-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    opacity: 0.5;
+    transition: all 0.2s;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
 }
 
-/* Strategy Tags */
-.tag {
-  display: inline-block;
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-size: 10px;
-  font-weight: 600;
-  margin-left: 6px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+.strategy-chip .star-btn:hover {
+    opacity: 1;
+    color: #fcc419;
 }
 
-.tag-group {
-  background-color: rgba(34, 139, 230, 0.15);
-  color: var(--primary-color);
-  border: 1px solid rgba(34, 139, 230, 0.3);
+.strategy-chip .star-btn.favorited {
+    opacity: 1;
+    color: #fcc419;
 }
 
-.tag-sort {
-  background-color: rgba(64, 192, 87, 0.15);
-  color: #40c057;
-  border: 1px solid rgba(64, 192, 87, 0.3);
-}
-
-/* Adjust strategy row layout */
-.strategy-row {
-  display: flex;
-  align-items: center;
-  padding: 4px 8px; /* Increase padding slightly */
-}
-
-.strategy-label {
-  flex: 1;
+.strategy-chip .auto-run-icon {
+    color: var(--text-muted);
+    opacity: 0.7;
+    margin-left: 4px;
 }
 
 /* Dialog & Modals */

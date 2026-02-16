@@ -177,6 +177,7 @@ export interface LogEntry {
 
 export interface Preferences {
   sorting: SortingStrategy[];
+  favorites?: string[];
   debug: boolean;
   logLevel?: LogLevel;
   theme?: "light" | "dark";

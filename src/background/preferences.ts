@@ -7,6 +7,7 @@ const PREFERENCES_KEY = "preferences";
 
 export const defaultPreferences: Preferences = {
   sorting: ["pinned", "recency"],
+  favorites: [],
   debug: false,
   logLevel: "info",
   theme: "dark",
@@ -21,6 +22,13 @@ const normalizeSorting = (sorting: unknown): SortingStrategy[] => {
     return [sorting];
   }
   return [...defaultPreferences.sorting];
+};
+
+const normalizeFavorites = (favorites: unknown): string[] => {
+  if (Array.isArray(favorites)) {
+    return favorites.filter((value): value is string => typeof value === "string");
+  }
+  return [];
 };
 
 const normalizeStrategies = (strategies: unknown): CustomStrategy[] => {
@@ -41,6 +49,7 @@ const normalizePreferences = (prefs?: Partial<Preferences> | null): Preferences 
   return {
     ...merged,
     sorting: normalizeSorting(merged.sorting),
+    favorites: normalizeFavorites(merged.favorites),
     customStrategies: normalizeStrategies(merged.customStrategies)
   };
 };
