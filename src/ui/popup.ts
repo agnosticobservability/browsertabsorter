@@ -69,6 +69,7 @@ const updateProgress = (completed: number, total: number) => {
 let windowState: WindowView[] = [];
 let focusedWindowId: number | null = null;
 const selectedTabs = new Set<number>();
+let initialSelectionDone = false;
 let preferences: Preferences | null = null;
 
 // Tree State
@@ -622,6 +623,15 @@ const updateUI = (
     });
 
     windowState = mapWindows(stateData.groups, windowTitles);
+
+    if (!initialSelectionDone && focusedWindowId !== null) {
+        const activeWindow = windowState.find(w => w.id === focusedWindowId);
+        if (activeWindow) {
+             expandedNodes.add(`w-${activeWindow.id}`);
+             activeWindow.tabs.forEach(t => selectedTabs.add(t.id));
+             initialSelectionDone = true;
+        }
+    }
 
     renderTree();
 };
