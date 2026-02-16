@@ -517,17 +517,103 @@ function updateStrategyViews(strategies: StrategyDefinition[], enabledIds: strin
     const disabledStrategies = strategies.filter(s => !enabledIds.includes(s.id));
     disabledStrategies.sort((a, b) => a.label.localeCompare(b.label));
 
-    disabledStrategies.forEach(strategy => {
+    // Separate strategies with Auto-Run active but not in sorting list
+    const backgroundStrategies: StrategyDefinition[] = [];
+    const availableStrategies: StrategyDefinition[] = [];
+
+    disabledStrategies.forEach(s => {
+        if (s.isCustom && s.autoRun) {
+            backgroundStrategies.push(s);
+        } else {
+            availableStrategies.push(s);
+        }
+    });
+
+    // Populate Select
+    // We include background strategies in the dropdown too so they can be moved to "Active" sorting easily
+    // but we might mark them
+    [...backgroundStrategies, ...availableStrategies].sort((a, b) => a.label.localeCompare(b.label)).forEach(strategy => {
         const option = document.createElement('option');
         option.value = strategy.id;
         option.textContent = strategy.label;
         addStrategySelect.appendChild(option);
     });
+
+    // 3. Render Background Strategies Section (if any)
+    let bgSection = document.getElementById("backgroundStrategiesSection");
+    if (backgroundStrategies.length > 0) {
+        if (!bgSection) {
+            bgSection = document.createElement("div");
+            bgSection.id = "backgroundStrategiesSection";
+            bgSection.className = "active-strategies-section";
+            // Style it to look like active section but distinct
+            bgSection.style.marginTop = "8px";
+            bgSection.style.borderTop = "1px dashed var(--border-color)";
+            bgSection.style.paddingTop = "8px";
+
+            const header = document.createElement("div");
+            header.className = "section-header";
+            header.textContent = "Background Auto-Run";
+            header.title = "These strategies run automatically but are not used for sorting/grouping order.";
+            bgSection.appendChild(header);
+
+            const list = document.createElement("div");
+            list.className = "strategy-list";
+            bgSection.appendChild(list);
+
+            // Insert after active list
+            activeStrategiesList.parentElement?.after(bgSection);
+        }
+
+        const list = bgSection.querySelector(".strategy-list") as HTMLElement;
+        list.innerHTML = "";
+
+        backgroundStrategies.forEach(strategy => {
+            const row = document.createElement('div');
+            row.className = 'strategy-row';
+            row.dataset.id = strategy.id;
+
+            const label = document.createElement('span');
+            label.className = 'strategy-label';
+            label.textContent = strategy.label;
+            label.style.opacity = "0.7";
+
+            const autoRunBtn = document.createElement("button");
+            autoRunBtn.className = `action-btn auto-run active`;
+            autoRunBtn.innerHTML = ICONS.autoRun;
+            autoRunBtn.title = `Auto Run: ON (Click to disable)`;
+            autoRunBtn.style.marginLeft = "auto";
+            autoRunBtn.onclick = async (e) => {
+                 e.stopPropagation();
+                 if (!preferences?.customStrategies) return;
+                 const customStratIndex = preferences.customStrategies.findIndex(s => s.id === strategy.id);
+                 if (customStratIndex !== -1) {
+                    const strat = preferences.customStrategies[customStratIndex];
+                    strat.autoRun = false;
+                    await sendMessage("savePreferences", { customStrategies: preferences.customStrategies });
+                    // UI update triggers via sendMessage response or re-render
+                    // But we should re-render immediately for responsiveness
+                    updateStrategyViews(strategies, enabledIds);
+                }
+            };
+
+            row.appendChild(label);
+            row.appendChild(autoRunBtn);
+            list.appendChild(row);
+        });
+    } else {
+        if (bgSection) bgSection.remove();
+    }
 }
 
 async function toggleStrategy(id: string, enable: boolean) {
     if (!preferences) return;
-    let current = [...(preferences.sorting || [])];
+
+    const allStrategies = getStrategies(preferences.customStrategies);
+    const validIds = new Set(allStrategies.map(s => s.id));
+
+    // Clean current list by removing stale IDs
+    let current = (preferences.sorting || []).filter(sId => validIds.has(sId));
 
     if (enable) {
         if (!current.includes(id)) {
@@ -541,7 +627,6 @@ async function toggleStrategy(id: string, enable: boolean) {
     await sendMessage("savePreferences", { sorting: current });
 
     // Re-render
-    const allStrategies = getStrategies(preferences.customStrategies);
     updateStrategyViews(allStrategies, current);
 }
 
