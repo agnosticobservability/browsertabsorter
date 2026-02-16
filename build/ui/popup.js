@@ -749,9 +749,8 @@ var btnMerge = document.getElementById("btnMerge");
 var btnSplit = document.getElementById("btnSplit");
 var btnExpandAll = document.getElementById("btnExpandAll");
 var btnCollapseAll = document.getElementById("btnCollapseAll");
-var strategiesList = document.getElementById("strategiesList");
-var toggleStrategies = document.getElementById("toggleStrategies");
-var allStrategiesContainer = document.getElementById("all-strategies");
+var activeStrategiesList = document.getElementById("activeStrategiesList");
+var addStrategySelect = document.getElementById("addStrategySelect");
 var statTabs = document.getElementById("statTabs");
 var statGroups = document.getElementById("statGroups");
 var statWindows = document.getElementById("statWindows");
@@ -1056,36 +1055,51 @@ var renderTree = () => {
   });
   updateStats();
 };
-function renderStrategyList(container, strategies, defaultEnabled) {
-  container.innerHTML = "";
-  const enabled = strategies.filter((s) => defaultEnabled.includes(s.id));
-  enabled.sort((a, b) => defaultEnabled.indexOf(a.id) - defaultEnabled.indexOf(b.id));
-  const disabled = strategies.filter((s) => !defaultEnabled.includes(s.id));
-  const ordered = [...enabled, ...disabled];
-  ordered.forEach((strategy) => {
-    const isChecked = defaultEnabled.includes(strategy.id);
+function updateStrategyViews(strategies, enabledIds) {
+  activeStrategiesList.innerHTML = "";
+  const enabledStrategies = enabledIds.map((id) => strategies.find((s) => s.id === id)).filter((s) => !!s);
+  enabledStrategies.forEach((strategy) => {
     const row = document.createElement("div");
-    row.className = `strategy-row ${isChecked ? "active" : ""}`;
+    row.className = "strategy-row";
     row.dataset.id = strategy.id;
     row.draggable = true;
+    const handle = document.createElement("div");
+    handle.className = "strategy-drag-handle";
+    handle.innerHTML = "\u22EE\u22EE";
+    const label = document.createElement("span");
+    label.className = "strategy-label";
+    label.textContent = strategy.label;
     let tagsHtml = "";
     if (strategy.tags) {
       strategy.tags.forEach((tag) => {
         tagsHtml += `<span class="tag tag-${tag}">${tag}</span>`;
       });
     }
-    row.innerHTML = `
-            <div class="strategy-drag-handle">\u2630</div>
-            <input type="checkbox" ${isChecked ? "checked" : ""}>
-            <span class="strategy-label">${strategy.label}</span>
-            ${tagsHtml}
-        `;
+    const contentWrapper = document.createElement("div");
+    contentWrapper.style.flex = "1";
+    contentWrapper.style.display = "flex";
+    contentWrapper.style.alignItems = "center";
+    contentWrapper.appendChild(label);
+    if (tagsHtml) {
+      const tagsContainer = document.createElement("span");
+      tagsContainer.innerHTML = tagsHtml;
+      contentWrapper.appendChild(tagsContainer);
+    }
+    const removeBtn = document.createElement("button");
+    removeBtn.className = "strategy-remove-btn";
+    removeBtn.innerHTML = ICONS.close;
+    removeBtn.title = "Remove strategy";
+    removeBtn.onclick = async (e) => {
+      e.stopPropagation();
+      await toggleStrategy(strategy.id, false);
+    };
+    row.appendChild(handle);
+    row.appendChild(contentWrapper);
     if (strategy.isCustom) {
       const autoRunBtn = document.createElement("button");
       autoRunBtn.className = `action-btn auto-run ${strategy.autoRun ? "active" : ""}`;
       autoRunBtn.innerHTML = ICONS.autoRun;
       autoRunBtn.title = `Auto Run: ${strategy.autoRun ? "ON" : "OFF"}`;
-      autoRunBtn.style.marginLeft = "auto";
       autoRunBtn.style.opacity = strategy.autoRun ? "1" : "0.3";
       autoRunBtn.onclick = async (e) => {
         e.stopPropagation();
@@ -1103,26 +1117,96 @@ function renderStrategyList(container, strategies, defaultEnabled) {
       };
       row.appendChild(autoRunBtn);
     }
-    const checkbox = row.querySelector('input[type="checkbox"]');
-    checkbox?.addEventListener("change", async (e) => {
-      const checked = e.target.checked;
-      row.classList.toggle("active", checked);
-      logInfo("Strategy toggled", { id: strategy.id, checked });
-      if (preferences) {
-        const currentSorting = getSelectedSorting();
-        preferences.sorting = currentSorting;
-        await sendMessage("savePreferences", { sorting: currentSorting });
-      }
-    });
-    row.addEventListener("click", (e) => {
-      if (e.target.closest(".action-btn")) return;
-      if (e.target !== checkbox) {
-        checkbox.click();
-      }
-    });
+    row.appendChild(removeBtn);
     addDnDListeners(row);
-    container.appendChild(row);
+    activeStrategiesList.appendChild(row);
   });
+  addStrategySelect.innerHTML = '<option value="" disabled selected>Topic</option>';
+  const disabledStrategies = strategies.filter((s) => !enabledIds.includes(s.id));
+  disabledStrategies.sort((a, b) => a.label.localeCompare(b.label));
+  const backgroundStrategies = [];
+  const availableStrategies = [];
+  disabledStrategies.forEach((s) => {
+    if (s.isCustom && s.autoRun) {
+      backgroundStrategies.push(s);
+    } else {
+      availableStrategies.push(s);
+    }
+  });
+  [...backgroundStrategies, ...availableStrategies].sort((a, b) => a.label.localeCompare(b.label)).forEach((strategy) => {
+    const option = document.createElement("option");
+    option.value = strategy.id;
+    option.textContent = strategy.label;
+    addStrategySelect.appendChild(option);
+  });
+  let bgSection = document.getElementById("backgroundStrategiesSection");
+  if (backgroundStrategies.length > 0) {
+    if (!bgSection) {
+      bgSection = document.createElement("div");
+      bgSection.id = "backgroundStrategiesSection";
+      bgSection.className = "active-strategies-section";
+      bgSection.style.marginTop = "8px";
+      bgSection.style.borderTop = "1px dashed var(--border-color)";
+      bgSection.style.paddingTop = "8px";
+      const header = document.createElement("div");
+      header.className = "section-header";
+      header.textContent = "Background Auto-Run";
+      header.title = "These strategies run automatically but are not used for sorting/grouping order.";
+      bgSection.appendChild(header);
+      const list2 = document.createElement("div");
+      list2.className = "strategy-list";
+      bgSection.appendChild(list2);
+      activeStrategiesList.parentElement?.after(bgSection);
+    }
+    const list = bgSection.querySelector(".strategy-list");
+    list.innerHTML = "";
+    backgroundStrategies.forEach((strategy) => {
+      const row = document.createElement("div");
+      row.className = "strategy-row";
+      row.dataset.id = strategy.id;
+      const label = document.createElement("span");
+      label.className = "strategy-label";
+      label.textContent = strategy.label;
+      label.style.opacity = "0.7";
+      const autoRunBtn = document.createElement("button");
+      autoRunBtn.className = `action-btn auto-run active`;
+      autoRunBtn.innerHTML = ICONS.autoRun;
+      autoRunBtn.title = `Auto Run: ON (Click to disable)`;
+      autoRunBtn.style.marginLeft = "auto";
+      autoRunBtn.onclick = async (e) => {
+        e.stopPropagation();
+        if (!preferences?.customStrategies) return;
+        const customStratIndex = preferences.customStrategies.findIndex((s) => s.id === strategy.id);
+        if (customStratIndex !== -1) {
+          const strat = preferences.customStrategies[customStratIndex];
+          strat.autoRun = false;
+          await sendMessage("savePreferences", { customStrategies: preferences.customStrategies });
+          updateStrategyViews(strategies, enabledIds);
+        }
+      };
+      row.appendChild(label);
+      row.appendChild(autoRunBtn);
+      list.appendChild(row);
+    });
+  } else {
+    if (bgSection) bgSection.remove();
+  }
+}
+async function toggleStrategy(id, enable) {
+  if (!preferences) return;
+  const allStrategies = getStrategies(preferences.customStrategies);
+  const validIds = new Set(allStrategies.map((s) => s.id));
+  let current = (preferences.sorting || []).filter((sId) => validIds.has(sId));
+  if (enable) {
+    if (!current.includes(id)) {
+      current.push(id);
+    }
+  } else {
+    current = current.filter((sId) => sId !== id);
+  }
+  preferences.sorting = current;
+  await sendMessage("savePreferences", { sorting: current });
+  updateStrategyViews(allStrategies, current);
 }
 function addDnDListeners(row) {
   row.addEventListener("dragstart", (e) => {
@@ -1135,8 +1219,11 @@ function addDnDListeners(row) {
     row.classList.remove("dragging");
     if (preferences) {
       const currentSorting = getSelectedSorting();
-      preferences.sorting = currentSorting;
-      await sendMessage("savePreferences", { sorting: currentSorting });
+      const oldSorting = preferences.sorting || [];
+      if (JSON.stringify(currentSorting) !== JSON.stringify(oldSorting)) {
+        preferences.sorting = currentSorting;
+        await sendMessage("savePreferences", { sorting: currentSorting });
+      }
     }
   });
 }
@@ -1154,7 +1241,7 @@ function setupContainerDnD(container) {
     }
   });
 }
-setupContainerDnD(allStrategiesContainer);
+setupContainerDnD(activeStrategiesList);
 function getDragAfterElement(container, y) {
   const draggableElements = Array.from(container.querySelectorAll(".strategy-row:not(.dragging)"));
   return draggableElements.reduce((closest, child) => {
@@ -1173,7 +1260,7 @@ var updateUI = (stateData, currentWindow, chromeWindows, isPreliminary = false) 
     const s = preferences.sorting || [];
     setLoggerPreferences(preferences);
     const allStrategies = getStrategies(preferences.customStrategies);
-    renderStrategyList(allStrategiesContainer, allStrategies, s);
+    updateStrategyViews(allStrategies, s);
     if (preferences.theme) {
       applyTheme(preferences.theme, false);
     }
@@ -1257,12 +1344,17 @@ var loadState = async () => {
   };
   await Promise.all([fastLoad(), bgLoad()]);
 };
-var getStrategyIds = (container) => {
-  return Array.from(container.children).filter((row) => row.querySelector('input[type="checkbox"]').checked).map((row) => row.dataset.id);
-};
 var getSelectedSorting = () => {
-  return getStrategyIds(allStrategiesContainer);
+  return Array.from(activeStrategiesList.children).map((row) => row.dataset.id);
 };
+addStrategySelect.addEventListener("change", async (e) => {
+  const select = e.target;
+  const id = select.value;
+  if (id) {
+    await toggleStrategy(id, true);
+    select.value = "";
+  }
+});
 var triggerGroup = async (selection) => {
   logInfo("Triggering grouping", { selection });
   showLoading("Applying Strategy...");
@@ -1332,10 +1424,6 @@ btnExpandAll?.addEventListener("click", () => {
 btnCollapseAll?.addEventListener("click", () => {
   expandedNodes.clear();
   renderTree();
-});
-toggleStrategies.addEventListener("click", () => {
-  const isCollapsed = strategiesList.classList.toggle("collapsed");
-  toggleStrategies.classList.toggle("collapsed", isCollapsed);
 });
 document.getElementById("btnUndo")?.addEventListener("click", async () => {
   logInfo("Undo clicked");

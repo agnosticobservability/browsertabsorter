@@ -412,100 +412,117 @@ body {
   user-select: none;
 }
 
-/* Strategy Lists (New) */
-.strategies-container {
-  display: flex;
-  gap: 8px;
+/* Strategy Section (Split View) */
+.active-strategies-section {
   margin-bottom: 8px;
-  overflow: hidden;
-  transition: max-height 0.3s ease-in-out;
-  max-height: 500px; /* Arbitrary large height for transition */
 }
 
-.strategies-container.collapsed {
-  max-height: 0;
-  margin-bottom: 0;
-}
-
-.section-header .toggle-icon {
-    transition: transform 0.3s;
-}
-
-.section-header.collapsed .toggle-icon {
-    transform: rotate(-90deg);
-}
-
-
-.strategy-group {
-  flex: 1;
-}
-
-.strategy-section-title {
-  font-size: 10px;
+.section-header {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-main);
+  margin-bottom: 6px;
   text-transform: uppercase;
-  color: var(--text-muted);
-  margin-bottom: 4px;
-  font-weight: 700;
   letter-spacing: 0.5px;
 }
 
 .strategy-list {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
 }
 
 .strategy-row {
   display: flex;
   align-items: center;
-  padding: 2px 4px;
-  border-radius: 4px;
-  cursor: pointer;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
   user-select: none;
-  font-size: 12px;
-  border: 1px solid transparent;
-  color: var(--text-muted);
+  font-size: 13px;
+  transition: all 0.2s;
 }
 
 .strategy-row:hover {
+  border-color: var(--primary-color);
   background: var(--hover-bg);
-  color: var(--text-main);
-}
-
-.strategy-row.active {
-  background: var(--selected-bg);
-  border-color: var(--selected-border);
-  color: var(--primary-color);
-  font-weight: 500;
-}
-
-.strategy-row input {
-  margin-right: 6px;
-  cursor: pointer;
-}
-
-.strategy-drag-handle {
-  color: var(--text-muted);
-  margin-right: 4px;
-  opacity: 0.5;
-  cursor: grab;
-  font-size: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 12px;
-}
-
-.strategy-row:hover .strategy-drag-handle {
-  opacity: 1;
 }
 
 .strategy-row.dragging {
   opacity: 0.5;
-  background: var(--hover-bg);
+  background: var(--bg-body);
 }
 
-/* Strategy Tags */
+.strategy-drag-handle {
+  color: var(--text-muted);
+  margin-right: 8px;
+  cursor: grab;
+  font-size: 16px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+}
+
+.strategy-label {
+  flex: 1;
+  font-weight: 500;
+}
+
+.strategy-remove-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  opacity: 0.6;
+  transition: all 0.2s;
+}
+
+.strategy-remove-btn:hover {
+  background: rgba(255, 107, 107, 0.1);
+  color: #ff6b6b;
+  opacity: 1;
+}
+
+.separator {
+  height: 1px;
+  background: var(--border-color);
+  margin: 12px 0;
+}
+
+.add-strategy-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.strategy-select {
+  width: 100%;
+  padding: 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+  color: var(--text-main);
+  font-family: inherit;
+  font-size: 13px;
+  outline: none;
+}
+
+.strategy-select:focus {
+  border-color: var(--primary-color);
+}
+
+.btn.full-width {
+  width: 100%;
+  justify-content: center;
+}
+
+/* Tags */
 .tag {
   display: inline-block;
   padding: 2px 6px;
@@ -527,17 +544,6 @@ body {
   background-color: rgba(64, 192, 87, 0.15);
   color: #40c057;
   border: 1px solid rgba(64, 192, 87, 0.3);
-}
-
-/* Adjust strategy row layout */
-.strategy-row {
-  display: flex;
-  align-items: center;
-  padding: 4px 8px; /* Increase padding slightly */
-}
-
-.strategy-label {
-  flex: 1;
 }
 
 /* Dialog & Modals */

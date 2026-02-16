@@ -1,3 +1,0 @@
-127.0.0.1 - - [15/Feb/2026 21:09:43] "GET /ui/devtools.html HTTP/1.1" 200 -
-127.0.0.1 - - [15/Feb/2026 21:09:44] "GET /ui/devtools.css HTTP/1.1" 200 -
-127.0.0.1 - - [15/Feb/2026 21:09:44] "GET /dist/ui/devtools.js HTTP/1.1" 200 -
