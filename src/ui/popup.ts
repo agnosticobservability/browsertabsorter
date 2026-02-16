@@ -625,6 +625,14 @@ const updateUI = (
 
     windowState = mapWindows(stateData.groups, windowTitles);
 
+    if (focusedWindowId !== null) {
+        windowState.sort((a, b) => {
+            if (a.id === focusedWindowId) return -1;
+            if (b.id === focusedWindowId) return 1;
+            return 0;
+        });
+    }
+
     if (!initialSelectionDone && focusedWindowId !== null) {
         const activeWindow = windowState.find(w => w.id === focusedWindowId);
         if (activeWindow) {
