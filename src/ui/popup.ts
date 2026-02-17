@@ -539,6 +539,9 @@ function updateStrategyViews(strategies: StrategyDefinition[], enabledIds: strin
         addStrategySelect.appendChild(option);
     });
 
+    // Force selection of placeholder
+    addStrategySelect.value = "";
+
     // 3. Render Background Strategies Section (if any)
     let bgSection = document.getElementById("backgroundStrategiesSection");
     if (backgroundStrategies.length > 0) {
