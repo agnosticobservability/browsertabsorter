@@ -14,11 +14,21 @@ export const getCustomStrategies = (): CustomStrategy[] => customStrategies;
 const COLORS = ["grey", "blue", "red", "yellow", "green", "pink", "purple", "cyan", "orange"];
 
 const regexCache = new Map<string, RegExp>();
+const domainCache = new Map<string, string>();
+const subdomainCache = new Map<string, string>();
+const MAX_CACHE_SIZE = 1000;
 
 export const domainFromUrl = (url: string): string => {
+  if (domainCache.has(url)) return domainCache.get(url)!;
+
   try {
     const parsed = new URL(url);
-    return parsed.hostname.replace(/^www\./, "");
+    const domain = parsed.hostname.replace(/^www\./, "");
+
+    if (domainCache.size >= MAX_CACHE_SIZE) domainCache.clear();
+    domainCache.set(url, domain);
+
+    return domain;
   } catch (error) {
     logDebug("Failed to parse domain", { url, error: String(error) });
     return "unknown";
@@ -26,17 +36,24 @@ export const domainFromUrl = (url: string): string => {
 };
 
 export const subdomainFromUrl = (url: string): string => {
+    if (subdomainCache.has(url)) return subdomainCache.get(url)!;
+
     try {
         const parsed = new URL(url);
         let hostname = parsed.hostname;
         // Remove www.
         hostname = hostname.replace(/^www\./, "");
 
+        let result = "";
         const parts = hostname.split('.');
         if (parts.length > 2) {
-             return parts.slice(0, parts.length - 2).join('.');
+             result = parts.slice(0, parts.length - 2).join('.');
         }
-        return "";
+
+        if (subdomainCache.size >= MAX_CACHE_SIZE) subdomainCache.clear();
+        subdomainCache.set(url, result);
+
+        return result;
     } catch {
         return "";
     }
