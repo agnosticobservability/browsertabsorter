@@ -512,7 +512,7 @@ function updateStrategyViews(strategies: StrategyDefinition[], enabledIds: strin
     });
 
     // 2. Render Add Strategy Options
-    addStrategySelect.innerHTML = '<option value="" disabled selected>Topic</option>';
+    addStrategySelect.innerHTML = '<option value="" disabled selected>Select Strategy...</option>';
 
     const disabledStrategies = strategies.filter(s => !enabledIds.includes(s.id));
     disabledStrategies.sort((a, b) => a.label.localeCompare(b.label));
