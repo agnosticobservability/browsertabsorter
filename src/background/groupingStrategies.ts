@@ -13,7 +13,28 @@ export const getCustomStrategies = (): CustomStrategy[] => customStrategies;
 
 const COLORS = ["grey", "blue", "red", "yellow", "green", "pink", "purple", "cyan", "orange"];
 
-const regexCache = new Map<string, RegExp>();
+const regexCache = new Map<string, RegExp>(); // Default flags ""
+const regexCacheI = new Map<string, RegExp>(); // Flags "i"
+
+const getRegex = (pattern: string, flags: string = ""): RegExp => {
+    if (flags === 'i') {
+        let regex = regexCacheI.get(pattern);
+        if (!regex) {
+            regex = new RegExp(pattern, 'i');
+            regexCacheI.set(pattern, regex);
+        }
+        return regex;
+    }
+    if (flags === "") {
+        let regex = regexCache.get(pattern);
+        if (!regex) {
+            regex = new RegExp(pattern);
+            regexCache.set(pattern, regex);
+        }
+        return regex;
+    }
+    return new RegExp(pattern, flags);
+};
 
 export const domainFromUrl = (url: string): string => {
   try {
@@ -308,7 +329,7 @@ export const checkCondition = (condition: RuleCondition, tab: TabMetadata): bool
         case 'isNotNull': return rawValue !== null;
         case 'matches':
              try {
-                return new RegExp(condition.value, 'i').test(rawValue !== undefined && rawValue !== null ? String(rawValue) : "");
+                return getRegex(condition.value, 'i').test(rawValue !== undefined && rawValue !== null ? String(rawValue) : "");
              } catch { return false; }
         default: return false;
     }
@@ -347,7 +368,7 @@ function evaluateLegacyRules(legacyRules: StrategyRule[], tab: TabMetadata): str
                 case 'isNotNull': isMatch = rawValue !== null; break;
                 case 'matches':
                     try {
-                        const regex = new RegExp(rule.value, 'i');
+                        const regex = getRegex(rule.value, 'i');
                         matchObj = regex.exec(rawValue !== undefined && rawValue !== null ? String(rawValue) : "");
                         isMatch = !!matchObj;
                     } catch (e) {}
@@ -441,11 +462,7 @@ export const getGroupingResult = (tab: TabMetadata, strategy: GroupingStrategy |
                         case 'regex':
                             if (rule.transformPattern) {
                                 try {
-                                    let regex = regexCache.get(rule.transformPattern);
-                                    if (!regex) {
-                                        regex = new RegExp(rule.transformPattern);
-                                        regexCache.set(rule.transformPattern, regex);
-                                    }
+                                    const regex = getRegex(rule.transformPattern);
                                     const match = regex.exec(val);
                                     if (match) {
                                         let extracted = "";
