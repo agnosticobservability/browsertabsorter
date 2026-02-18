@@ -6,8 +6,7 @@
   "permissions": [
     "tabs",
     "tabGroups",
-    "storage",
-    "scripting"
+    "storage"
   ],
   "optional_permissions": [
     "history"
