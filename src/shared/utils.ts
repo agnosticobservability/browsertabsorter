@@ -1,7 +1,7 @@
 import { Preferences, SortingStrategy, TabMetadata } from "./types.js";
 
 export const mapChromeTab = (tab: chrome.tabs.Tab): TabMetadata | null => {
-  if (!tab.id || !tab.windowId) return null;
+  if (!tab.id || tab.id === chrome.tabs.TAB_ID_NONE || !tab.windowId) return null;
   return {
     id: tab.id,
     windowId: tab.windowId,
