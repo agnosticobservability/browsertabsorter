@@ -90,38 +90,47 @@ export function extractJsonLdFields(jsonLd: any[]) {
     return { author, publishedAt, modifiedAt, tags, breadcrumbs };
 }
 
-export function extractYouTubeChannelFromHtml(html: string): string | null {
-  // 1. Try JSON-LD
-  // Look for <script type="application/ld+json">...</script>
-  // We need to loop because there might be multiple scripts
+function extractFirstMatch(html: string, regex: RegExp): string | null {
+  const match = regex.exec(html);
+  return match && match[1] ? decodeHtmlEntities(match[1]) : null;
+}
+
+function extractAllJsonLd(html: string): any[] {
   const scriptRegex = /<script\s+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+  const results: any[] = [];
   let match;
   while ((match = scriptRegex.exec(html)) !== null) {
-      try {
-          const json = JSON.parse(match[1]);
-          const array = Array.isArray(json) ? json : [json];
-          const fields = extractJsonLdFields(array);
-          if (fields.author) return fields.author;
-      } catch (e) {
-          // ignore parse errors
+    try {
+      const json = JSON.parse(match[1]);
+      if (Array.isArray(json)) {
+        results.push(...json);
+      } else {
+        results.push(json);
       }
+    } catch (e) {
+      // ignore parse errors
+    }
+  }
+  return results;
+}
+
+export function extractYouTubeChannelFromHtml(html: string): string | null {
+  // 1. Try JSON-LD
+  const jsonLd = extractAllJsonLd(html);
+  if (jsonLd.length > 0) {
+      const fields = extractJsonLdFields(jsonLd);
+      if (fields.author) return fields.author;
   }
 
-  // 2. Try <link itemprop="name" content="..."> (YouTube often puts channel name here in some contexts)
-  // Or <meta itemprop="channelId" content="..."> -> but that's ID.
-  // <link itemprop="name" content="Channel Name">
-  // <span itemprop="author" itemscope itemtype="http://schema.org/Person"><link itemprop="name" content="Channel Name"></span>
+  // 2. Try <link itemprop="name" content="...">
   const linkNameRegex = /<link\s+itemprop=["']name["']\s+content=["']([^"']+)["']\s*\/?>/i;
-  const linkMatch = linkNameRegex.exec(html);
-  if (linkMatch && linkMatch[1]) return decodeHtmlEntities(linkMatch[1]);
+  const linkChannel = extractFirstMatch(html, linkNameRegex);
+  if (linkChannel) return linkChannel;
 
   // 3. Try meta author
   const metaAuthorRegex = /<meta\s+name=["']author["']\s+content=["']([^"']+)["']\s*\/?>/i;
-  const metaMatch = metaAuthorRegex.exec(html);
-  if (metaMatch && metaMatch[1]) {
-      // YouTube meta author is often "Channel Name"
-      return decodeHtmlEntities(metaMatch[1]);
-  }
+  const metaChannel = extractFirstMatch(html, metaAuthorRegex);
+  if (metaChannel) return metaChannel;
 
   return null;
 }
@@ -129,18 +138,13 @@ export function extractYouTubeChannelFromHtml(html: string): string | null {
 export function extractYouTubeGenreFromHtml(html: string): string | null {
   // 1. Try <meta itemprop="genre" content="...">
   const metaGenreRegex = /<meta\s+itemprop=["']genre["']\s+content=["']([^"']+)["']\s*\/?>/i;
-  const metaMatch = metaGenreRegex.exec(html);
-  if (metaMatch && metaMatch[1]) {
-      return decodeHtmlEntities(metaMatch[1]);
-  }
+  const metaGenre = extractFirstMatch(html, metaGenreRegex);
+  if (metaGenre) return metaGenre;
 
   // 2. Try JSON "category" in scripts
-  // "category":"Gaming"
   const categoryRegex = /"category"\s*:\s*"([^"]+)"/;
-  const catMatch = categoryRegex.exec(html);
-  if (catMatch && catMatch[1]) {
-      return decodeHtmlEntities(catMatch[1]);
-  }
+  const category = extractFirstMatch(html, categoryRegex);
+  if (category) return category;
 
   return null;
 }
