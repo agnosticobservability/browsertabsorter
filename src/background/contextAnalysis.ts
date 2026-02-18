@@ -1,6 +1,7 @@
 import { TabMetadata, PageContext } from "../shared/types.js";
 import { logDebug, logError } from "../shared/logger.js";
 import { extractPageContext } from "./extraction/index.js";
+import { getStoredValue, setStoredValue } from "./storage.js";
 
 export interface ContextResult {
   context: string;
@@ -11,18 +12,58 @@ export interface ContextResult {
 }
 
 const contextCache = new Map<string, ContextResult>();
+let isCacheLoaded = false;
+let cacheLoadPromise: Promise<void> | null = null;
+
+const ensureCacheLoaded = async () => {
+    if (isCacheLoaded) return;
+    if (cacheLoadPromise) return cacheLoadPromise;
+    cacheLoadPromise = (async () => {
+        try {
+            const stored = await getStoredValue<[string, ContextResult][]>('contextAnalysisCache');
+            if (stored && Array.isArray(stored)) {
+                stored.forEach(([k, v]) => contextCache.set(k, v));
+            }
+        } catch (e) {
+            logError("Failed to load context cache", { error: String(e) });
+        } finally {
+            isCacheLoaded = true;
+        }
+    })();
+    return cacheLoadPromise;
+};
+
+let saveTimeout: ReturnType<typeof setTimeout> | null = null;
+const saveCache = () => {
+    if (saveTimeout) clearTimeout(saveTimeout);
+    saveTimeout = setTimeout(async () => {
+        try {
+            // LRU Eviction if too large
+            if (contextCache.size > 500) {
+                 const keysToDelete = Array.from(contextCache.keys()).slice(0, contextCache.size - 500);
+                 keysToDelete.forEach(k => contextCache.delete(k));
+            }
+            const entries = Array.from(contextCache.entries());
+            await setStoredValue('contextAnalysisCache', entries);
+        } catch (e) {
+            logError("Failed to save context cache", { error: String(e) });
+        }
+    }, 2000);
+};
 
 export const analyzeTabContext = async (
   tabs: TabMetadata[],
   onProgress?: (completed: number, total: number) => void
 ): Promise<Map<number, ContextResult>> => {
+  await ensureCacheLoaded();
+
   const contextMap = new Map<number, ContextResult>();
   let completed = 0;
   const total = tabs.length;
 
   const promises = tabs.map(async (tab) => {
     try {
-      const cacheKey = `${tab.id}::${tab.url}`;
+      const cacheKey = tab.url;
       if (contextCache.has(cacheKey)) {
         contextMap.set(tab.id, contextCache.get(cacheKey)!);
         return;
@@ -34,6 +75,7 @@ export const analyzeTabContext = async (
       // Actually, if we cache error, we stop retrying.
       // Let's cache everything for now to prevent spamming if it keeps failing.
       contextCache.set(cacheKey, result);
+      saveCache();
 
       contextMap.set(tab.id, result);
     } catch (error) {
