@@ -15,6 +15,21 @@ const COLORS = ["grey", "blue", "red", "yellow", "green", "pink", "purple", "cya
 
 const regexCache = new Map<string, RegExp>();
 
+const getCachedRegex = (pattern: string, flags: string = ""): RegExp | null => {
+    const key = `${flags}:${pattern}`;
+    let regex = regexCache.get(key);
+    if (!regex) {
+        try {
+            regex = new RegExp(pattern, flags);
+            regexCache.set(key, regex);
+        } catch (e) {
+            logDebug("Invalid regex", { pattern, flags, error: String(e) });
+            return null;
+        }
+    }
+    return regex;
+};
+
 export const domainFromUrl = (url: string): string => {
   try {
     const parsed = new URL(url);
@@ -307,9 +322,8 @@ export const checkCondition = (condition: RuleCondition, tab: TabMetadata): bool
         case 'isNull': return rawValue === null;
         case 'isNotNull': return rawValue !== null;
         case 'matches':
-             try {
-                return new RegExp(condition.value, 'i').test(rawValue !== undefined && rawValue !== null ? String(rawValue) : "");
-             } catch { return false; }
+             const regex = getCachedRegex(condition.value, 'i');
+             return regex ? regex.test(rawValue !== undefined && rawValue !== null ? String(rawValue) : "") : false;
         default: return false;
     }
 };
@@ -346,11 +360,11 @@ function evaluateLegacyRules(legacyRules: StrategyRule[], tab: TabMetadata): str
                 case 'isNull': isMatch = rawValue === null; break;
                 case 'isNotNull': isMatch = rawValue !== null; break;
                 case 'matches':
-                    try {
-                        const regex = new RegExp(rule.value, 'i');
+                    const regex = getCachedRegex(rule.value, 'i');
+                    if (regex) {
                         matchObj = regex.exec(rawValue !== undefined && rawValue !== null ? String(rawValue) : "");
                         isMatch = !!matchObj;
-                    } catch (e) {}
+                    }
                     break;
             }
 
@@ -440,12 +454,8 @@ export const getGroupingResult = (tab: TabMetadata, strategy: GroupingStrategy |
                             break;
                         case 'regex':
                             if (rule.transformPattern) {
-                                try {
-                                    let regex = regexCache.get(rule.transformPattern);
-                                    if (!regex) {
-                                        regex = new RegExp(rule.transformPattern);
-                                        regexCache.set(rule.transformPattern, regex);
-                                    }
+                                const regex = getCachedRegex(rule.transformPattern, "");
+                                if (regex) {
                                     const match = regex.exec(val);
                                     if (match) {
                                         let extracted = "";
@@ -456,8 +466,7 @@ export const getGroupingResult = (tab: TabMetadata, strategy: GroupingStrategy |
                                     } else {
                                         val = "";
                                     }
-                                } catch (e) {
-                                    logDebug("Invalid regex in transform", { pattern: rule.transformPattern, error: String(e) });
+                                } else {
                                     val = "";
                                 }
                             } else {
