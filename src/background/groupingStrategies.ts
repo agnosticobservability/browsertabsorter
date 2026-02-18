@@ -290,28 +290,44 @@ export const groupTabs = (
   return groups;
 };
 
+const checkValueMatch = (
+    operator: string,
+    rawValue: any,
+    ruleValue: string
+): { isMatch: boolean; matchObj: RegExpExecArray | null } => {
+    const valueStr = rawValue !== undefined && rawValue !== null ? String(rawValue) : "";
+    const valueToCheck = valueStr.toLowerCase();
+    const patternToCheck = ruleValue ? ruleValue.toLowerCase() : "";
+
+    let isMatch = false;
+    let matchObj: RegExpExecArray | null = null;
+
+    switch (operator) {
+        case 'contains': isMatch = valueToCheck.includes(patternToCheck); break;
+        case 'doesNotContain': isMatch = !valueToCheck.includes(patternToCheck); break;
+        case 'equals': isMatch = valueToCheck === patternToCheck; break;
+        case 'startsWith': isMatch = valueToCheck.startsWith(patternToCheck); break;
+        case 'endsWith': isMatch = valueToCheck.endsWith(patternToCheck); break;
+        case 'exists': isMatch = rawValue !== undefined; break;
+        case 'doesNotExist': isMatch = rawValue === undefined; break;
+        case 'isNull': isMatch = rawValue === null; break;
+        case 'isNotNull': isMatch = rawValue !== null; break;
+        case 'matches':
+             try {
+                const regex = new RegExp(ruleValue, 'i');
+                matchObj = regex.exec(valueStr);
+                isMatch = !!matchObj;
+             } catch { }
+             break;
+    }
+    return { isMatch, matchObj };
+};
+
 export const checkCondition = (condition: RuleCondition, tab: TabMetadata): boolean => {
     if (!condition) return false;
     const rawValue = getFieldValue(tab, condition.field);
-    const valueToCheck = rawValue !== undefined && rawValue !== null ? String(rawValue).toLowerCase() : "";
-    const pattern = condition.value ? condition.value.toLowerCase() : "";
-
-    switch (condition.operator) {
-        case 'contains': return valueToCheck.includes(pattern);
-        case 'doesNotContain': return !valueToCheck.includes(pattern);
-        case 'equals': return valueToCheck === pattern;
-        case 'startsWith': return valueToCheck.startsWith(pattern);
-        case 'endsWith': return valueToCheck.endsWith(pattern);
-        case 'exists': return rawValue !== undefined;
-        case 'doesNotExist': return rawValue === undefined;
-        case 'isNull': return rawValue === null;
-        case 'isNotNull': return rawValue !== null;
-        case 'matches':
-             try {
-                return new RegExp(condition.value, 'i').test(rawValue !== undefined && rawValue !== null ? String(rawValue) : "");
-             } catch { return false; }
-        default: return false;
-    }
+    const { isMatch } = checkValueMatch(condition.operator, rawValue, condition.value);
+    return isMatch;
 };
 
 function evaluateLegacyRules(legacyRules: StrategyRule[], tab: TabMetadata): string | null {
@@ -328,31 +344,7 @@ function evaluateLegacyRules(legacyRules: StrategyRule[], tab: TabMetadata): str
         for (const rule of legacyRulesList) {
             if (!rule) continue;
             const rawValue = getFieldValue(tab, rule.field);
-            let valueToCheck = rawValue !== undefined && rawValue !== null ? String(rawValue) : "";
-            valueToCheck = valueToCheck.toLowerCase();
-            const pattern = rule.value ? rule.value.toLowerCase() : "";
-
-            let isMatch = false;
-            let matchObj: RegExpExecArray | null = null;
-
-            switch (rule.operator) {
-                case 'contains': isMatch = valueToCheck.includes(pattern); break;
-                case 'doesNotContain': isMatch = !valueToCheck.includes(pattern); break;
-                case 'equals': isMatch = valueToCheck === pattern; break;
-                case 'startsWith': isMatch = valueToCheck.startsWith(pattern); break;
-                case 'endsWith': isMatch = valueToCheck.endsWith(pattern); break;
-                case 'exists': isMatch = rawValue !== undefined; break;
-                case 'doesNotExist': isMatch = rawValue === undefined; break;
-                case 'isNull': isMatch = rawValue === null; break;
-                case 'isNotNull': isMatch = rawValue !== null; break;
-                case 'matches':
-                    try {
-                        const regex = new RegExp(rule.value, 'i');
-                        matchObj = regex.exec(rawValue !== undefined && rawValue !== null ? String(rawValue) : "");
-                        isMatch = !!matchObj;
-                    } catch (e) {}
-                    break;
-            }
+            const { isMatch, matchObj } = checkValueMatch(rule.operator, rawValue, rule.value);
 
             if (isMatch) {
                 let result = rule.result;
