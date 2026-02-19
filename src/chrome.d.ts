@@ -7,6 +7,7 @@ declare namespace chrome {
       groupId: number;
       title?: string;
       url?: string;
+      pendingUrl?: string;
       pinned: boolean;
       active: boolean;
       status?: string;
