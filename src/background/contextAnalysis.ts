@@ -10,7 +10,14 @@ export interface ContextResult {
   status?: string;
 }
 
-const contextCache = new Map<string, ContextResult>();
+interface CacheEntry {
+  result: ContextResult;
+  timestamp: number;
+}
+
+const contextCache = new Map<string, CacheEntry>();
+const CACHE_TTL_SUCCESS = 24 * 60 * 60 * 1000; // 24 hours
+const CACHE_TTL_ERROR = 5 * 60 * 1000; // 5 minutes
 
 export const analyzeTabContext = async (
   tabs: TabMetadata[],
@@ -23,17 +30,27 @@ export const analyzeTabContext = async (
   const promises = tabs.map(async (tab) => {
     try {
       const cacheKey = `${tab.id}::${tab.url}`;
-      if (contextCache.has(cacheKey)) {
-        contextMap.set(tab.id, contextCache.get(cacheKey)!);
-        return;
+      const cached = contextCache.get(cacheKey);
+
+      if (cached) {
+        const isError = cached.result.status === 'ERROR' || !!cached.result.error;
+        const ttl = isError ? CACHE_TTL_ERROR : CACHE_TTL_SUCCESS;
+
+        if (Date.now() - cached.timestamp < ttl) {
+          contextMap.set(tab.id, cached.result);
+          return;
+        } else {
+          contextCache.delete(cacheKey);
+        }
       }
 
       const result = await fetchContextForTab(tab);
 
-      // Only cache valid results to allow retrying on transient errors?
-      // Actually, if we cache error, we stop retrying.
-      // Let's cache everything for now to prevent spamming if it keeps failing.
-      contextCache.set(cacheKey, result);
+      // Cache with expiration logic
+      contextCache.set(cacheKey, {
+        result,
+        timestamp: Date.now()
+      });
 
       contextMap.set(tab.id, result);
     } catch (error) {
