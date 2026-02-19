@@ -787,7 +787,11 @@ function addBuilderRow(type: 'group' | 'sort' | 'groupSort', data?: any) {
                 <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 5px;">
                     <span style="font-weight: 500; font-size: 0.9em;">Pattern:</span>
                     <input type="text" class="transform-pattern" placeholder="e.g. ^(\w+)-(\d+)$" style="flex:1;">
-                    <span title="Captures all groups and concatenates them. If no match, result is empty. Example: 'user-(\d+)' extracts '123' from 'user-123'." style="cursor: help; color: #007bff; font-weight: bold; background: #e7f1ff; width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; font-size: 12px;">?</span>
+                    <span title="Extraction: Captures all groups and concatenates them. If no capture groups, uses full match.\nReplacement: If 'Replacement' is set, performs standard regex replacement." style="cursor: help; color: #007bff; font-weight: bold; background: #e7f1ff; width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; font-size: 12px;">?</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 5px;">
+                    <span style="font-weight: 500; font-size: 0.9em;">Replace:</span>
+                    <input type="text" class="transform-replacement" placeholder="(Optional) e.g. Prefix $1" style="flex:1;">
                 </div>
                 <div style="display: flex; gap: 8px; align-items: center; font-size: 0.9em;">
                     <span style="font-weight: 500;">Test:</span>
@@ -840,6 +844,7 @@ function addBuilderRow(type: 'group' | 'sort' | 'groupSort', data?: any) {
         const transformSelect = div.querySelector('.transform-select') as HTMLSelectElement;
         const regexContainer = div.querySelector('.regex-container') as HTMLElement;
         const patternInput = div.querySelector('.transform-pattern') as HTMLInputElement;
+        const replacementInput = div.querySelector('.transform-replacement') as HTMLInputElement;
         const testInput = div.querySelector('.regex-test-input') as HTMLInputElement;
         const testResult = div.querySelector('.regex-test-result') as HTMLElement;
 
@@ -855,6 +860,7 @@ function addBuilderRow(type: 'group' | 'sort' | 'groupSort', data?: any) {
 
         const updateTest = () => {
             const pat = patternInput.value;
+            const rep = replacementInput.value;
             const txt = testInput.value;
             if (!pat || !txt) {
                  testResult.textContent = "(preview)";
@@ -863,17 +869,29 @@ function addBuilderRow(type: 'group' | 'sort' | 'groupSort', data?: any) {
             }
             try {
                 const regex = new RegExp(pat);
-                const match = regex.exec(txt);
-                if (match) {
-                     let extracted = "";
-                     for (let i = 1; i < match.length; i++) {
-                         extracted += match[i] || "";
-                     }
-                     testResult.textContent = extracted || "(empty group)";
+
+                if (rep) {
+                     const replaced = txt.replace(regex, rep);
+                     testResult.textContent = replaced;
                      testResult.style.color = "green";
                 } else {
-                     testResult.textContent = "(no match)";
-                     testResult.style.color = "red";
+                    const match = regex.exec(txt);
+                    if (match) {
+                        if (match.length > 1) {
+                             let extracted = "";
+                             for (let i = 1; i < match.length; i++) {
+                                 extracted += match[i] || "";
+                             }
+                             testResult.textContent = extracted || "(empty group)";
+                             testResult.style.color = "green";
+                        } else {
+                             testResult.textContent = match[0] || "(empty match)";
+                             testResult.style.color = "green";
+                        }
+                    } else {
+                         testResult.textContent = "(no match)";
+                         testResult.style.color = "red";
+                    }
                 }
             } catch (e) {
                 testResult.textContent = "(invalid regex)";
@@ -881,6 +899,7 @@ function addBuilderRow(type: 'group' | 'sort' | 'groupSort', data?: any) {
             }
         };
         patternInput.addEventListener('input', () => { updateTest(); updateBreadcrumb(); });
+        replacementInput.addEventListener('input', () => { updateTest(); updateBreadcrumb(); });
         testInput.addEventListener('input', updateTest);
 
 
@@ -957,6 +976,7 @@ function addBuilderRow(type: 'group' | 'sort' | 'groupSort', data?: any) {
 
             if (data.transform) transformSelect.value = data.transform;
             if (data.transformPattern) (div.querySelector('.transform-pattern') as HTMLInputElement).value = data.transformPattern;
+            if (data.replacement) (div.querySelector('.transform-replacement') as HTMLInputElement).value = data.replacement;
 
             // Trigger toggle for regex UI
             transformSelect.dispatchEvent(new Event('change'));
@@ -1260,6 +1280,7 @@ function getBuilderStrategy(ignoreValidation: boolean = false): CustomStrategy |
 
         const transform = (row.querySelector('.transform-select') as HTMLSelectElement).value as any;
         const transformPattern = (row.querySelector('.transform-pattern') as HTMLInputElement).value;
+        const replacement = (row.querySelector('.transform-replacement') as HTMLInputElement).value;
         const windowMode = (row.querySelector('.window-mode-select') as HTMLSelectElement).value as any;
 
         const randomCheck = row.querySelector('.random-color-check') as HTMLInputElement;
@@ -1277,7 +1298,16 @@ function getBuilderStrategy(ignoreValidation: boolean = false): CustomStrategy |
         }
 
         if (value) {
-            groupingRules.push({ source, value, color, colorField, transform, transformPattern: transform === 'regex' ? transformPattern : undefined, windowMode });
+            groupingRules.push({
+                source,
+                value,
+                color,
+                colorField,
+                transform,
+                transformPattern: transform === 'regex' ? transformPattern : undefined,
+                replacement: (transform === 'regex' && replacement) ? replacement : undefined,
+                windowMode
+            });
         }
     });
 

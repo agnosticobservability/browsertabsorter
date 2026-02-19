@@ -130,6 +130,7 @@ export interface GroupingRule {
   colorField?: string;
   transform?: "none" | "stripTld" | "lowercase" | "uppercase" | "firstChar" | "domain" | "hostname" | "regex";
   transformPattern?: string;
+  replacement?: string;
   windowMode?: "current" | "new" | "compound";
 }
 

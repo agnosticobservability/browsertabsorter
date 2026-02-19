@@ -470,15 +470,24 @@ export const getGroupingResult = (tab: TabMetadata, strategy: GroupingStrategy |
                                         regex = new RegExp(rule.transformPattern);
                                         regexCache.set(rule.transformPattern, regex);
                                     }
-                                    const match = regex.exec(val);
-                                    if (match) {
-                                        let extracted = "";
-                                        for (let i = 1; i < match.length; i++) {
-                                            extracted += match[i] || "";
-                                        }
-                                        val = extracted;
+
+                                    if (rule.replacement !== undefined) {
+                                        val = val.replace(regex, rule.replacement);
                                     } else {
-                                        val = "";
+                                        const match = regex.exec(val);
+                                        if (match) {
+                                            if (match.length > 1) {
+                                                let extracted = "";
+                                                for (let i = 1; i < match.length; i++) {
+                                                    extracted += match[i] || "";
+                                                }
+                                                val = extracted;
+                                            } else {
+                                                val = match[0];
+                                            }
+                                        } else {
+                                            val = "";
+                                        }
                                     }
                                 } catch (e) {
                                     logDebug("Invalid regex in transform", { pattern: rule.transformPattern, error: String(e) });
