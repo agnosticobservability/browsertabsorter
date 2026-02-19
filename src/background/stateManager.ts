@@ -201,26 +201,40 @@ export const restoreState = async (state: UndoState | SavedState) => {
       // Note: New window creation adds a tab. We might want to remove it later or ignore it.
     }
 
-    const tabIds = tabsToMove.map(t => t.tabId);
-
     // Move all to window.
     // Note: If we move to index 0, they will be prepended.
     // We should probably just move them to the window first.
     // If we move them individually to correct index, it's safer.
 
-    for (let j = 0; j < tabsToMove.length; j++) {
-      const { tabId, stored } = tabsToMove[j];
+    const tabIds = tabsToMove.map(t => t.tabId);
+    try {
+      // Optimization: Batch move all tabs at once
+      await chrome.tabs.move(tabIds, { windowId: targetWindowId, index: 0 });
+    } catch (e) {
+      logError("Failed to batch move tabs, falling back to individual moves", { error: e });
+      // Fallback: Move individually if batch fails
+      for (let j = 0; j < tabsToMove.length; j++) {
+        const { tabId } = tabsToMove[j];
+        try {
+          await chrome.tabs.move(tabId, { windowId: targetWindowId, index: j });
+        } catch (e2) {
+          logError("Failed to move tab individually", { tabId, error: e2 });
+        }
+      }
+    }
+
+    // Handle pinning after move
+    for (const { tabId, stored } of tabsToMove) {
       try {
-        await chrome.tabs.move(tabId, { windowId: targetWindowId, index: j });
         if (stored.pinned) {
-             await chrome.tabs.update(tabId, { pinned: true });
+          await chrome.tabs.update(tabId, { pinned: true });
         } else {
-             // If currently pinned but shouldn't be
-             const current = await chrome.tabs.get(tabId);
-             if (current.pinned) await chrome.tabs.update(tabId, { pinned: false });
+          // If currently pinned but shouldn't be
+          const current = await chrome.tabs.get(tabId);
+          if (current.pinned) await chrome.tabs.update(tabId, { pinned: false });
         }
       } catch (e) {
-        logError("Failed to move tab", { tabId, error: e });
+        logError("Failed to update tab pin state", { tabId, error: e });
       }
     }
 
