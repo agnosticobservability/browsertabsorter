@@ -15,6 +15,7 @@ import {
   compareBy
 } from "../background/sortingStrategies.js";
 import { mapChromeTab } from "../shared/utils.js";
+import { getDragAfterElement } from "./common.js";
 import { setCustomStrategies } from "../background/groupingStrategies.js";
 import { GroupingStrategy, Preferences, SortingStrategy, TabMetadata, TabGroup, CustomStrategy, StrategyRule, RuleCondition, GroupingRule, SortingRule, LogEntry, LogLevel } from "../shared/types.js";
 import { STRATEGIES, StrategyDefinition, getStrategies } from "../shared/strategyRegistry.js";
@@ -2102,7 +2103,7 @@ function addDnDListeners(row: HTMLElement, container: HTMLElement) {
   // The container handles the drop zone logic via dragover
   container.addEventListener('dragover', (e) => {
     e.preventDefault();
-    const afterElement = getDragAfterElement(container, e.clientY);
+    const afterElement = getDragAfterElement(container, e.clientY, '.strategy-row:not(.dragging)');
     const draggable = container.querySelector('.dragging');
     if (draggable) {
       if (afterElement == null) {
@@ -2112,20 +2113,6 @@ function addDnDListeners(row: HTMLElement, container: HTMLElement) {
       }
     }
   });
-}
-
-function getDragAfterElement(container: HTMLElement, y: number) {
-  const draggableElements = Array.from(container.querySelectorAll('.strategy-row:not(.dragging)'));
-
-  return draggableElements.reduce((closest, child) => {
-    const box = child.getBoundingClientRect();
-    const offset = y - box.top - box.height / 2;
-    if (offset < 0 && offset > closest.offset) {
-      return { offset: offset, element: child };
-    } else {
-      return closest;
-    }
-  }, { offset: Number.NEGATIVE_INFINITY, element: null as Element | null }).element;
 }
 
 function showModal(title: string, content: HTMLElement | string) {
