@@ -1401,7 +1401,7 @@ function runBuilderSimulation() {
         ${group.tabs.map(tab => `
           <li class="group-tab-item" style="padding: 4px 5px; border-top: 1px solid #eee; display: flex; gap: 5px; align-items: center; font-size: 0.85em;">
             <div style="width: 12px; height: 12px; background: #eee; border-radius: 2px; flex-shrink: 0;">
-                ${tab.favIconUrl ? `<img src="${tab.favIconUrl}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.style.display='none'">` : ''}
+                ${tab.favIconUrl ? `<img src="${escapeHtml(tab.favIconUrl)}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.style.display='none'">` : ''}
             </div>
             <span class="title-cell" title="${escapeHtml(tab.title)}" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(tab.title)}</span>
           </li>
@@ -2278,7 +2278,7 @@ function runSimulation() {
       <ul class="group-tabs">
         ${group.tabs.map(tab => `
           <li class="group-tab-item">
-            ${tab.favIconUrl ? `<img src="${tab.favIconUrl}" class="tab-icon" onerror="this.style.display='none'">` : '<div class="tab-icon"></div>'}
+            ${tab.favIconUrl ? `<img src="${escapeHtml(tab.favIconUrl)}" class="tab-icon" onerror="this.style.display='none'">` : '<div class="tab-icon"></div>'}
             <span class="title-cell" title="${escapeHtml(tab.title)}">${escapeHtml(tab.title)}</span>
             <span style="color: #999; font-size: 0.8em; margin-left: auto;">${escapeHtml(new URL(tab.url).hostname)}</span>
           </li>
