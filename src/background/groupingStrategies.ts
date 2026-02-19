@@ -59,6 +59,24 @@ export const subdomainFromUrl = (url: string): string => {
     }
 }
 
+const getNestedProperty = (obj: unknown, path: string): unknown => {
+    if (!obj || typeof obj !== 'object') return undefined;
+
+    if (!path.includes('.')) {
+        return (obj as Record<string, unknown>)[path];
+    }
+
+    const parts = path.split('.');
+    let current: unknown = obj;
+
+    for (const key of parts) {
+        if (!current || typeof current !== 'object') return undefined;
+        current = (current as Record<string, unknown>)[key];
+    }
+
+    return current;
+};
+
 export const getFieldValue = (tab: TabMetadata, field: string): any => {
     switch(field) {
         case 'id': return tab.id;
@@ -80,10 +98,7 @@ export const getFieldValue = (tab: TabMetadata, field: string): any => {
         case 'domain': return domainFromUrl(tab.url);
         case 'subdomain': return subdomainFromUrl(tab.url);
         default:
-            if (field.includes('.')) {
-                 return field.split('.').reduce((obj, key) => (obj && typeof obj === 'object' && obj !== null) ? (obj as any)[key] : undefined, tab);
-            }
-            return (tab as any)[field];
+            return getNestedProperty(tab, field);
     }
 };
 
