@@ -82,4 +82,28 @@ describe("Logger", () => {
     expect(logs.length).toBe(1000);
     expect(logs[0].message).toBe("Message 1099");
   });
+
+  test("should redact sensitive information from logs", () => {
+    const sensitiveContext = {
+      password: "supersecretpassword",
+      apiKey: "12345-abcde",
+      token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9",
+      user: {
+        name: "John Doe",
+        authorization: "bearer token",
+        keyCode: 13 // Should not be redacted
+      }
+    };
+
+    logger.logInfo("User login", sensitiveContext);
+    const logs = logger.getLogs();
+    const lastLog = logs[0];
+
+    expect(lastLog.context.password).toBe("[REDACTED]");
+    expect(lastLog.context.apiKey).toBe("[REDACTED]");
+    expect(lastLog.context.token).toBe("[REDACTED]");
+    expect(lastLog.context.user.authorization).toBe("[REDACTED]");
+    expect(lastLog.context.user.keyCode).toBe(13); // Should be preserved
+    expect(lastLog.context.user.name).toBe("John Doe"); // Should be preserved
+  });
 });

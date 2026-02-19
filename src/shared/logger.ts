@@ -15,6 +15,32 @@ let logs: LogEntry[] = [];
 const MAX_LOGS = 1000;
 const STORAGE_KEY = "sessionLogs";
 
+const SENSITIVE_KEYS = /password|secret|token|credential|cookie|session|authorization|((api|access|secret|private)[-_]?key)/i;
+
+const sanitizeContext = (context: Record<string, unknown> | undefined): Record<string, unknown> | undefined => {
+    if (!context) return undefined;
+    try {
+        // Deep clone to ensure we don't modify the original object and remove non-serializable data
+        const json = JSON.stringify(context);
+        const obj = JSON.parse(json);
+
+        const redact = (o: any) => {
+            if (typeof o !== 'object' || o === null) return;
+            for (const k in o) {
+                if (SENSITIVE_KEYS.test(k)) {
+                    o[k] = '[REDACTED]';
+                } else {
+                    redact(o[k]);
+                }
+            }
+        };
+        redact(obj);
+        return obj;
+    } catch (e) {
+        return { error: "Failed to sanitize context" };
+    }
+};
+
 // Safe context check
 const isServiceWorker = typeof self !== 'undefined' &&
                         typeof (self as any).ServiceWorkerGlobalScope !== 'undefined' &&
@@ -114,7 +140,11 @@ const addLog = (level: LogLevel, message: string, context?: Record<string, unkno
 
 export const addLogEntry = (entry: LogEntry) => {
     if (isServiceWorker) {
-        logs.unshift(entry);
+        // Ensure context is sanitized before storing
+        const safeContext = sanitizeContext(entry.context);
+        const safeEntry = { ...entry, context: safeContext };
+
+        logs.unshift(safeEntry);
         if (logs.length > MAX_LOGS) {
             logs.pop();
         }
@@ -129,37 +159,42 @@ export const clearLogs = () => {
 };
 
 export const logDebug = (message: string, context?: Record<string, unknown>) => {
-  addLog("debug", message, context);
   if (shouldLog("debug")) {
-    console.debug(`${PREFIX} [DEBUG] ${formatMessage(message, context)}`);
+      const safeContext = sanitizeContext(context);
+      addLog("debug", message, safeContext);
+      console.debug(`${PREFIX} [DEBUG] ${formatMessage(message, safeContext)}`);
   }
 };
 
 export const logInfo = (message: string, context?: Record<string, unknown>) => {
-  addLog("info", message, context);
   if (shouldLog("info")) {
-    console.info(`${PREFIX} [INFO] ${formatMessage(message, context)}`);
+      const safeContext = sanitizeContext(context);
+      addLog("info", message, safeContext);
+      console.info(`${PREFIX} [INFO] ${formatMessage(message, safeContext)}`);
   }
 };
 
 export const logWarn = (message: string, context?: Record<string, unknown>) => {
-  addLog("warn", message, context);
   if (shouldLog("warn")) {
-    console.warn(`${PREFIX} [WARN] ${formatMessage(message, context)}`);
+      const safeContext = sanitizeContext(context);
+      addLog("warn", message, safeContext);
+      console.warn(`${PREFIX} [WARN] ${formatMessage(message, safeContext)}`);
   }
 };
 
 export const logError = (message: string, context?: Record<string, unknown>) => {
-  addLog("error", message, context);
   if (shouldLog("error")) {
-    console.error(`${PREFIX} [ERROR] ${formatMessage(message, context)}`);
+      const safeContext = sanitizeContext(context);
+      addLog("error", message, safeContext);
+      console.error(`${PREFIX} [ERROR] ${formatMessage(message, safeContext)}`);
   }
 };
 
 export const logCritical = (message: string, context?: Record<string, unknown>) => {
-  addLog("critical", message, context);
   if (shouldLog("critical")) {
-    // Critical logs use error console but with distinct prefix and maybe styling if supported
-    console.error(`${PREFIX} [CRITICAL] 🚨 ${formatMessage(message, context)}`);
+      const safeContext = sanitizeContext(context);
+      addLog("critical", message, safeContext);
+      // Critical logs use error console but with distinct prefix and maybe styling if supported
+      console.error(`${PREFIX} [CRITICAL] 🚨 ${formatMessage(message, safeContext)}`);
   }
 };
