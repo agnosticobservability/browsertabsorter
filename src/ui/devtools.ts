@@ -626,19 +626,14 @@ function addFilterGroupRow(conditions?: RuleCondition[]) {
 
     const groupDiv = document.createElement('div');
     groupDiv.className = 'filter-group-row';
-    groupDiv.style.border = '1px solid #e0e0e0';
-    groupDiv.style.borderRadius = '5px';
-    groupDiv.style.padding = '10px';
-    groupDiv.style.marginBottom = '10px';
-    groupDiv.style.backgroundColor = '#fafafa';
 
     groupDiv.innerHTML = `
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
-            <span style="font-weight: bold; color: #555; font-size: 0.9em;">Group (AND)</span>
-            <button class="small-btn btn-del-group" style="background: #ffcccc; color: darkred;">Delete Group</button>
+        <div class="filter-group-header">
+            <span class="filter-group-title">Group (AND)</span>
+            <button class="small-btn btn-del-group">Delete Group</button>
         </div>
         <div class="conditions-container"></div>
-        <button class="small-btn btn-add-condition" style="margin-top: 5px;">+ Add Condition</button>
+        <button class="small-btn btn-add-condition">+ Add Condition</button>
     `;
 
     groupDiv.querySelector('.btn-del-group')?.addEventListener('click', () => {
