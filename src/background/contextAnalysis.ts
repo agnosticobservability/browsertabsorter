@@ -1,6 +1,7 @@
 import { TabMetadata, PageContext } from "../shared/types.js";
 import { logDebug, logError } from "../shared/logger.js";
 import { extractPageContext } from "./extraction/index.js";
+import { getCategoryFromUrl } from "./categoryRules.js";
 
 export interface ContextResult {
   context: string;
@@ -13,6 +14,7 @@ export interface ContextResult {
 interface CacheEntry {
   result: ContextResult;
   timestamp: number;
+  // We use this to decide when to invalidate cache
 }
 
 const contextCache = new Map<string, CacheEntry>();
@@ -137,25 +139,6 @@ const fetchContextForTab = async (tab: TabMetadata): Promise<ContextResult> => {
 };
 
 const localHeuristic = async (tab: TabMetadata): Promise<ContextResult> => {
-  const url = tab.url.toLowerCase();
-  let context = "Uncategorized";
-
-  if (url.includes("github") || url.includes("stackoverflow") || url.includes("localhost") || url.includes("jira") || url.includes("gitlab")) context = "Development";
-  else if (url.includes("google") && (url.includes("docs") || url.includes("sheets") || url.includes("slides"))) context = "Work";
-  else if (url.includes("linkedin") || url.includes("slack") || url.includes("zoom") || url.includes("teams")) context = "Work";
-  else if (url.includes("netflix") || url.includes("spotify") || url.includes("hulu") || url.includes("disney") || url.includes("youtube")) context = "Entertainment";
-  else if (url.includes("twitter") || url.includes("facebook") || url.includes("instagram") || url.includes("reddit") || url.includes("tiktok") || url.includes("pinterest")) context = "Social";
-  else if (url.includes("amazon") || url.includes("ebay") || url.includes("walmart") || url.includes("target") || url.includes("shopify")) context = "Shopping";
-  else if (url.includes("cnn") || url.includes("bbc") || url.includes("nytimes") || url.includes("washingtonpost") || url.includes("foxnews")) context = "News";
-  else if (url.includes("coursera") || url.includes("udemy") || url.includes("edx") || url.includes("khanacademy") || url.includes("canvas")) context = "Education";
-  else if (url.includes("expedia") || url.includes("booking") || url.includes("airbnb") || url.includes("tripadvisor") || url.includes("kayak")) context = "Travel";
-  else if (url.includes("webmd") || url.includes("mayoclinic") || url.includes("nih.gov") || url.includes("health")) context = "Health";
-  else if (url.includes("espn") || url.includes("nba") || url.includes("nfl") || url.includes("mlb") || url.includes("fifa")) context = "Sports";
-  else if (url.includes("techcrunch") || url.includes("wired") || url.includes("theverge") || url.includes("arstechnica")) context = "Technology";
-  else if (url.includes("science") || url.includes("nature.com") || url.includes("nasa.gov")) context = "Science";
-  else if (url.includes("twitch") || url.includes("steam") || url.includes("roblox") || url.includes("ign") || url.includes("gamespot")) context = "Gaming";
-  else if (url.includes("soundcloud") || url.includes("bandcamp") || url.includes("last.fm")) context = "Music";
-  else if (url.includes("deviantart") || url.includes("behance") || url.includes("dribbble") || url.includes("artstation")) context = "Art";
-
+  const context = getCategoryFromUrl(tab.url);
   return { context, source: 'Heuristic' };
 };
