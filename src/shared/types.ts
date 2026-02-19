@@ -130,8 +130,9 @@ export interface GroupingRule {
   colorField?: string;
   colorTransform?: "none" | "stripTld" | "lowercase" | "uppercase" | "firstChar" | "domain" | "hostname" | "regex";
   colorTransformPattern?: string;
-  transform?: "none" | "stripTld" | "lowercase" | "uppercase" | "firstChar" | "domain" | "hostname" | "regex";
+  transform?: "none" | "stripTld" | "lowercase" | "uppercase" | "firstChar" | "domain" | "hostname" | "regex" | "regexReplace";
   transformPattern?: string;
+  transformReplacement?: string;
   windowMode?: "current" | "new" | "compound";
 }
 
