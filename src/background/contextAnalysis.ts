@@ -2,6 +2,7 @@ import { TabMetadata, PageContext } from "../shared/types.js";
 import { logDebug, logError } from "../shared/logger.js";
 import { extractPageContext } from "./extraction/index.js";
 import { getCategoryFromUrl } from "./categoryRules.js";
+import { determineCategoryFromContext } from "./categorizationRules.js";
 
 export interface ContextResult {
   context: string;
@@ -91,29 +92,8 @@ const fetchContextForTab = async (tab: TabMetadata): Promise<ContextResult> => {
 
   // 2. Try to Determine Category from Extraction Data
   if (data) {
-      if (data.platform === 'YouTube' || data.platform === 'Netflix' || data.platform === 'Spotify' || data.platform === 'Twitch') {
-          context = "Entertainment";
-          source = 'Extraction';
-      } else if (data.platform === 'GitHub' || data.platform === 'Stack Overflow' || data.platform === 'Jira' || data.platform === 'GitLab') {
-          context = "Development";
-          source = 'Extraction';
-      } else if (data.platform === 'Google' && (data.normalizedUrl.includes('docs') || data.normalizedUrl.includes('sheets') || data.normalizedUrl.includes('slides'))) {
-          context = "Work";
-          source = 'Extraction';
-      } else {
-        // If we have successful extraction data but no specific rule matched,
-        // use the Object Type or generic "General Web" to indicate extraction worked.
-        // We prefer specific categories, but "Article" or "Video" are better than "Uncategorized".
-        if (data.objectType && data.objectType !== 'unknown') {
-             // Map object types to categories if possible
-             if (data.objectType === 'video') context = 'Entertainment';
-             else if (data.objectType === 'article') context = 'News'; // Loose mapping, but better than nothing
-             else context = data.objectType.charAt(0).toUpperCase() + data.objectType.slice(1);
-        } else {
-             context = "General Web";
-        }
-        source = 'Extraction';
-      }
+    context = determineCategoryFromContext(data);
+    source = 'Extraction';
   }
 
   // 3. Fallback to Local Heuristic (URL Regex)
