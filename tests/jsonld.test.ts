@@ -42,4 +42,40 @@ const jsonLd3 = [
 const res3 = extractJsonLdFields(jsonLd3);
 assert.deepStrictEqual(res3.breadcrumbs, ["Home", "Subcategory"]);
 
+// Test 4: Array of authors
+const jsonLd4 = [
+    {
+        "@type": "Article",
+        "author": [
+            { "@type": "Person", "name": "Author One" },
+            { "@type": "Person", "name": "Author Two" }
+        ],
+        "keywords": ["tag1", "tag2"]
+    }
+];
+const res4 = extractJsonLdFields(jsonLd4);
+assert.strictEqual(res4.author, "Author One");
+assert.deepStrictEqual(res4.tags, ["tag1", "tag2"]);
+
+// Test 5: Empty/Null inputs
+const jsonLd5 = [
+    {
+        "@type": "Article",
+        // no author, no keywords
+    }
+];
+const res5 = extractJsonLdFields(jsonLd5);
+assert.strictEqual(res5.author, null);
+assert.deepStrictEqual(res5.tags, []);
+
+// Test 6: Malformed Breadcrumbs
+const jsonLd6 = [
+    {
+        "@type": "BreadcrumbList",
+        "itemListElement": "not-an-array"
+    }
+];
+const res6 = extractJsonLdFields(jsonLd6);
+assert.deepStrictEqual(res6.breadcrumbs, []);
+
 console.log("All JSON-LD extraction tests passed!");

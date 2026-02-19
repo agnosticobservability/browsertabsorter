@@ -52,40 +52,54 @@ export function parseYouTubeUrl(urlStr: string) {
     }
 }
 
-export function extractJsonLdFields(jsonLd: any[]) {
-    let author: string | null = null;
-    let publishedAt: string | null = null;
-    let modifiedAt: string | null = null;
-    let tags: string[] = [];
-    let breadcrumbs: string[] = [];
+function extractAuthor(entity: any): string | null {
+    if (!entity || !entity.author) return null;
+    if (typeof entity.author === 'string') return entity.author;
+    if (Array.isArray(entity.author)) return entity.author[0]?.name || null;
+    if (typeof entity.author === 'object') return entity.author.name || null;
+    return null;
+}
 
+function extractKeywords(entity: any): string[] {
+    if (!entity || !entity.keywords) return [];
+    if (typeof entity.keywords === 'string') {
+        return entity.keywords.split(',').map((s: string) => s.trim());
+    }
+    if (Array.isArray(entity.keywords)) return entity.keywords;
+    return [];
+}
+
+function extractBreadcrumbs(jsonLd: any[]): string[] {
+    const breadcrumbLd = jsonLd.find(i => i && i['@type'] === 'BreadcrumbList');
+    if (!breadcrumbLd || !Array.isArray(breadcrumbLd.itemListElement)) return [];
+
+    const list = breadcrumbLd.itemListElement.sort((a: any, b: any) => (a.position || 0) - (b.position || 0));
+    const breadcrumbs: string[] = [];
+    list.forEach((item: any) => {
+        if (item.name) breadcrumbs.push(item.name);
+        else if (item.item && item.item.name) breadcrumbs.push(item.item.name);
+    });
+    return breadcrumbs;
+}
+
+export function extractJsonLdFields(jsonLd: any[]) {
     // Find main entity
     // Added safety check: i && i['@type']
     const mainEntity = jsonLd.find(i => i && (i['@type'] === 'Article' || i['@type'] === 'VideoObject' || i['@type'] === 'NewsArticle')) || jsonLd[0];
 
+    let author: string | null = null;
+    let publishedAt: string | null = null;
+    let modifiedAt: string | null = null;
+    let tags: string[] = [];
+
     if (mainEntity) {
-       if (mainEntity.author) {
-          if (typeof mainEntity.author === 'string') author = mainEntity.author;
-          else if (mainEntity.author.name) author = mainEntity.author.name;
-          else if (Array.isArray(mainEntity.author) && mainEntity.author[0]?.name) author = mainEntity.author[0].name;
-       }
-       if (mainEntity.datePublished) publishedAt = mainEntity.datePublished;
-       if (mainEntity.dateModified) modifiedAt = mainEntity.dateModified;
-       if (mainEntity.keywords) {
-         if (typeof mainEntity.keywords === 'string') tags = mainEntity.keywords.split(',').map((s: string) => s.trim());
-         else if (Array.isArray(mainEntity.keywords)) tags = mainEntity.keywords;
-       }
+        author = extractAuthor(mainEntity);
+        publishedAt = mainEntity.datePublished || null;
+        modifiedAt = mainEntity.dateModified || null;
+        tags = extractKeywords(mainEntity);
     }
 
-    // Added safety check: i && i['@type']
-    const breadcrumbLd = jsonLd.find(i => i && i['@type'] === 'BreadcrumbList');
-    if (breadcrumbLd && Array.isArray(breadcrumbLd.itemListElement)) {
-       const list = breadcrumbLd.itemListElement.sort((a: any, b: any) => a.position - b.position);
-       list.forEach((item: any) => {
-         if (item.name) breadcrumbs.push(item.name);
-         else if (item.item && item.item.name) breadcrumbs.push(item.item.name);
-       });
-    }
+    const breadcrumbs = extractBreadcrumbs(jsonLd);
 
     return { author, publishedAt, modifiedAt, tags, breadcrumbs };
 }
