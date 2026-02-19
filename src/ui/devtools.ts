@@ -14,7 +14,7 @@ import {
   pinnedScore,
   compareBy
 } from "../background/sortingStrategies.js";
-import { mapChromeTab } from "../shared/utils.js";
+import { mapChromeTab, escapeHtml } from "../shared/utils.js";
 import { getDragAfterElement } from "./common.js";
 import { setCustomStrategies } from "../background/groupingStrategies.js";
 import { GroupingStrategy, Preferences, SortingStrategy, TabMetadata, TabGroup, CustomStrategy, StrategyRule, RuleCondition, GroupingRule, SortingRule, LogEntry, LogLevel } from "../shared/types.js";
@@ -2392,16 +2392,6 @@ async function applyToBrowser() {
     }
 }
 
-
-function escapeHtml(text: string): string {
-  if (!text) return '';
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}
 
 async function renderLiveView() {
     const container = document.getElementById('live-view-container');

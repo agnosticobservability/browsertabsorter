@@ -12,7 +12,7 @@ global.chrome = {
   }
 } as any;
 
-import { mapChromeTab } from "../src/shared/utils.js";
+import { mapChromeTab, escapeHtml } from "../src/shared/utils.js";
 
 console.log("Running mapChromeTab tests...");
 
@@ -93,3 +93,27 @@ const result5 = mapChromeTab(tabIdNone);
 assert.strictEqual(result5, null, "Should return null if id is TAB_ID_NONE");
 
 console.log("All mapChromeTab tests passed!");
+
+console.log("Running escapeHtml tests...");
+
+// Test 1: Basic text (no escaping needed)
+assert.strictEqual(escapeHtml("Hello World"), "Hello World");
+
+// Test 2: Special characters
+assert.strictEqual(escapeHtml("<div>"), "&lt;div&gt;");
+assert.strictEqual(escapeHtml("Me & You"), "Me &amp; You");
+assert.strictEqual(escapeHtml('Say "Hello"'), "Say &quot;Hello&quot;");
+assert.strictEqual(escapeHtml("It's me"), "It&#039;s me");
+
+// Test 3: Mixed characters
+assert.strictEqual(escapeHtml('<script>alert("XSS")</script>'), "&lt;script&gt;alert(&quot;XSS&quot;)&lt;/script&gt;");
+
+// Test 4: Empty string
+assert.strictEqual(escapeHtml(""), "");
+
+// Test 5: Null/Undefined handling (though typed as string, good to be safe if called from JS)
+// Note: The implementation checks `if (!text) return ''` so null/undefined should return empty string if passed
+assert.strictEqual(escapeHtml(null as any), "");
+assert.strictEqual(escapeHtml(undefined as any), "");
+
+console.log("All escapeHtml tests passed!");
