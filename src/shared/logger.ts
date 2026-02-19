@@ -87,17 +87,6 @@ const formatMessage = (message: string, context?: Record<string, unknown>) => {
 };
 
 const addLog = (level: LogLevel, message: string, context?: Record<string, unknown>) => {
-  // Always add to buffer regardless of current console level setting,
-  // or should we respect it? Usually debug logs are noisy.
-  // Let's respect shouldLog for the buffer too to save memory/noise,
-  // OR we can store everything but filter on view.
-  // Given we want to debug issues, storing everything might be better,
-  // but if we store everything we might fill buffer with debug noise quickly.
-  // Let's stick to storing what is configured to be logged.
-  // Wait, if I want to "debug" something, I usually turn on debug logs.
-  // If I can't see past logs because they weren't stored, I have to repro.
-  // Let's store if it passes `shouldLog`.
-
   if (shouldLog(level)) {
       const entry: LogEntry = {
           timestamp: Date.now(),
