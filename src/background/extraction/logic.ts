@@ -1,29 +1,47 @@
 // logic.ts
 // Pure functions for extraction logic
 
+const TRACKING_PARAMS = [
+  /^utm_/,
+  /^fbclid$/,
+  /^gclid$/,
+  /^_ga$/,
+  /^ref$/,
+  /^yclid$/,
+  /^_hs/
+];
+
+const DOMAIN_ALLOWLISTS: Record<string, string[]> = {
+  'youtube.com': ['v', 'list', 't', 'c', 'channel', 'playlist'],
+  'youtu.be': ['v', 'list', 't', 'c', 'channel', 'playlist'],
+  'google.com': ['q', 'id', 'sourceid']
+};
+
+function getAllowedParams(hostname: string): string[] | null {
+  if (DOMAIN_ALLOWLISTS[hostname]) return DOMAIN_ALLOWLISTS[hostname];
+  for (const domain in DOMAIN_ALLOWLISTS) {
+    if (hostname.endsWith('.' + domain)) return DOMAIN_ALLOWLISTS[domain];
+  }
+  return null;
+}
+
 export function normalizeUrl(urlStr: string): string {
   try {
     const url = new URL(urlStr);
     const params = new URLSearchParams(url.search);
+    const hostname = url.hostname.replace(/^www\./, '');
+    const allowedParams = getAllowedParams(hostname);
+
     const keys: string[] = [];
     params.forEach((_, key) => keys.push(key));
-    const hostname = url.hostname.replace(/^www\./, '');
-
-    const TRACKING = [/^utm_/, /^fbclid$/, /^gclid$/, /^_ga$/, /^ref$/, /^yclid$/, /^_hs/];
-    const isYoutube = hostname.endsWith('youtube.com') || hostname.endsWith('youtu.be');
-    const isGoogle = hostname.endsWith('google.com');
-
-    const keep: string[] = [];
-    if (isYoutube) keep.push('v', 'list', 't', 'c', 'channel', 'playlist');
-    if (isGoogle) keep.push('q', 'id', 'sourceid');
 
     for (const key of keys) {
-      if (TRACKING.some(r => r.test(key))) {
-         params.delete(key);
-         continue;
+      if (TRACKING_PARAMS.some(r => r.test(key))) {
+        params.delete(key);
+        continue;
       }
-      if ((isYoutube || isGoogle) && !keep.includes(key)) {
-         params.delete(key);
+      if (allowedParams && !allowedParams.includes(key)) {
+        params.delete(key);
       }
     }
     url.search = params.toString();
