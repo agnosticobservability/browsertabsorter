@@ -1886,23 +1886,43 @@ function getSortValue(tab: chrome.tabs.Tab, key: string): any {
       return (tab.id && currentContextMap.get(tab.id)?.data?.genre) || '';
     case 'context':
       return (tab.id && currentContextMap.get(tab.id)?.context) || '';
+    case 'siteName':
+      return (tab.id && currentContextMap.get(tab.id)?.data?.siteName) || '';
+    case 'platform':
+      return (tab.id && currentContextMap.get(tab.id)?.data?.platform) || '';
+    case 'objectType':
+      return (tab.id && currentContextMap.get(tab.id)?.data?.objectType) || '';
+    case 'extractedTitle':
+      return (tab.id && currentContextMap.get(tab.id)?.data?.title) || '';
+    case 'authorOrCreator':
+      return (tab.id && currentContextMap.get(tab.id)?.data?.authorOrCreator) || '';
+    case 'publishedAt':
+      return (tab.id && currentContextMap.get(tab.id)?.data?.publishedAt) || '';
     case 'active':
+      return tab.active ? 1 : 0;
     case 'pinned':
-      return (tab as any)[key] ? 1 : 0;
+      return tab.pinned ? 1 : 0;
     case 'id':
+      return tab.id ?? -1;
     case 'index':
+      return tab.index;
     case 'windowId':
+      return tab.windowId;
     case 'groupId':
+      return tab.groupId;
     case 'openerTabId':
-      return (tab as any)[key] || -1;
+      return tab.openerTabId ?? -1;
     case 'lastAccessed':
-      return (tab as any)[key] || 0;
+      // lastAccessed is a valid property of chrome.tabs.Tab in modern definitions
+      return (tab as chrome.tabs.Tab & { lastAccessed?: number }).lastAccessed || 0;
     case 'title':
+      return (tab.title || '').toLowerCase();
     case 'url':
+      return (tab.url || '').toLowerCase();
     case 'status':
-      return ((tab as any)[key] || '').toLowerCase();
+      return (tab.status || '').toLowerCase();
     default:
-      return (tab as any)[key];
+      return '';
   }
 }
 
