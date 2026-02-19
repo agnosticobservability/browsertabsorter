@@ -15,7 +15,8 @@ import {
   sendMessage,
   TabWithGroup,
   WindowView,
-  GROUP_COLORS
+  GROUP_COLORS,
+  getDragAfterElement
 } from "./common.js";
 import { getStrategies, STRATEGIES, StrategyDefinition } from "../shared/strategyRegistry.js";
 import { setLoggerPreferences, logDebug, logInfo } from "../shared/logger.js";
@@ -659,7 +660,7 @@ function addDnDListeners(row: HTMLElement) {
 function setupContainerDnD(container: HTMLElement) {
     container.addEventListener('dragover', (e) => {
         e.preventDefault();
-        const afterElement = getDragAfterElement(container, e.clientY);
+        const afterElement = getDragAfterElement(container, e.clientY, '.strategy-row:not(.dragging)');
         const draggableRow = document.querySelector('.strategy-row.dragging');
         if (draggableRow && draggableRow.parentElement === container) {
              if (afterElement == null) {
@@ -672,20 +673,6 @@ function setupContainerDnD(container: HTMLElement) {
 }
 
 setupContainerDnD(activeStrategiesList);
-
-function getDragAfterElement(container: HTMLElement, y: number) {
-  const draggableElements = Array.from(container.querySelectorAll('.strategy-row:not(.dragging)'));
-
-  return draggableElements.reduce((closest, child) => {
-    const box = child.getBoundingClientRect();
-    const offset = y - box.top - box.height / 2;
-    if (offset < 0 && offset > closest.offset) {
-      return { offset: offset, element: child };
-    } else {
-      return closest;
-    }
-  }, { offset: Number.NEGATIVE_INFINITY, element: null as Element | null }).element;
-}
 
 const updateUI = (
   stateData: { groups: TabGroup[]; preferences: Preferences },
