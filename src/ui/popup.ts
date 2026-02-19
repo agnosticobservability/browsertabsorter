@@ -71,6 +71,7 @@ let focusedWindowId: number | null = null;
 const selectedTabs = new Set<number>();
 let initialSelectionDone = false;
 let preferences: Preferences | null = null;
+let localPreferencesModifiedTime = 0;
 
 // Tree State
 const expandedNodes = new Set<string>(); // Default empty = all collapsed
@@ -500,6 +501,7 @@ function updateStrategyViews(strategies: StrategyDefinition[], enabledIds: strin
                     autoRunBtn.classList.toggle('active', isActive);
                     autoRunBtn.style.opacity = isActive ? "1" : "0.3";
                     autoRunBtn.title = `Auto Run: ${isActive ? 'ON' : 'OFF'}`;
+                    localPreferencesModifiedTime = Date.now();
                     await sendMessage("savePreferences", { customStrategies: preferences.customStrategies });
                 }
              };
@@ -594,6 +596,7 @@ function updateStrategyViews(strategies: StrategyDefinition[], enabledIds: strin
                  if (customStratIndex !== -1) {
                     const strat = preferences.customStrategies[customStratIndex];
                     strat.autoRun = false;
+                    localPreferencesModifiedTime = Date.now();
                     await sendMessage("savePreferences", { customStrategies: preferences.customStrategies });
                     // UI update triggers via sendMessage response or re-render
                     // But we should re-render immediately for responsiveness
@@ -628,6 +631,7 @@ async function toggleStrategy(id: string, enable: boolean) {
     }
 
     preferences.sorting = current;
+    localPreferencesModifiedTime = Date.now();
     await sendMessage("savePreferences", { sorting: current });
 
     // Re-render
@@ -651,6 +655,7 @@ function addDnDListeners(row: HTMLElement) {
         const oldSorting = preferences.sorting || [];
         if (JSON.stringify(currentSorting) !== JSON.stringify(oldSorting)) {
             preferences.sorting = currentSorting;
+            localPreferencesModifiedTime = Date.now();
             await sendMessage("savePreferences", { sorting: currentSorting });
         }
     }
@@ -680,7 +685,24 @@ const updateUI = (
   chromeWindows: chrome.windows.Window[],
   isPreliminary = false
 ) => {
-    preferences = stateData.preferences;
+    // If we modified preferences locally within the last 2 seconds, ignore the incoming preferences for sorting
+    const timeSinceLocalUpdate = Date.now() - localPreferencesModifiedTime;
+    const shouldUpdatePreferences = timeSinceLocalUpdate > 2000;
+
+    if (shouldUpdatePreferences) {
+        preferences = stateData.preferences;
+    } else {
+        // Keep local sorting/strategies, update others
+        if (preferences && stateData.preferences) {
+             preferences = {
+                 ...stateData.preferences,
+                 sorting: preferences.sorting,
+                 customStrategies: preferences.customStrategies
+             };
+        } else if (!preferences) {
+            preferences = stateData.preferences;
+        }
+    }
 
     if (preferences) {
       const s = preferences.sorting || [];
@@ -737,10 +759,13 @@ const updateUI = (
              expandedNodes.add(`w-${activeWindow.id}`);
              activeWindow.tabs.forEach(t => selectedTabs.add(t.id));
 
-             if (!isPreliminary) {
-                 initialSelectionDone = true;
-             }
+             // If we successfully found and selected the window, mark as done
+             initialSelectionDone = true;
         }
+    }
+
+    if (!isPreliminary) {
+        initialSelectionDone = true;
     }
 
     renderTree();
@@ -998,6 +1023,7 @@ const applyTheme = (theme: 'light' | 'dark', save = false) => {
     if (save) {
         // We use savePreferences which calls the background to store it
         logInfo("Applying theme", { theme });
+        localPreferencesModifiedTime = Date.now();
         sendMessage("savePreferences", { theme });
     }
 };
@@ -1031,6 +1057,7 @@ logLevelSelect?.addEventListener("change", async () => {
         // Update local logger immediately
         setLoggerPreferences(preferences);
         // Persist
+        localPreferencesModifiedTime = Date.now();
         await sendMessage("savePreferences", { logLevel: newLevel });
         logDebug("Log level updated", { level: newLevel });
     }
