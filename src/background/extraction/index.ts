@@ -3,6 +3,7 @@ import { normalizeUrl, parseYouTubeUrl, extractYouTubeChannelFromHtml, extractYo
 import { getGenera } from "./generaRegistry.js";
 import { logDebug } from "../../shared/logger.js";
 import { loadPreferences } from "../preferences.js";
+import pLimit from "p-limit";
 
 interface ExtractionResponse {
   data: PageContext | null;
@@ -17,9 +18,8 @@ interface ExtractionResponse {
 }
 
 // Simple concurrency control
-let activeFetches = 0;
 const MAX_CONCURRENT_FETCHES = 5; // Conservative limit to avoid rate limiting
-const FETCH_QUEUE: (() => void)[] = [];
+const limit = pLimit(MAX_CONCURRENT_FETCHES);
 
 const fetchWithTimeout = async (url: string, timeout = 2000): Promise<Response> => {
     const controller = new AbortController();
@@ -29,22 +29,6 @@ const fetchWithTimeout = async (url: string, timeout = 2000): Promise<Response> 
         return response;
     } finally {
         clearTimeout(id);
-    }
-};
-
-const enqueueFetch = async <T>(fn: () => Promise<T>): Promise<T> => {
-    if (activeFetches >= MAX_CONCURRENT_FETCHES) {
-        await new Promise<void>(resolve => FETCH_QUEUE.push(resolve));
-    }
-    activeFetches++;
-    try {
-        return await fn();
-    } finally {
-        activeFetches--;
-        if (FETCH_QUEUE.length > 0) {
-            const next = FETCH_QUEUE.shift();
-            if (next) next();
-        }
     }
 };
 
@@ -74,7 +58,7 @@ export const extractPageContext = async (tab: TabMetadata | chrome.tabs.Tab): Pr
     if ((hostname.endsWith('youtube.com') || hostname.endsWith('youtu.be')) && (!baseline.authorOrCreator || baseline.genre === 'Video')) {
          try {
              // We use a queue to prevent flooding requests
-             await enqueueFetch(async () => {
+             await limit(async () => {
                  const response = await fetchWithTimeout(targetUrl);
                  if (response.ok) {
                      const html = await response.text();
@@ -99,7 +83,7 @@ export const extractPageContext = async (tab: TabMetadata | chrome.tabs.Tab): Pr
     };
 
   } catch (e: any) {
-    logDebug(`Extraction failed for tab ${tab.id}`, { error: String(e) });
+    logDebug(`Extraction failed for tab ${tab?.id}`, { error: String(e) });
     return {
       data: null,
       error: String(e),

@@ -15,5 +15,8 @@
     "@types/node": "^25.0.8",
     "esbuild": "^0.27.2",
     "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "p-limit": "^7.3.0"
   }
 }
