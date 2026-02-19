@@ -75,9 +75,33 @@ export const extractPageContext = async (tab: TabMetadata | chrome.tabs.Tab): Pr
          try {
              // We use a queue to prevent flooding requests
              await enqueueFetch(async () => {
-                 const response = await fetchWithTimeout(targetUrl);
-                 if (response.ok) {
-                     const html = await response.text();
+                 let html: string | null = null;
+
+                 // Optimization: Try to use executeScript if tab ID is available to save network
+                 try {
+                     // Check if chrome API is available (for tests and safety)
+                     if (typeof chrome !== 'undefined' && chrome.tabs && chrome.scripting && tab.id !== undefined && tab.id !== chrome.tabs.TAB_ID_NONE) {
+                        const results = await chrome.scripting.executeScript({
+                            target: { tabId: tab.id },
+                            func: () => document.documentElement.outerHTML
+                        });
+                        if (results && results[0] && results[0].result) {
+                            html = results[0].result;
+                        }
+                     }
+                 } catch (scriptErr) {
+                    // ignore and fall back to fetch
+                    logDebug(`executeScript optimization failed for tab ${tab.id}, falling back to fetch`, { error: String(scriptErr) });
+                 }
+
+                 if (!html) {
+                     const response = await fetchWithTimeout(targetUrl);
+                     if (response.ok) {
+                         html = await response.text();
+                     }
+                 }
+
+                 if (html) {
                      const channel = extractYouTubeChannelFromHtml(html);
                      if (channel) {
                          baseline.authorOrCreator = channel;
