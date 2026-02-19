@@ -330,6 +330,30 @@
       </section>
     </main>
 
+    <template id="filter-group-template">
+      <div class="filter-group-row">
+        <div class="filter-group-header">
+          <span class="filter-group-title">Group (AND)</span>
+          <button class="small-btn btn-del-group">Delete Group</button>
+        </div>
+        <div class="conditions-container"></div>
+        <button class="small-btn btn-add-condition">+ Add Condition</button>
+      </div>
+    </template>
+
+    <template id="filter-condition-template">
+      <div class="builder-row condition-row" style="display: flex; gap: 5px; margin-bottom: 5px; align-items: center;">
+        <select class="field-select"></select>
+        <span class="operator-container">
+          <select class="operator-select"></select>
+        </span>
+        <span class="value-container">
+          <input type="text" class="value-input" placeholder="Value">
+        </span>
+        <button class="small-btn btn-del-condition" style="background: none; border: none; color: red;">&times;</button>
+      </div>
+    </template>
+
     <script type="module" src="../build/ui/devtools.js"></script>
   </body>
 </html>

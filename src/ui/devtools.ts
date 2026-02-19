@@ -625,17 +625,14 @@ function addFilterGroupRow(conditions?: RuleCondition[]) {
     const container = document.getElementById('filter-rows-container');
     if (!container) return;
 
-    const groupDiv = document.createElement('div');
-    groupDiv.className = 'filter-group-row';
+    const template = document.getElementById('filter-group-template') as HTMLTemplateElement;
+    if (!template) {
+        console.error("Template #filter-group-template not found");
+        return;
+    }
 
-    groupDiv.innerHTML = `
-        <div class="filter-group-header">
-            <span class="filter-group-title">Group (AND)</span>
-            <button class="small-btn btn-del-group">Delete Group</button>
-        </div>
-        <div class="conditions-container"></div>
-        <button class="small-btn btn-add-condition">+ Add Condition</button>
-    `;
+    const clone = template.content.cloneNode(true) as DocumentFragment;
+    const groupDiv = clone.querySelector('.filter-group-row') as HTMLElement;
 
     groupDiv.querySelector('.btn-del-group')?.addEventListener('click', () => {
         groupDiv.remove();
@@ -646,30 +643,23 @@ function addFilterGroupRow(conditions?: RuleCondition[]) {
     const addConditionBtn = groupDiv.querySelector('.btn-add-condition');
 
     const addCondition = (data?: RuleCondition) => {
-        const div = document.createElement('div');
-        div.className = 'builder-row condition-row';
-        div.style.display = 'flex';
-        div.style.gap = '5px';
-        div.style.marginBottom = '5px';
-        div.style.alignItems = 'center';
+        const condTemplate = document.getElementById('filter-condition-template') as HTMLTemplateElement;
+        if (!condTemplate) {
+            console.error("Template #filter-condition-template not found");
+            return;
+        }
 
-        div.innerHTML = `
-            <select class="field-select">
-                ${FIELD_OPTIONS}
-            </select>
-            <span class="operator-container">
-                <select class="operator-select">
-                    ${OPERATOR_OPTIONS}
-                </select>
-            </span>
-            <span class="value-container">
-                <input type="text" class="value-input" placeholder="Value">
-            </span>
-            <button class="small-btn btn-del-condition" style="background: none; border: none; color: red;">&times;</button>
-        `;
+        const condClone = condTemplate.content.cloneNode(true) as DocumentFragment;
+        const div = condClone.firstElementChild as HTMLElement;
 
+        // Inject Options
         const fieldSelect = div.querySelector('.field-select') as HTMLSelectElement;
+        if (fieldSelect) fieldSelect.innerHTML = FIELD_OPTIONS;
+
         const operatorContainer = div.querySelector('.operator-container') as HTMLElement;
+        const operatorSelect = div.querySelector('.operator-select') as HTMLSelectElement;
+        if (operatorSelect) operatorSelect.innerHTML = OPERATOR_OPTIONS;
+
         const valueContainer = div.querySelector('.value-container') as HTMLElement;
 
         const updateState = (initialOp?: string, initialVal?: string) => {
