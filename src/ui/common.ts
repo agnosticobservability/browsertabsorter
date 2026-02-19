@@ -144,3 +144,36 @@ export function getDragAfterElement(container: HTMLElement, y: number, selector:
     }
   }, { offset: Number.NEGATIVE_INFINITY, element: null as Element | null }).element;
 }
+
+export function setupDraggableItem(
+  row: HTMLElement,
+  onDragEnd?: (row: HTMLElement) => void
+) {
+  row.setAttribute('draggable', 'true');
+  row.addEventListener('dragstart', (e) => {
+    row.classList.add('dragging');
+    if (e.dataTransfer) {
+        e.dataTransfer.effectAllowed = 'move';
+    }
+  });
+
+  row.addEventListener('dragend', () => {
+    row.classList.remove('dragging');
+    if (onDragEnd) onDragEnd(row);
+  });
+}
+
+export function setupDropZone(container: HTMLElement, itemSelector: string) {
+  container.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    const afterElement = getDragAfterElement(container, e.clientY, `${itemSelector}:not(.dragging)`);
+    const draggable = container.querySelector('.dragging');
+    if (draggable) {
+      if (afterElement == null) {
+        container.appendChild(draggable);
+      } else {
+        container.insertBefore(draggable, afterElement);
+      }
+    }
+  });
+}

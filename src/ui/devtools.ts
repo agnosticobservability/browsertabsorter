@@ -15,7 +15,7 @@ import {
   compareBy
 } from "../background/sortingStrategies.js";
 import { mapChromeTab } from "../shared/utils.js";
-import { getDragAfterElement } from "./common.js";
+import { setupDraggableItem, setupDropZone } from "./common.js";
 import { setCustomStrategies } from "../background/groupingStrategies.js";
 import { GroupingStrategy, Preferences, SortingStrategy, TabMetadata, TabGroup, CustomStrategy, StrategyRule, RuleCondition, GroupingRule, SortingRule, LogEntry, LogLevel } from "../shared/types.js";
 import { STRATEGIES, StrategyDefinition, getStrategies } from "../shared/strategyRegistry.js";
@@ -74,6 +74,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (refreshBtn) {
     refreshBtn.addEventListener('click', loadTabs);
   }
+
+  // Setup Drop Zones for simulation lists
+  const groupingList = document.getElementById('sim-grouping-list');
+  const sortingList = document.getElementById('sim-sorting-list');
+  if (groupingList) setupDropZone(groupingList, '.strategy-row');
+  if (sortingList) setupDropZone(sortingList, '.strategy-row');
 
   // Tab Switching Logic
   document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -2162,38 +2168,10 @@ function renderStrategyList(container: HTMLElement, strategies: StrategyDefiniti
             row.classList.toggle('disabled', !checked);
         });
 
-        addDnDListeners(row, container);
+        setupDraggableItem(row);
 
         container.appendChild(row);
     });
-}
-
-function addDnDListeners(row: HTMLElement, container: HTMLElement) {
-  row.addEventListener('dragstart', (e) => {
-    row.classList.add('dragging');
-    if (e.dataTransfer) {
-        e.dataTransfer.effectAllowed = 'move';
-        // Set a transparent image or similar if desired, but default is usually fine
-    }
-  });
-
-  row.addEventListener('dragend', () => {
-    row.classList.remove('dragging');
-  });
-
-  // The container handles the drop zone logic via dragover
-  container.addEventListener('dragover', (e) => {
-    e.preventDefault();
-    const afterElement = getDragAfterElement(container, e.clientY, '.strategy-row:not(.dragging)');
-    const draggable = container.querySelector('.dragging');
-    if (draggable) {
-      if (afterElement == null) {
-        container.appendChild(draggable);
-      } else {
-        container.insertBefore(draggable, afterElement);
-      }
-    }
-  });
 }
 
 function showModal(title: string, content: HTMLElement | string) {

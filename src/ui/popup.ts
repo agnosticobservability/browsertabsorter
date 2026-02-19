@@ -16,7 +16,8 @@ import {
   TabWithGroup,
   WindowView,
   GROUP_COLORS,
-  getDragAfterElement
+  setupDraggableItem,
+  setupDropZone
 } from "./common.js";
 import { getStrategies, STRATEGIES, StrategyDefinition } from "../shared/strategyRegistry.js";
 import { setLoggerPreferences, logDebug, logInfo } from "../shared/logger.js";
@@ -510,7 +511,18 @@ function updateStrategyViews(strategies: StrategyDefinition[], enabledIds: strin
 
         row.appendChild(removeBtn);
 
-        addDnDListeners(row);
+        setupDraggableItem(row, async () => {
+             if (preferences) {
+                const currentSorting = getSelectedSorting();
+                // Check if order changed
+                const oldSorting = preferences.sorting || [];
+                if (JSON.stringify(currentSorting) !== JSON.stringify(oldSorting)) {
+                    preferences.sorting = currentSorting;
+                    localPreferencesModifiedTime = Date.now();
+                    await sendMessage("savePreferences", { sorting: currentSorting });
+                }
+            }
+        });
         activeStrategiesList.appendChild(row);
     });
 
@@ -638,46 +650,7 @@ async function toggleStrategy(id: string, enable: boolean) {
     updateStrategyViews(allStrategies, current);
 }
 
-function addDnDListeners(row: HTMLElement) {
-  row.addEventListener('dragstart', (e) => {
-    row.classList.add('dragging');
-    if (e.dataTransfer) {
-        e.dataTransfer.effectAllowed = 'move';
-    }
-  });
-
-  row.addEventListener('dragend', async () => {
-    row.classList.remove('dragging');
-    // Save order
-    if (preferences) {
-        const currentSorting = getSelectedSorting();
-        // Check if order changed
-        const oldSorting = preferences.sorting || [];
-        if (JSON.stringify(currentSorting) !== JSON.stringify(oldSorting)) {
-            preferences.sorting = currentSorting;
-            localPreferencesModifiedTime = Date.now();
-            await sendMessage("savePreferences", { sorting: currentSorting });
-        }
-    }
-  });
-}
-
-function setupContainerDnD(container: HTMLElement) {
-    container.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        const afterElement = getDragAfterElement(container, e.clientY, '.strategy-row:not(.dragging)');
-        const draggableRow = document.querySelector('.strategy-row.dragging');
-        if (draggableRow && draggableRow.parentElement === container) {
-             if (afterElement == null) {
-                container.appendChild(draggableRow);
-             } else {
-                container.insertBefore(draggableRow, afterElement);
-             }
-        }
-    });
-}
-
-setupContainerDnD(activeStrategiesList);
+setupDropZone(activeStrategiesList, '.strategy-row');
 
 const updateUI = (
   stateData: { groups: TabGroup[]; preferences: Preferences },
