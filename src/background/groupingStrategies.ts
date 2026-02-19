@@ -428,13 +428,11 @@ export const applyValueTransform = (val: string, transform: string, pattern?: st
     }
 };
 
+/**
+ * Evaluates legacy rules (simple AND/OR conditions without grouping/filter separation).
+ * @deprecated This logic is for backward compatibility with old custom strategies.
+ */
 function evaluateLegacyRules(legacyRules: StrategyRule[], tab: TabMetadata): string | null {
-    // Defensive check
-    if (!legacyRules || !Array.isArray(legacyRules)) {
-        if (!legacyRules) return null;
-        // Try asArray if it's not array but truthy (unlikely given previous logic but safe)
-    }
-
     const legacyRulesList = asArray<StrategyRule>(legacyRules);
     if (legacyRulesList.length === 0) return null;
 
@@ -446,7 +444,7 @@ function evaluateLegacyRules(legacyRules: StrategyRule[], tab: TabMetadata): str
 
             if (isMatch) {
                 let result = rule.result;
-                if (matchObj) {
+                if (matchObj && matchObj.length > 1) {
                     for (let i = 1; i < matchObj.length; i++) {
                          result = result.replace(new RegExp(`\\$${i}`, 'g'), matchObj[i] || "");
                     }
