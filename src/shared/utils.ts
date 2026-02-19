@@ -6,7 +6,7 @@ export const mapChromeTab = (tab: chrome.tabs.Tab): TabMetadata | null => {
     id: tab.id,
     windowId: tab.windowId,
     title: tab.title || "Untitled",
-    url: tab.url || "about:blank",
+    url: tab.pendingUrl || tab.url || "about:blank",
     pinned: Boolean(tab.pinned),
     lastAccessed: tab.lastAccessed,
     openerTabId: tab.openerTabId ?? undefined,

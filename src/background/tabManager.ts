@@ -239,6 +239,20 @@ export const applyTabGroups = async (groups: TabGroup[]) => {
         }
       }
 
+      // Fallback: If no candidate group ID from tabs (e.g. single new tab), look for existing group by label in target window
+      if (candidateGroupId === undefined) {
+        try {
+           const windowGroups = await chrome.tabGroups.query({ windowId: targetWinId });
+           // Find a group with the same title that hasn't been claimed yet
+           const matchingGroup = windowGroups.find(g => g.title === group.label && !claimedGroupIds.has(g.id));
+           if (matchingGroup) {
+             candidateGroupId = matchingGroup.id;
+           }
+        } catch (e) {
+           logError("Error finding matching group by label", { error: String(e) });
+        }
+      }
+
       let finalGroupId: number;
 
       if (candidateGroupId !== undefined) {

@@ -199,8 +199,39 @@ chrome.tabGroups.onRemoved.addListener(async (group) => {
 });
 
 let autoRunTimeout: ReturnType<typeof setTimeout> | null = null;
+const dirtyTabIds = new Set<number>();
+let tabProcessingTimeout: ReturnType<typeof setTimeout> | null = null;
 
-const triggerAutoRun = () => {
+const triggerAutoRun = (tabId?: number) => {
+  // 1. Schedule fast, targeted update for specific tabs
+  if (tabId !== undefined) {
+    dirtyTabIds.add(tabId);
+    if (tabProcessingTimeout) clearTimeout(tabProcessingTimeout);
+
+    tabProcessingTimeout = setTimeout(async () => {
+      const ids = Array.from(dirtyTabIds);
+      dirtyTabIds.clear();
+      if (ids.length === 0) return;
+
+      try {
+        const prefs = await loadPreferences();
+        setCustomStrategies(prefs.customStrategies || []);
+
+        const autoRunStrats = prefs.customStrategies?.filter(s => s.autoRun);
+        if (autoRunStrats && autoRunStrats.length > 0) {
+          const strategyIds = autoRunStrats.map(s => s.id);
+          // Only process the dirty tabs for quick grouping
+          const groups = await calculateTabGroups({ ...prefs, sorting: strategyIds }, { tabIds: ids });
+          await applyTabGroups(groups);
+          logInfo("Auto-run targeted", { tabs: ids, strategies: strategyIds });
+        }
+      } catch (e) {
+        console.error("Auto-run targeted failed", e);
+      }
+    }, 200); // Fast debounce for responsiveness
+  }
+
+  // 2. Schedule global update (slower debounce) to ensure consistency and sorting
   if (autoRunTimeout) clearTimeout(autoRunTimeout);
   autoRunTimeout = setTimeout(async () => {
     try {
@@ -209,7 +240,7 @@ const triggerAutoRun = () => {
 
       const autoRunStrats = prefs.customStrategies?.filter(s => s.autoRun);
       if (autoRunStrats && autoRunStrats.length > 0) {
-        logInfo("Auto-running strategies", {
+        logInfo("Auto-running strategies (global)", {
           strategies: autoRunStrats.map(s => s.id),
           count: autoRunStrats.length
         });
@@ -225,9 +256,12 @@ const triggerAutoRun = () => {
   }, 1000);
 };
 
-chrome.tabs.onCreated.addListener(() => triggerAutoRun());
+chrome.tabs.onCreated.addListener((tab) => {
+  if (tab.id) triggerAutoRun(tab.id);
+  else triggerAutoRun();
+});
 chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
   if (changeInfo.url || changeInfo.status === 'complete') {
-    triggerAutoRun();
+    triggerAutoRun(tabId);
   }
 });
