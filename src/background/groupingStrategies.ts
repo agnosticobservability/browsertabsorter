@@ -280,12 +280,16 @@ export const groupTabs = (
     if (!group) {
       let groupColor = null;
       let colorField: string | undefined;
+      let colorTransform: string | undefined;
+      let colorTransformPattern: string | undefined;
 
       for (const sId of appliedStrategies) {
         const rule = getStrategyColorRule(sId);
         if (rule) {
             groupColor = rule.color;
             colorField = rule.colorField;
+            colorTransform = rule.colorTransform;
+            colorTransformPattern = rule.colorTransformPattern;
             break;
         }
       }
@@ -294,7 +298,10 @@ export const groupTabs = (
         groupColor = colorForKey(valueKey, 0);
       } else if (groupColor === 'field' && colorField) {
         const val = getFieldValue(tab, colorField);
-        const key = val !== undefined && val !== null ? String(val) : "";
+        let key = val !== undefined && val !== null ? String(val) : "";
+        if (colorTransform) {
+            key = applyValueTransform(key, colorTransform, colorTransformPattern);
+        }
         groupColor = colorForKey(key, 0);
       } else if (!groupColor || groupColor === 'field') {
         groupColor = colorForKey(bucketKey, buckets.size);
@@ -360,6 +367,54 @@ export const checkCondition = (condition: RuleCondition, tab: TabMetadata): bool
     const rawValue = getFieldValue(tab, condition.field);
     const { isMatch } = checkValueMatch(condition.operator, rawValue, condition.value);
     return isMatch;
+};
+
+export const applyValueTransform = (val: string, transform: string, pattern?: string): string => {
+    if (!val || !transform || transform === 'none') return val;
+
+    switch (transform) {
+        case 'stripTld':
+            return stripTld(val);
+        case 'lowercase':
+            return val.toLowerCase();
+        case 'uppercase':
+            return val.toUpperCase();
+        case 'firstChar':
+            return val.charAt(0);
+        case 'domain':
+            return domainFromUrl(val);
+        case 'hostname':
+            try {
+              return new URL(val).hostname;
+            } catch { return val; }
+        case 'regex':
+            if (pattern) {
+                try {
+                    let regex = regexCache.get(pattern);
+                    if (!regex) {
+                        regex = new RegExp(pattern);
+                        regexCache.set(pattern, regex);
+                    }
+                    const match = regex.exec(val);
+                    if (match) {
+                        let extracted = "";
+                        for (let i = 1; i < match.length; i++) {
+                            extracted += match[i] || "";
+                        }
+                        return extracted;
+                    } else {
+                        return "";
+                    }
+                } catch (e) {
+                    logDebug("Invalid regex in transform", { pattern: pattern, error: String(e) });
+                    return "";
+                }
+            } else {
+                return "";
+            }
+        default:
+            return val;
+    }
 };
 
 function evaluateLegacyRules(legacyRules: StrategyRule[], tab: TabMetadata): string | null {
@@ -441,54 +496,7 @@ export const getGroupingResult = (tab: TabMetadata, strategy: GroupingStrategy |
                 }
 
                 if (val && rule.transform && rule.transform !== 'none') {
-                    switch (rule.transform) {
-                        case 'stripTld':
-                            val = stripTld(val);
-                            break;
-                        case 'lowercase':
-                            val = val.toLowerCase();
-                            break;
-                        case 'uppercase':
-                            val = val.toUpperCase();
-                            break;
-                        case 'firstChar':
-                            val = val.charAt(0);
-                            break;
-                        case 'domain':
-                            val = domainFromUrl(val);
-                            break;
-                        case 'hostname':
-                            try {
-                              val = new URL(val).hostname;
-                            } catch { /* keep as is */ }
-                            break;
-                        case 'regex':
-                            if (rule.transformPattern) {
-                                try {
-                                    let regex = regexCache.get(rule.transformPattern);
-                                    if (!regex) {
-                                        regex = new RegExp(rule.transformPattern);
-                                        regexCache.set(rule.transformPattern, regex);
-                                    }
-                                    const match = regex.exec(val);
-                                    if (match) {
-                                        let extracted = "";
-                                        for (let i = 1; i < match.length; i++) {
-                                            extracted += match[i] || "";
-                                        }
-                                        val = extracted;
-                                    } else {
-                                        val = "";
-                                    }
-                                } catch (e) {
-                                    logDebug("Invalid regex in transform", { pattern: rule.transformPattern, error: String(e) });
-                                    val = "";
-                                }
-                            } else {
-                                val = "";
-                            }
-                            break;
-                    }
+                    val = applyValueTransform(val, rule.transform, rule.transformPattern);
                 }
 
                 if (val) {

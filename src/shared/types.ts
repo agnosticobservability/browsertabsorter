@@ -128,6 +128,8 @@ export interface GroupingRule {
   value: string;
   color?: string; // hex code or "random" or "match" or "field"
   colorField?: string;
+  colorTransform?: "none" | "stripTld" | "lowercase" | "uppercase" | "firstChar" | "domain" | "hostname" | "regex";
+  colorTransformPattern?: string;
   transform?: "none" | "stripTld" | "lowercase" | "uppercase" | "firstChar" | "domain" | "hostname" | "regex";
   transformPattern?: string;
   windowMode?: "current" | "new" | "compound";
