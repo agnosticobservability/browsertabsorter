@@ -821,6 +821,20 @@ function addBuilderRow(type: 'group' | 'sort' | 'groupSort', data?: any) {
             <select class="color-field-select" style="display:none;">
                 ${FIELD_OPTIONS}
             </select>
+            <span class="color-transform-container" style="display:none; margin-left: 5px; align-items: center;">
+                <span style="font-size: 0.9em; margin-right: 3px;">Trans:</span>
+                <select class="color-transform-select">
+                    <option value="none">None</option>
+                    <option value="stripTld">Strip TLD</option>
+                    <option value="domain">Get Domain</option>
+                    <option value="hostname">Get Hostname</option>
+                    <option value="lowercase">Lowercase</option>
+                    <option value="uppercase">Uppercase</option>
+                    <option value="firstChar">First Char</option>
+                    <option value="regex">Regex</option>
+                </select>
+                <input type="text" class="color-transform-pattern" placeholder="Regex" style="display:none; width: 80px; margin-left: 3px;">
+            </span>
             <label><input type="checkbox" class="random-color-check" checked> Random</label>
 
             <div class="row-actions">
@@ -834,6 +848,9 @@ function addBuilderRow(type: 'group' | 'sort' | 'groupSort', data?: any) {
         const textInput = div.querySelector('.value-input-text') as HTMLElement;
         const colorInput = div.querySelector('.color-input') as HTMLSelectElement;
         const colorFieldSelect = div.querySelector('.color-field-select') as HTMLSelectElement;
+        const colorTransformContainer = div.querySelector('.color-transform-container') as HTMLElement;
+        const colorTransformSelect = div.querySelector('.color-transform-select') as HTMLSelectElement;
+        const colorTransformPattern = div.querySelector('.color-transform-pattern') as HTMLInputElement;
         const randomCheck = div.querySelector('.random-color-check') as HTMLInputElement;
 
         // Regex Logic
@@ -897,19 +914,34 @@ function addBuilderRow(type: 'group' | 'sort' | 'groupSort', data?: any) {
         };
         sourceSelect.addEventListener('change', toggleInput);
 
+        // Toggle color transform pattern
+        const toggleColorTransform = () => {
+             if (colorTransformSelect.value === 'regex') {
+                 colorTransformPattern.style.display = 'inline-block';
+             } else {
+                 colorTransformPattern.style.display = 'none';
+             }
+             updateBreadcrumb();
+        };
+        colorTransformSelect.addEventListener('change', toggleColorTransform);
+        colorTransformPattern.addEventListener('input', updateBreadcrumb);
+
         // Toggle color input
         const toggleColor = () => {
             if (randomCheck.checked) {
                 colorInput.disabled = true;
                 colorInput.style.opacity = '0.5';
                 colorFieldSelect.style.display = 'none';
+                colorTransformContainer.style.display = 'none';
             } else {
                 colorInput.disabled = false;
                 colorInput.style.opacity = '1';
                 if (colorInput.value === 'field') {
                     colorFieldSelect.style.display = 'inline-block';
+                    colorTransformContainer.style.display = 'inline-flex';
                 } else {
                     colorFieldSelect.style.display = 'none';
+                    colorTransformContainer.style.display = 'none';
                 }
             }
         };
@@ -941,6 +973,8 @@ function addBuilderRow(type: 'group' | 'sort' | 'groupSort', data?: any) {
             const transformSelect = div.querySelector('.transform-select') as HTMLSelectElement;
             const colorInput = div.querySelector('.color-input') as HTMLSelectElement;
             const colorFieldSelect = div.querySelector('.color-field-select') as HTMLSelectElement;
+            const colorTransformSelect = div.querySelector('.color-transform-select') as HTMLSelectElement;
+            const colorTransformPattern = div.querySelector('.color-transform-pattern') as HTMLInputElement;
             const randomCheck = div.querySelector('.random-color-check') as HTMLInputElement;
             const windowModeSelect = div.querySelector('.window-mode-select') as HTMLSelectElement;
 
@@ -968,12 +1002,17 @@ function addBuilderRow(type: 'group' | 'sort' | 'groupSort', data?: any) {
                 colorInput.value = data.color;
                 if (data.color === 'field' && data.colorField) {
                     colorFieldSelect.value = data.colorField;
+                    if (data.colorTransform) {
+                         colorTransformSelect.value = data.colorTransform;
+                         if (data.colorTransformPattern) colorTransformPattern.value = data.colorTransformPattern;
+                    }
                 }
             } else {
                 randomCheck.checked = true;
             }
              // Trigger toggle color
             randomCheck.dispatchEvent(new Event('change'));
+            colorTransformSelect.dispatchEvent(new Event('change'));
         } else if (type === 'sort' || type === 'groupSort') {
              if (data.field) (div.querySelector('.field-select') as HTMLSelectElement).value = data.field;
              if (data.order) (div.querySelector('.order-select') as HTMLSelectElement).value = data.order;
@@ -1265,19 +1304,37 @@ function getBuilderStrategy(ignoreValidation: boolean = false): CustomStrategy |
         const randomCheck = row.querySelector('.random-color-check') as HTMLInputElement;
         const colorInput = row.querySelector('.color-input') as HTMLSelectElement;
         const colorFieldSelect = row.querySelector('.color-field-select') as HTMLSelectElement;
+        const colorTransformSelect = row.querySelector('.color-transform-select') as HTMLSelectElement;
+        const colorTransformPattern = row.querySelector('.color-transform-pattern') as HTMLInputElement;
 
         let color = 'random';
         let colorField: string | undefined;
+        let colorTransform: string | undefined;
+        let colorTransformPatternValue: string | undefined;
 
         if (!randomCheck.checked) {
             color = colorInput.value;
             if (color === 'field') {
                 colorField = colorFieldSelect.value;
+                colorTransform = colorTransformSelect.value as any;
+                if (colorTransform === 'regex') {
+                    colorTransformPatternValue = colorTransformPattern.value;
+                }
             }
         }
 
         if (value) {
-            groupingRules.push({ source, value, color, colorField, transform, transformPattern: transform === 'regex' ? transformPattern : undefined, windowMode });
+            groupingRules.push({
+                source,
+                value,
+                color,
+                colorField,
+                colorTransform: colorTransform as any,
+                colorTransformPattern: colorTransformPatternValue,
+                transform,
+                transformPattern: transform === 'regex' ? transformPattern : undefined,
+                windowMode
+            });
         }
     });
 
