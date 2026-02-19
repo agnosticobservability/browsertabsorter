@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { getFieldValue, applyValueTransform } from "../src/background/groupingStrategies";
+import { getFieldValue, applyValueTransform, groupTabs } from "../src/background/groupingStrategies";
 import { TabMetadata } from "../src/shared/types";
 
 describe("getFieldValue", () => {
@@ -85,5 +85,143 @@ describe("applyValueTransform", () => {
         const pattern = "world";
         const replacement = "universe";
         expect(applyValueTransform(input, "regexReplace", pattern, replacement)).toBe("hello universe");
+    });
+});
+
+describe("groupTabs Label Generation", () => {
+    const mockTab1: TabMetadata = {
+        id: 1,
+        windowId: 1,
+        title: "Google Search",
+        url: "https://www.google.com/search?q=test",
+        pinned: false,
+        active: false,
+        index: 0,
+        lastAccessed: Date.now(),
+        contextData: {
+            siteName: "Google",
+            genre: "Search",
+            canonicalUrl: "https://www.google.com/",
+            normalizedUrl: "https://www.google.com/",
+            platform: "Google",
+            objectType: 'search',
+            objectId: null,
+            title: "Google Search",
+            description: null,
+            authorOrCreator: null,
+            publishedAt: null,
+            modifiedAt: null,
+            language: "en",
+            tags: [],
+            breadcrumbs: [],
+            isAudible: false,
+            isMuted: false,
+            isCapturing: false,
+            progress: null,
+            hasUnsavedChangesLikely: false,
+            isAuthenticatedLikely: false,
+            sources: {},
+            confidence: {}
+        }
+    };
+
+    const mockTab2: TabMetadata = {
+        id: 2,
+        windowId: 1,
+        title: "GitHub - Repo",
+        url: "https://github.com/user/repo",
+        pinned: true,
+        active: true,
+        index: 1,
+        lastAccessed: Date.now() - 10000,
+        openerTabId: 1,
+        context: "Dev",
+        contextData: {
+            siteName: "GitHub",
+            genre: "Dev",
+            canonicalUrl: "https://github.com/user/repo",
+            normalizedUrl: "https://github.com/user/repo",
+            platform: "GitHub",
+            objectType: 'repo',
+            objectId: "user/repo",
+            title: "GitHub - Repo",
+            description: null,
+            authorOrCreator: "user",
+            publishedAt: null,
+            modifiedAt: null,
+            language: "en",
+            tags: [],
+            breadcrumbs: [],
+            isAudible: false,
+            isMuted: false,
+            isCapturing: false,
+            progress: null,
+            hasUnsavedChangesLikely: false,
+            isAuthenticatedLikely: true,
+            sources: {},
+            confidence: {}
+        }
+    };
+
+    test("should generate label for domain strategy", () => {
+        const groups = groupTabs([mockTab1], ["domain"]);
+        expect(groups[0].label).toBe("Google");
+    });
+
+    test("should generate label for domain_full strategy", () => {
+        const groups = groupTabs([mockTab1], ["domain_full"]);
+        expect(groups[0].label).toBe("google.com");
+    });
+
+    test("should generate label for topic strategy", () => {
+        const groups = groupTabs([mockTab1], ["topic"]);
+        // "Misc" is filtered out in generateLabel
+        expect(groups[0].label).toBe("Group");
+
+        const docsTab = { ...mockTab1, title: "Documentation" };
+        const docsGroups = groupTabs([docsTab], ["topic"]);
+        expect(docsGroups[0].label).toBe("Docs");
+    });
+
+    test("should generate label for lineage strategy", () => {
+        const groups = groupTabs([mockTab2], ["lineage"]);
+        expect(groups[0].label).toBe("From: Tab 1");
+
+        const groupsWithParent = groupTabs([mockTab1, mockTab2], ["lineage"]);
+        const childGroup = groupsWithParent.find(g => g.tabs.some(t => t.id === 2));
+        expect(childGroup?.label).toBe("From: Google Search");
+    });
+
+    test("should generate label for context strategy", () => {
+        const groups = groupTabs([mockTab2], ["context"]);
+        expect(groups[0].label).toBe("Dev");
+    });
+
+    test("should generate label for pinned strategy", () => {
+        const groups = groupTabs([mockTab2], ["pinned"]);
+        expect(groups[0].label).toBe("Pinned");
+
+        const groupsUnpinned = groupTabs([mockTab1], ["pinned"]);
+        expect(groupsUnpinned[0].label).toBe("Unpinned");
+    });
+
+    test("should generate label for age strategy", () => {
+        const groups = groupTabs([mockTab1], ["age"]);
+        expect(groups[0].label).toBe("Just now");
+    });
+
+    test("should generate label for nesting strategy", () => {
+        const groups = groupTabs([mockTab2], ["nesting"]);
+        expect(groups[0].label).toBe("Children");
+
+        const groupsRoot = groupTabs([mockTab1], ["nesting"]);
+        expect(groupsRoot[0].label).toBe("Roots");
+    });
+
+    test("should combine labels for multiple strategies", () => {
+        // strategies: ["domain", "context"]
+        // mockTab2: domain=GitHub, context=Dev
+        const groups = groupTabs([mockTab2], ["domain", "context"]);
+        expect(groups[0].label).toBe("GitHub - Dev");
     });
 });
