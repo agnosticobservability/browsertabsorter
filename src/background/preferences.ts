@@ -10,7 +10,12 @@ export const defaultPreferences: Preferences = {
   debug: false,
   logLevel: "info",
   theme: "dark",
-  customGenera: {}
+  customGenera: {},
+  ai: {
+    enabled: false,
+    provider: 'openai',
+    model: 'gpt-4o-mini'
+  }
 };
 
 const normalizeSorting = (sorting: unknown): SortingStrategy[] => {
@@ -41,7 +46,8 @@ const normalizePreferences = (prefs?: Partial<Preferences> | null): Preferences 
   return {
     ...merged,
     sorting: normalizeSorting(merged.sorting),
-    customStrategies: normalizeStrategies(merged.customStrategies)
+    customStrategies: normalizeStrategies(merged.customStrategies),
+    ai: { ...defaultPreferences.ai!, ...(merged.ai || {}) }
   };
 };
 

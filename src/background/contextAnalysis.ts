@@ -1,6 +1,7 @@
-import { TabMetadata, PageContext } from "../shared/types.js";
+import { TabMetadata, PageContext, Preferences, AIPreferences } from "../shared/types.js";
 import { logDebug, logError } from "../shared/logger.js";
 import { extractPageContext } from "./extraction/index.js";
+import { loadPreferences } from "./preferences.js";
 
 export interface ContextResult {
   context: string;
@@ -20,6 +21,14 @@ export const analyzeTabContext = async (
   let completed = 0;
   const total = tabs.length;
 
+  // Load preferences once
+  let preferences: Preferences | undefined;
+  try {
+      preferences = await loadPreferences();
+  } catch (e) {
+      logError("Failed to load preferences during context analysis", { error: String(e) });
+  }
+
   const promises = tabs.map(async (tab) => {
     try {
       const cacheKey = `${tab.id}::${tab.url}`;
@@ -28,7 +37,7 @@ export const analyzeTabContext = async (
         return;
       }
 
-      const result = await fetchContextForTab(tab);
+      const result = await fetchContextForTab(tab, preferences);
 
       // Only cache valid results to allow retrying on transient errors?
       // Actually, if we cache error, we stop retrying.
@@ -50,7 +59,7 @@ export const analyzeTabContext = async (
   return contextMap;
 };
 
-const fetchContextForTab = async (tab: TabMetadata): Promise<ContextResult> => {
+const fetchContextForTab = async (tab: TabMetadata, prefs?: Preferences): Promise<ContextResult> => {
   // 1. Run Generic Extraction (Always)
   let data: PageContext | null = null;
   let error: string | undefined;
@@ -107,9 +116,20 @@ const fetchContextForTab = async (tab: TabMetadata): Promise<ContextResult> => {
       }
   }
 
-  // 4. Fallback to AI (LLM) - REMOVED
-  // The HuggingFace API endpoint is 410 Gone and/or requires authentication which we do not have.
-  // The code has been removed to prevent errors.
+  // 4. Fallback to AI (LLM)
+  if (context === "Uncategorized" && prefs?.ai?.enabled) {
+      const aiResult = await fetchContextFromAI(tab, prefs.ai, data);
+      if (aiResult.context && aiResult.context !== "Uncategorized") {
+          context = aiResult.context;
+          source = 'AI';
+          // Clean up error if success
+          error = undefined;
+          status = undefined;
+      } else if (aiResult.error) {
+          // Keep the error for debugging if AI failed but don't change context
+          logDebug("AI Analysis failed", { error: aiResult.error });
+      }
+  }
 
   if (context !== "Uncategorized" && source !== "Extraction") {
     error = undefined;
@@ -117,6 +137,67 @@ const fetchContextForTab = async (tab: TabMetadata): Promise<ContextResult> => {
   }
 
   return { context, source, data: data || undefined, error, status };
+};
+
+export const fetchContextFromAI = async (tab: TabMetadata, aiPrefs: AIPreferences, contextData?: PageContext | null): Promise<ContextResult> => {
+    if (!aiPrefs.enabled) return { context: "Uncategorized", source: 'AI', status: 'DISABLED' };
+
+    // Check key only for OpenAI, Custom might not need it
+    if (aiPrefs.provider === 'openai' && !aiPrefs.apiKey) {
+        return { context: "Uncategorized", source: 'AI', error: "Missing API Key", status: 'ERROR' };
+    }
+
+    const endpoint = aiPrefs.provider === 'custom'
+        ? aiPrefs.endpoint
+        : 'https://api.openai.com/v1/chat/completions';
+
+    if (!endpoint) {
+         return { context: "Uncategorized", source: 'AI', error: "Missing Endpoint", status: 'ERROR' };
+    }
+
+    const model = aiPrefs.model || 'gpt-4o-mini';
+
+    const systemPrompt = `You are a web page classifier. Analyze the following page information and categorize it into exactly ONE of these categories: Development, Work, Entertainment, News, Shopping, Social, Education, Travel, Health, Sports, Technology, Science, Gaming, Music, Art, Finance, Government, Reference. If uncertain, choose the best fit or 'General'. Reply ONLY with the category name.`;
+
+    const description = contextData?.description || tab.contextData?.description || '';
+    const userPrompt = `Title: ${tab.title}\nURL: ${tab.url}\nDescription: ${description}`;
+
+    try {
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': aiPrefs.apiKey ? `Bearer ${aiPrefs.apiKey}` : undefined
+            } as any,
+            body: JSON.stringify({
+                model: model,
+                messages: [
+                    { role: "system", content: systemPrompt },
+                    { role: "user", content: userPrompt }
+                ],
+                temperature: 0.3,
+                max_tokens: 10
+            })
+        });
+
+        if (!response.ok) {
+            const errText = await response.text();
+             return { context: "Uncategorized", source: 'AI', error: `API Error ${response.status}: ${errText}`, status: 'ERROR' };
+        }
+
+        const json = await response.json();
+        const content = json.choices?.[0]?.message?.content?.trim();
+
+        if (content) {
+            // Basic sanitization: remove punctuation, keep letters
+            const category = content.replace(/[^a-zA-Z]/g, '');
+            return { context: category, source: 'AI' };
+        } else {
+             return { context: "Uncategorized", source: 'AI', error: "Empty response", status: 'ERROR' };
+        }
+    } catch (e) {
+         return { context: "Uncategorized", source: 'AI', error: String(e), status: 'ERROR' };
+    }
 };
 
 const localHeuristic = async (tab: TabMetadata): Promise<ContextResult> => {

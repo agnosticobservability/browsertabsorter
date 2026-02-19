@@ -45,6 +45,14 @@ const progressOverlay = document.getElementById("progressOverlay") as HTMLDivEle
 const progressText = document.getElementById("progressText") as HTMLDivElement;
 const progressCount = document.getElementById("progressCount") as HTMLDivElement;
 
+// AI Settings Elements
+const aiEnabledCheckbox = document.getElementById("aiEnabledCheckbox") as HTMLInputElement;
+const aiProviderSelect = document.getElementById("aiProviderSelect") as HTMLSelectElement;
+const aiApiKeyInput = document.getElementById("aiApiKeyInput") as HTMLInputElement;
+const aiModelInput = document.getElementById("aiModelInput") as HTMLInputElement;
+const aiEndpointInput = document.getElementById("aiEndpointInput") as HTMLInputElement;
+const aiEndpointContainer = document.getElementById("aiEndpointContainer") as HTMLDivElement;
+
 const showLoading = (text: string) => {
     if (progressOverlay) {
         progressText.textContent = text;
@@ -687,6 +695,25 @@ function getDragAfterElement(container: HTMLElement, y: number) {
   }, { offset: Number.NEGATIVE_INFINITY, element: null as Element | null }).element;
 }
 
+const updateAISettingsUI = () => {
+    if (!preferences?.ai) return;
+
+    if (aiEnabledCheckbox) aiEnabledCheckbox.checked = preferences.ai.enabled;
+    if (aiProviderSelect) aiProviderSelect.value = preferences.ai.provider;
+    if (aiApiKeyInput) aiApiKeyInput.value = preferences.ai.apiKey || "";
+    if (aiModelInput) aiModelInput.value = preferences.ai.model || "";
+    if (aiEndpointInput) aiEndpointInput.value = preferences.ai.endpoint || "";
+
+    const aiSettingsContainer = document.getElementById("aiSettingsContainer");
+    if (aiSettingsContainer) {
+        aiSettingsContainer.style.display = preferences.ai.enabled ? 'block' : 'none';
+    }
+
+    if (aiEndpointContainer) {
+        aiEndpointContainer.style.display = preferences.ai.provider === 'custom' ? 'block' : 'none';
+    }
+};
+
 const updateUI = (
   stateData: { groups: TabGroup[]; preferences: Preferences },
   currentWindow: chrome.windows.Window | undefined,
@@ -716,6 +743,8 @@ const updateUI = (
           const select = document.getElementById('logLevelSelect') as HTMLSelectElement;
           if (select) select.value = preferences.logLevel;
       }
+
+      updateAISettingsUI();
     }
 
     if (currentWindow) {
@@ -1115,6 +1144,44 @@ const adjustForWindowType = async () => {
       console.error("Error checking window type:", e);
   }
 };
+
+// --- AI Settings Listeners ---
+aiEnabledCheckbox?.addEventListener('change', async () => {
+   if (preferences?.ai) {
+       preferences.ai.enabled = aiEnabledCheckbox.checked;
+       updateAISettingsUI(); // Update visibility
+       await sendMessage("savePreferences", { ai: preferences.ai });
+   }
+});
+
+aiProviderSelect?.addEventListener('change', async () => {
+   if (preferences?.ai) {
+       preferences.ai.provider = aiProviderSelect.value as any;
+       updateAISettingsUI(); // Update visibility
+       await sendMessage("savePreferences", { ai: preferences.ai });
+   }
+});
+
+aiApiKeyInput?.addEventListener('change', async () => {
+   if (preferences?.ai) {
+       preferences.ai.apiKey = aiApiKeyInput.value;
+       await sendMessage("savePreferences", { ai: preferences.ai });
+   }
+});
+
+aiModelInput?.addEventListener('change', async () => {
+   if (preferences?.ai) {
+       preferences.ai.model = aiModelInput.value;
+       await sendMessage("savePreferences", { ai: preferences.ai });
+   }
+});
+
+aiEndpointInput?.addEventListener('change', async () => {
+   if (preferences?.ai) {
+       preferences.ai.endpoint = aiEndpointInput.value;
+       await sendMessage("savePreferences", { ai: preferences.ai });
+   }
+});
 
 adjustForWindowType();
 loadState().catch(e => console.error("Load state failed", e));

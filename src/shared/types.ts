@@ -176,6 +176,14 @@ export interface LogEntry {
   context?: Record<string, unknown>;
 }
 
+export interface AIPreferences {
+  enabled: boolean;
+  provider: 'openai' | 'custom';
+  apiKey?: string;
+  endpoint?: string;
+  model?: string;
+}
+
 export interface Preferences {
   sorting: SortingStrategy[];
   debug: boolean;
@@ -183,6 +191,7 @@ export interface Preferences {
   theme?: "light" | "dark";
   customGenera?: Record<string, string>;
   customStrategies?: CustomStrategy[];
+  ai?: AIPreferences;
 }
 
 export interface RuntimeMessage<TPayload = unknown> {
