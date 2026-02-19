@@ -369,7 +369,7 @@ export const checkCondition = (condition: RuleCondition, tab: TabMetadata): bool
     return isMatch;
 };
 
-export const applyValueTransform = (val: string, transform: string, pattern?: string): string => {
+export const applyValueTransform = (val: string, transform: string, pattern?: string, replacement?: string): string => {
     if (!val || !transform || transform === 'none') return val;
 
     switch (transform) {
@@ -412,6 +412,17 @@ export const applyValueTransform = (val: string, transform: string, pattern?: st
             } else {
                 return "";
             }
+        case 'regexReplace':
+             if (pattern) {
+                 try {
+                     // Using 'g' global flag by default for replacement
+                     return val.replace(new RegExp(pattern, 'g'), replacement || "");
+                 } catch (e) {
+                     logDebug("Invalid regex in transform", { pattern: pattern, error: String(e) });
+                     return val;
+                 }
+             }
+             return val;
         default:
             return val;
     }
@@ -496,7 +507,7 @@ export const getGroupingResult = (tab: TabMetadata, strategy: GroupingStrategy |
                 }
 
                 if (val && rule.transform && rule.transform !== 'none') {
-                    val = applyValueTransform(val, rule.transform, rule.transformPattern);
+                    val = applyValueTransform(val, rule.transform, rule.transformPattern, rule.transformReplacement);
                 }
 
                 if (val) {

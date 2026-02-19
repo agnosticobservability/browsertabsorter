@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { getFieldValue } from "../src/background/groupingStrategies";
+import { getFieldValue, applyValueTransform } from "../src/background/groupingStrategies";
 import { TabMetadata } from "../src/shared/types";
 
 describe("getFieldValue", () => {
@@ -69,5 +69,21 @@ describe("getFieldValue", () => {
         // Since we can't add arbitrary props to mockTab due to TS, we can cast
         const extendedTab = { ...mockTab, dynamicProp: "Dynamic" } as unknown as TabMetadata;
         expect(getFieldValue(extendedTab, "dynamicProp")).toBe("Dynamic");
+    });
+});
+
+describe("applyValueTransform", () => {
+    test("should handle regexReplace with groups", () => {
+        const input = "user-123";
+        const pattern = "(\\w+)-(\\d+)";
+        const replacement = "$2 $1";
+        expect(applyValueTransform(input, "regexReplace", pattern, replacement)).toBe("123 user");
+    });
+
+    test("should handle regexReplace with string replacement", () => {
+        const input = "hello world";
+        const pattern = "world";
+        const replacement = "universe";
+        expect(applyValueTransform(input, "regexReplace", pattern, replacement)).toBe("hello universe");
     });
 });
