@@ -144,6 +144,37 @@ const hashCode = (value: string): number => {
   return hash;
 };
 
+type LabelGenerator = (firstTab: TabMetadata, tabs: TabMetadata[], allTabsMap: Map<number, TabMetadata>) => string | null;
+
+const builtInLabelStrategies: Record<string, LabelGenerator> = {
+  domain: (firstTab, tabs) => {
+    const siteNames = new Set(tabs.map(t => t.contextData?.siteName).filter(Boolean));
+    if (siteNames.size === 1) {
+      return stripTld(Array.from(siteNames)[0] as string);
+    }
+    return stripTld(domainFromUrl(firstTab.url));
+  },
+  domain_full: (firstTab) => domainFromUrl(firstTab.url),
+  topic: (firstTab) => semanticBucket(firstTab.title, firstTab.url),
+  lineage: (firstTab, _tabs, allTabsMap) => {
+    if (firstTab.openerTabId !== undefined) {
+      const parent = allTabsMap.get(firstTab.openerTabId);
+      if (parent) {
+        const parentTitle = parent.title.length > 20 ? parent.title.substring(0, 20) + "..." : parent.title;
+        return `From: ${parentTitle}`;
+      }
+      return `From: Tab ${firstTab.openerTabId}`;
+    }
+    return `Window ${firstTab.windowId}`;
+  },
+  context: (firstTab) => firstTab.context || "Uncategorized",
+  pinned: (firstTab) => firstTab.pinned ? "Pinned" : "Unpinned",
+  age: (firstTab) => getRecencyLabel(firstTab.lastAccessed ?? 0),
+  url: () => "URL Group",
+  recency: () => "Time Group",
+  nesting: (firstTab) => firstTab.openerTabId !== undefined ? "Children" : "Roots",
+};
+
 // Helper to get a human-readable label component from a strategy and a set of tabs
 const getLabelComponent = (strategy: GroupingStrategy | string, tabs: TabMetadata[], allTabsMap: Map<number, TabMetadata>): string | null => {
   const firstTab = tabs[0];
@@ -155,47 +186,17 @@ const getLabelComponent = (strategy: GroupingStrategy | string, tabs: TabMetadat
       return groupingKey(firstTab, strategy);
   }
 
-  switch (strategy) {
-    case "domain": {
-      const siteNames = new Set(tabs.map(t => t.contextData?.siteName).filter(Boolean));
-      if (siteNames.size === 1) {
-        return stripTld(Array.from(siteNames)[0] as string);
-      }
-      return stripTld(domainFromUrl(firstTab.url));
-    }
-    case "domain_full":
-      return domainFromUrl(firstTab.url);
-    case "topic":
-      return semanticBucket(firstTab.title, firstTab.url);
-    case "lineage":
-      if (firstTab.openerTabId !== undefined) {
-        const parent = allTabsMap.get(firstTab.openerTabId);
-        if (parent) {
-          const parentTitle = parent.title.length > 20 ? parent.title.substring(0, 20) + "..." : parent.title;
-          return `From: ${parentTitle}`;
-        }
-        return `From: Tab ${firstTab.openerTabId}`;
-      }
-      return `Window ${firstTab.windowId}`;
-    case "context":
-      return firstTab.context || "Uncategorized";
-    case "pinned":
-      return firstTab.pinned ? "Pinned" : "Unpinned";
-    case "age":
-      return getRecencyLabel(firstTab.lastAccessed ?? 0);
-    case "url":
-      return "URL Group";
-    case "recency":
-      return "Time Group";
-    case "nesting":
-      return firstTab.openerTabId !== undefined ? "Children" : "Roots";
-    default:
-      const val = getFieldValue(firstTab, strategy);
-      if (val !== undefined && val !== null) {
-          return String(val);
-      }
-      return "Unknown";
+  const generator = builtInLabelStrategies[strategy];
+  if (generator) {
+    return generator(firstTab, tabs, allTabsMap);
   }
+
+  // Default fallback for generic fields
+  const val = getFieldValue(firstTab, strategy);
+  if (val !== undefined && val !== null) {
+      return String(val);
+  }
+  return "Unknown";
 };
 
 const generateLabel = (
