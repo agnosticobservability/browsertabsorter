@@ -505,6 +505,11 @@ export const splitTabs = async (tabIds: number[]) => {
 
   // 1. Validate tabs
   const validTabs = await getTabsByIds(tabIds);
+  const allTabs = await chrome.tabs.query({});
+  const tabMap = new Map(allTabs.map(t => [t.id, t]));
+  const validTabs = tabIds
+    .map(id => tabMap.get(id))
+    .filter((t): t is chrome.tabs.Tab => t !== undefined && t.id !== undefined && t.windowId !== undefined);
 
   if (validTabs.length === 0) return;
 
