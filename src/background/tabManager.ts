@@ -116,10 +116,6 @@ export const fetchCurrentTabGroups = async (
       });
   }
 
-  // Sort groups might be nice, but TabGroup[] doesn't strictly dictate order in UI (UI sorts by label currently? Or keeps order?)
-  // popup.ts sorts groups by label in renderTree: Array.from(groups.entries()).sort()...
-  // So order here doesn't matter much.
-
   logInfo("Fetched current tab groups", { groups: resultGroups.length, tabs: mapped.length });
   return resultGroups;
   } catch (e) {
