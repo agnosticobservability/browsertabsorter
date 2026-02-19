@@ -171,22 +171,168 @@ const createNode = (
     return { node, toggle, childrenContainer };
 };
 
-const renderTree = () => {
-  const query = searchInput.value.trim().toLowerCase();
-  windowsContainer.innerHTML = "";
+const renderTabNode = (tab: TabWithGroup) => {
+    const tabContent = document.createElement("div");
+    tabContent.style.display = "flex";
+    tabContent.style.alignItems = "center";
+    tabContent.style.flex = "1";
+    tabContent.style.overflow = "hidden";
 
-  // Filter Logic
-  const filtered = windowState
-    .map((window) => {
-      if (!query) return { window, visibleTabs: window.tabs };
-      const visibleTabs = window.tabs.filter(
-        (tab) => tab.title.toLowerCase().includes(query) || tab.url.toLowerCase().includes(query)
-      );
-      return { window, visibleTabs };
-    })
-    .filter(({ visibleTabs }) => visibleTabs.length > 0 || !query);
+    // Tab Checkbox
+    const tabCheckbox = document.createElement("input");
+    tabCheckbox.type = "checkbox";
+    tabCheckbox.className = "tree-checkbox";
+    tabCheckbox.checked = selectedTabs.has(tab.id);
+    tabCheckbox.onclick = (e) => {
+        e.stopPropagation();
+        if (tabCheckbox.checked) selectedTabs.add(tab.id);
+        else selectedTabs.delete(tab.id);
+        renderTree();
+    };
 
-  filtered.forEach(({ window, visibleTabs }) => {
+    const tabIcon = document.createElement("div");
+    tabIcon.className = "tree-icon";
+    if (tab.favIconUrl) {
+        const img = document.createElement("img");
+        img.src = tab.favIconUrl;
+        img.onerror = () => { tabIcon.innerHTML = ICONS.defaultFile; };
+        tabIcon.appendChild(img);
+    } else {
+        tabIcon.innerHTML = ICONS.defaultFile;
+    }
+
+    const tabTitle = document.createElement("div");
+    tabTitle.className = "tree-label";
+    tabTitle.textContent = tab.title;
+    tabTitle.title = tab.title;
+
+    const tabActions = document.createElement("div");
+    tabActions.className = "row-actions";
+    const closeBtn = document.createElement("button");
+    closeBtn.className = "action-btn delete";
+    closeBtn.innerHTML = ICONS.close;
+    closeBtn.title = "Close Tab";
+    closeBtn.onclick = async (e) => {
+        e.stopPropagation();
+        await chrome.tabs.remove(tab.id);
+        await loadState();
+    };
+    tabActions.appendChild(closeBtn);
+
+    tabContent.append(tabCheckbox, tabIcon, tabTitle, tabActions);
+
+    const { node: tabNode } = createNode(tabContent, null, 'tab');
+    tabNode.onclick = async (e) => {
+        // Clicking tab row activates tab (unless clicking checkbox/action)
+        if ((e.target as HTMLElement).closest('.tree-checkbox')) return;
+        await chrome.tabs.update(tab.id, { active: true });
+        await chrome.windows.update(tab.windowId, { focused: true });
+    };
+    return tabNode;
+};
+
+const renderGroupNode = (
+    groupLabel: string,
+    groupData: { color: string; tabs: TabWithGroup[] },
+    windowKey: string,
+    query: string
+) => {
+    const groupKey = `${windowKey}-g-${groupLabel}`;
+    const isGroupExpanded = !!query || expandedNodes.has(groupKey);
+
+    // Group Checkbox Logic
+    const groupTabIds = groupData.tabs.map(t => t.id);
+    const grpSelectedCount = groupTabIds.filter(id => selectedTabs.has(id)).length;
+    const grpIsAll = grpSelectedCount === groupTabIds.length && groupTabIds.length > 0;
+    const grpIsSome = grpSelectedCount > 0 && grpSelectedCount < groupTabIds.length;
+
+    const grpCheckbox = document.createElement("input");
+    grpCheckbox.type = "checkbox";
+    grpCheckbox.className = "tree-checkbox";
+    grpCheckbox.checked = grpIsAll;
+    grpCheckbox.indeterminate = grpIsSome;
+    grpCheckbox.onclick = (e) => {
+        e.stopPropagation();
+        const targetState = !grpIsAll;
+        groupTabIds.forEach(id => {
+            if (targetState) selectedTabs.add(id);
+            else selectedTabs.delete(id);
+        });
+        renderTree();
+    };
+
+    // Group Content
+    const grpContent = document.createElement("div");
+    grpContent.style.display = "flex";
+    grpContent.style.alignItems = "center";
+    grpContent.style.flex = "1";
+    grpContent.style.overflow = "hidden";
+
+    const icon = document.createElement("div");
+    icon.className = "tree-icon";
+    icon.innerHTML = TREE_ICONS.folder;
+
+    const grpLabel = document.createElement("div");
+    grpLabel.className = "tree-label";
+    grpLabel.textContent = groupLabel;
+
+    const grpCount = document.createElement("div");
+    grpCount.className = "tree-count";
+    grpCount.textContent = `(${groupData.tabs.length})`;
+
+    // Group Actions
+    const actions = document.createElement("div");
+    actions.className = "row-actions";
+    const ungroupBtn = document.createElement("button");
+    ungroupBtn.className = "action-btn";
+    ungroupBtn.innerHTML = ICONS.ungroup;
+    ungroupBtn.title = "Ungroup";
+    ungroupBtn.onclick = async (e) => {
+        e.stopPropagation();
+        if (confirm(`Ungroup ${groupData.tabs.length} tabs?`)) {
+            await chrome.tabs.ungroup(groupData.tabs.map(t => t.id));
+            await loadState();
+        }
+    };
+    actions.appendChild(ungroupBtn);
+
+    grpContent.append(grpCheckbox, icon, grpLabel, grpCount, actions);
+
+    // Tabs
+    const tabsContainer = document.createElement("div");
+    groupData.tabs.forEach(tab => {
+        tabsContainer.appendChild(renderTabNode(tab));
+    });
+
+    const { node: groupNode, toggle: grpToggle, childrenContainer: grpChildren } = createNode(
+        grpContent,
+        tabsContainer,
+        'group',
+        isGroupExpanded,
+        () => {
+            if (expandedNodes.has(groupKey)) expandedNodes.delete(groupKey);
+            else expandedNodes.add(groupKey);
+
+            const expanded = expandedNodes.has(groupKey);
+            grpToggle.classList.toggle('rotated', expanded);
+            grpChildren!.classList.toggle('expanded', expanded);
+        }
+    );
+
+    // Apply background color to group node
+    if (groupData.color) {
+        const colorName = groupData.color;
+        const hex = GROUP_COLORS[colorName] || colorName; // Fallback if it's already hex
+        if (hex.startsWith('#')) {
+            groupNode.style.backgroundColor = hexToRgba(hex, 0.1);
+            groupNode.style.border = `1px solid ${hexToRgba(hex, 0.2)}`;
+        }
+    }
+
+    return groupNode;
+};
+
+const renderWindowNode = (window: WindowView, visibleTabs: TabWithGroup[], query: string) => {
     const windowKey = `w-${window.id}`;
     const isExpanded = !!query || expandedNodes.has(windowKey);
 
@@ -245,164 +391,12 @@ const renderTree = () => {
         }
     });
 
-    const createTabNode = (tab: TabWithGroup) => {
-        const tabContent = document.createElement("div");
-        tabContent.style.display = "flex";
-        tabContent.style.alignItems = "center";
-        tabContent.style.flex = "1";
-        tabContent.style.overflow = "hidden";
-
-        // Tab Checkbox
-        const tabCheckbox = document.createElement("input");
-        tabCheckbox.type = "checkbox";
-        tabCheckbox.className = "tree-checkbox";
-        tabCheckbox.checked = selectedTabs.has(tab.id);
-        tabCheckbox.onclick = (e) => {
-            e.stopPropagation();
-            if (tabCheckbox.checked) selectedTabs.add(tab.id);
-            else selectedTabs.delete(tab.id);
-            renderTree();
-        };
-
-        const tabIcon = document.createElement("div");
-        tabIcon.className = "tree-icon";
-        if (tab.favIconUrl) {
-            const img = document.createElement("img");
-            img.src = tab.favIconUrl;
-            img.onerror = () => { tabIcon.innerHTML = ICONS.defaultFile; };
-            tabIcon.appendChild(img);
-        } else {
-            tabIcon.innerHTML = ICONS.defaultFile;
-        }
-
-        const tabTitle = document.createElement("div");
-        tabTitle.className = "tree-label";
-        tabTitle.textContent = tab.title;
-        tabTitle.title = tab.title;
-
-        const tabActions = document.createElement("div");
-        tabActions.className = "row-actions";
-        const closeBtn = document.createElement("button");
-        closeBtn.className = "action-btn delete";
-        closeBtn.innerHTML = ICONS.close;
-        closeBtn.title = "Close Tab";
-        closeBtn.onclick = async (e) => {
-            e.stopPropagation();
-            await chrome.tabs.remove(tab.id);
-            await loadState();
-        };
-        tabActions.appendChild(closeBtn);
-
-        tabContent.append(tabCheckbox, tabIcon, tabTitle, tabActions);
-
-        const { node: tabNode } = createNode(tabContent, null, 'tab');
-        tabNode.onclick = async (e) => {
-            // Clicking tab row activates tab (unless clicking checkbox/action)
-            if ((e.target as HTMLElement).closest('.tree-checkbox')) return;
-            await chrome.tabs.update(tab.id, { active: true });
-            await chrome.windows.update(tab.windowId, { focused: true });
-        };
-        return tabNode;
-    };
-
     Array.from(groups.entries()).forEach(([groupLabel, groupData]) => {
-        const groupKey = `${windowKey}-g-${groupLabel}`;
-        const isGroupExpanded = !!query || expandedNodes.has(groupKey);
-
-        // Group Checkbox Logic
-        const groupTabIds = groupData.tabs.map(t => t.id);
-        const grpSelectedCount = groupTabIds.filter(id => selectedTabs.has(id)).length;
-        const grpIsAll = grpSelectedCount === groupTabIds.length && groupTabIds.length > 0;
-        const grpIsSome = grpSelectedCount > 0 && grpSelectedCount < groupTabIds.length;
-
-        const grpCheckbox = document.createElement("input");
-        grpCheckbox.type = "checkbox";
-        grpCheckbox.className = "tree-checkbox";
-        grpCheckbox.checked = grpIsAll;
-        grpCheckbox.indeterminate = grpIsSome;
-        grpCheckbox.onclick = (e) => {
-            e.stopPropagation();
-            const targetState = !grpIsAll;
-            groupTabIds.forEach(id => {
-                if (targetState) selectedTabs.add(id);
-                else selectedTabs.delete(id);
-            });
-            renderTree();
-        };
-
-        // Group Content
-        const grpContent = document.createElement("div");
-        grpContent.style.display = "flex";
-        grpContent.style.alignItems = "center";
-        grpContent.style.flex = "1";
-        grpContent.style.overflow = "hidden";
-
-        const icon = document.createElement("div");
-        icon.className = "tree-icon";
-        icon.innerHTML = TREE_ICONS.folder;
-
-        const grpLabel = document.createElement("div");
-        grpLabel.className = "tree-label";
-        grpLabel.textContent = groupLabel;
-
-        const grpCount = document.createElement("div");
-        grpCount.className = "tree-count";
-        grpCount.textContent = `(${groupData.tabs.length})`;
-
-        // Group Actions
-        const actions = document.createElement("div");
-        actions.className = "row-actions";
-        const ungroupBtn = document.createElement("button");
-        ungroupBtn.className = "action-btn";
-        ungroupBtn.innerHTML = ICONS.ungroup;
-        ungroupBtn.title = "Ungroup";
-        ungroupBtn.onclick = async (e) => {
-            e.stopPropagation();
-            if (confirm(`Ungroup ${groupData.tabs.length} tabs?`)) {
-                await chrome.tabs.ungroup(groupData.tabs.map(t => t.id));
-                await loadState();
-            }
-        };
-        actions.appendChild(ungroupBtn);
-
-        grpContent.append(grpCheckbox, icon, grpLabel, grpCount, actions);
-
-        // Tabs
-        const tabsContainer = document.createElement("div");
-        groupData.tabs.forEach(tab => {
-            tabsContainer.appendChild(createTabNode(tab));
-        });
-
-        const { node: groupNode, toggle: grpToggle, childrenContainer: grpChildren } = createNode(
-            grpContent,
-            tabsContainer,
-            'group',
-            isGroupExpanded,
-            () => {
-                if (expandedNodes.has(groupKey)) expandedNodes.delete(groupKey);
-                else expandedNodes.add(groupKey);
-
-                const expanded = expandedNodes.has(groupKey);
-                grpToggle.classList.toggle('rotated', expanded);
-                grpChildren!.classList.toggle('expanded', expanded);
-            }
-        );
-
-        // Apply background color to group node
-        if (groupData.color) {
-            const colorName = groupData.color;
-            const hex = GROUP_COLORS[colorName] || colorName; // Fallback if it's already hex
-            if (hex.startsWith('#')) {
-                groupNode.style.backgroundColor = hexToRgba(hex, 0.1);
-                groupNode.style.border = `1px solid ${hexToRgba(hex, 0.2)}`;
-            }
-        }
-
-        childrenContainer.appendChild(groupNode);
+        childrenContainer.appendChild(renderGroupNode(groupLabel, groupData, windowKey, query));
     });
 
     ungroupedTabs.forEach(tab => {
-        childrenContainer.appendChild(createTabNode(tab));
+        childrenContainer.appendChild(renderTabNode(tab));
     });
 
     const { node: winNode, toggle: winToggle, childrenContainer: winChildren } = createNode(
@@ -420,7 +414,26 @@ const renderTree = () => {
         }
     );
 
-    windowsContainer.appendChild(winNode);
+    return winNode;
+};
+
+const renderTree = () => {
+  const query = searchInput.value.trim().toLowerCase();
+  windowsContainer.innerHTML = "";
+
+  // Filter Logic
+  const filtered = windowState
+    .map((window) => {
+      if (!query) return { window, visibleTabs: window.tabs };
+      const visibleTabs = window.tabs.filter(
+        (tab) => tab.title.toLowerCase().includes(query) || tab.url.toLowerCase().includes(query)
+      );
+      return { window, visibleTabs };
+    })
+    .filter(({ visibleTabs }) => visibleTabs.length > 0 || !query);
+
+  filtered.forEach(({ window, visibleTabs }) => {
+    windowsContainer.appendChild(renderWindowNode(window, visibleTabs, query));
   });
 
   updateStats();
