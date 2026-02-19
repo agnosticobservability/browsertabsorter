@@ -303,7 +303,7 @@ const renderTree = () => {
         return tabNode;
     };
 
-    Array.from(groups.entries()).sort().forEach(([groupLabel, groupData]) => {
+    Array.from(groups.entries()).forEach(([groupLabel, groupData]) => {
         const groupKey = `${windowKey}-g-${groupLabel}`;
         const isGroupExpanded = !!query || expandedNodes.has(groupKey);
 
