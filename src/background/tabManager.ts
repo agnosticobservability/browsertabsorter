@@ -509,10 +509,18 @@ export const closeGroup = async (group: TabGroup) => {
   logInfo("Closed group", { label: group.label, count: ids.length });
 };
 
+const getTabsByIds = async (tabIds: number[]): Promise<chrome.tabs.Tab[]> => {
+  if (!tabIds.length) return [];
+  const allTabs = await chrome.tabs.query({});
+  const tabMap = new Map(allTabs.map(t => [t.id, t]));
+  return tabIds
+    .map(id => tabMap.get(id))
+    .filter((t): t is chrome.tabs.Tab => t !== undefined && t.id !== undefined && t.windowId !== undefined);
+};
+
 export const mergeTabs = async (tabIds: number[]) => {
   if (!tabIds.length) return;
-  const tabs = await Promise.all(tabIds.map(id => chrome.tabs.get(id).catch(() => null)));
-  const validTabs = tabs.filter((t): t is chrome.tabs.Tab => t !== null && t.id !== undefined && t.windowId !== undefined);
+  const validTabs = await getTabsByIds(tabIds);
 
   if (validTabs.length === 0) return;
 
@@ -554,6 +562,7 @@ export const splitTabs = async (tabIds: number[]) => {
   if (tabIds.length === 0) return;
 
   // 1. Validate tabs
+  const validTabs = await getTabsByIds(tabIds);
   const allTabs = await chrome.tabs.query({});
   const tabMap = new Map(allTabs.map(t => [t.id, t]));
   const validTabs = tabIds
