@@ -6,6 +6,53 @@ import { GroupingSelection, Preferences, TabGroup, TabMetadata, SortingRule } fr
 import { getStoredValue, setStoredValue } from "./storage.js";
 import { mapChromeTab, asArray } from "../shared/utils.js";
 
+const getTabsForFilter = async (filter?: GroupingSelection): Promise<chrome.tabs.Tab[]> => {
+  const windowIds = filter?.windowIds;
+  const tabIds = filter?.tabIds;
+  const hasWindowIds = windowIds && windowIds.length > 0;
+  const hasTabIds = tabIds && tabIds.length > 0;
+
+  if (!filter || (!hasWindowIds && !hasTabIds)) {
+    return chrome.tabs.query({});
+  }
+
+  const promises: Promise<any>[] = [];
+
+  if (hasWindowIds) {
+    windowIds.forEach(windowId => {
+      promises.push(chrome.tabs.query({ windowId }).catch(() => []));
+    });
+  }
+
+  if (hasTabIds) {
+    tabIds.forEach(tabId => {
+      promises.push(chrome.tabs.get(tabId).catch(() => null));
+    });
+  }
+
+  const results = await Promise.all(promises);
+
+  // Flatten and filter out nulls
+  const allTabs: chrome.tabs.Tab[] = [];
+  for (const res of results) {
+      if (Array.isArray(res)) {
+          allTabs.push(...res);
+      } else if (res) {
+          allTabs.push(res);
+      }
+  }
+
+  // Deduplicate by ID
+  const uniqueTabs = new Map<number, chrome.tabs.Tab>();
+  for (const tab of allTabs) {
+      if (tab.id !== undefined) {
+          uniqueTabs.set(tab.id, tab);
+      }
+  }
+
+  return Array.from(uniqueTabs.values());
+};
+
 export const fetchCurrentTabGroups = async (
   preferences: Preferences,
   onProgress?: (completed: number, total: number) => void
@@ -86,7 +133,7 @@ export const calculateTabGroups = async (
   filter?: GroupingSelection,
   onProgress?: (completed: number, total: number) => void
 ): Promise<TabGroup[]> => {
-  const chromeTabs = await chrome.tabs.query({});
+  const chromeTabs = await getTabsForFilter(filter);
   const windowIdSet = new Set(filter?.windowIds ?? []);
   const tabIdSet = new Set(filter?.tabIds ?? []);
   const hasFilters = windowIdSet.size > 0 || tabIdSet.size > 0;
@@ -252,20 +299,31 @@ export const applyTabSorting = async (
   filter?: GroupingSelection,
   onProgress?: (completed: number, total: number) => void
 ) => {
-  const chromeTabs = await chrome.tabs.query({});
-
   const targetWindowIds = new Set<number>();
+  let chromeTabs: chrome.tabs.Tab[] = [];
 
-  if (!filter || (!filter.windowIds?.length && !filter.tabIds?.length)) {
+  const explicitWindowIds = filter?.windowIds ?? [];
+  const explicitTabIds = filter?.tabIds ?? [];
+  const hasFilter = explicitWindowIds.length > 0 || explicitTabIds.length > 0;
+
+  if (!hasFilter) {
+      chromeTabs = await chrome.tabs.query({});
       chromeTabs.forEach(t => { if (t.windowId) targetWindowIds.add(t.windowId); });
   } else {
-      filter.windowIds?.forEach(id => targetWindowIds.add(id));
-      if (filter.tabIds?.length) {
-          const ids = new Set(filter.tabIds);
-          chromeTabs.forEach(t => {
-              if (t.id && ids.has(t.id) && t.windowId) targetWindowIds.add(t.windowId);
+      explicitWindowIds.forEach(id => targetWindowIds.add(id));
+
+      if (explicitTabIds.length > 0) {
+          const specificTabs = await Promise.all(explicitTabIds.map(id => chrome.tabs.get(id).catch(() => null)));
+          specificTabs.forEach(t => {
+              if (t && t.windowId) targetWindowIds.add(t.windowId);
           });
       }
+
+      const windowPromises = Array.from(targetWindowIds).map(windowId =>
+          chrome.tabs.query({ windowId }).catch(() => [])
+      );
+      const results = await Promise.all(windowPromises);
+      chromeTabs = results.flat();
   }
 
   for (const windowId of targetWindowIds) {
