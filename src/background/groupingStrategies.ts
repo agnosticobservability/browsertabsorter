@@ -108,7 +108,7 @@ const getRecencyLabel = (lastAccessed: number): string => {
   return "Older";
 };
 
-const colorForKey = (key: string, offset: number): string => COLORS[(Math.abs(hashCode(key)) + offset) % COLORS.length];
+const colorForKey = (key: string, offset: number): string => COLORS[Math.abs(hashCode(key) + offset) % COLORS.length];
 
 const hashCode = (value: string): number => {
   let hash = 0;
@@ -278,7 +278,13 @@ export const groupTabs = (
         if (colorTransform) {
             key = applyValueTransform(key, colorTransform, colorTransformPattern);
         }
-        groupColor = colorForKey(key, 0);
+
+        if (key) {
+             groupColor = colorForKey(key, 0);
+        } else {
+             // Fallback to random/group-based color if key is empty
+             groupColor = colorForKey(bucketKey, buckets.size);
+        }
       } else if (!groupColor || groupColor === 'field') {
         groupColor = colorForKey(bucketKey, buckets.size);
       }
