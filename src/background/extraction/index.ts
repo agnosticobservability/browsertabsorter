@@ -1,5 +1,5 @@
 import { PageContext, TabMetadata } from "../../shared/types.js";
-import { normalizeUrl, parseYouTubeUrl, extractYouTubeChannelFromHtml, extractYouTubeGenreFromHtml } from "./logic.js";
+import { normalizeUrl, parseYouTubeUrl, extractYouTubeMetadataFromHtml } from "./logic.js";
 import { getGenera } from "./generaRegistry.js";
 import { logDebug } from "../../shared/logger.js";
 import { loadPreferences } from "../preferences.js";
@@ -78,13 +78,16 @@ export const extractPageContext = async (tab: TabMetadata | chrome.tabs.Tab): Pr
                  const response = await fetchWithTimeout(targetUrl);
                  if (response.ok) {
                      const html = await response.text();
-                     const channel = extractYouTubeChannelFromHtml(html);
-                     if (channel) {
-                         baseline.authorOrCreator = channel;
+                     const metadata = extractYouTubeMetadataFromHtml(html);
+
+                     if (metadata.author) {
+                         baseline.authorOrCreator = metadata.author;
                      }
-                     const genre = extractYouTubeGenreFromHtml(html);
-                     if (genre) {
-                         baseline.genre = genre;
+                     if (metadata.genre) {
+                         baseline.genre = metadata.genre;
+                     }
+                     if (metadata.publishedAt) {
+                         baseline.publishedAt = metadata.publishedAt;
                      }
                  }
              });

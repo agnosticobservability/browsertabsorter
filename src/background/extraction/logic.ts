@@ -122,7 +122,17 @@ export function extractJsonLdFields(jsonLd: any[]) {
     return { author, publishedAt, modifiedAt, tags, breadcrumbs };
 }
 
-export function extractYouTubeChannelFromHtml(html: string): string | null {
+export interface YouTubeMetadata {
+  author: string | null;
+  publishedAt: string | null;
+  genre: string | null;
+}
+
+export function extractYouTubeMetadataFromHtml(html: string): YouTubeMetadata {
+  let author: string | null = null;
+  let publishedAt: string | null = null;
+  let genre: string | null = null;
+
   // 1. Try JSON-LD
   // Look for <script type="application/ld+json">...</script>
   // We need to loop because there might be multiple scripts
@@ -133,29 +143,46 @@ export function extractYouTubeChannelFromHtml(html: string): string | null {
           const json = JSON.parse(match[1]);
           const array = Array.isArray(json) ? json : [json];
           const fields = extractJsonLdFields(array);
-          if (fields.author) return fields.author;
+          if (fields.author && !author) author = fields.author;
+          if (fields.publishedAt && !publishedAt) publishedAt = fields.publishedAt;
       } catch (e) {
           // ignore parse errors
       }
   }
 
   // 2. Try <link itemprop="name" content="..."> (YouTube often puts channel name here in some contexts)
-  // Or <meta itemprop="channelId" content="..."> -> but that's ID.
-  // <link itemprop="name" content="Channel Name">
-  // <span itemprop="author" itemscope itemtype="http://schema.org/Person"><link itemprop="name" content="Channel Name"></span>
-  const linkNameRegex = /<link\s+itemprop=["']name["']\s+content=["']([^"']+)["']\s*\/?>/i;
-  const linkMatch = linkNameRegex.exec(html);
-  if (linkMatch && linkMatch[1]) return decodeHtmlEntities(linkMatch[1]);
-
-  // 3. Try meta author
-  const metaAuthorRegex = /<meta\s+name=["']author["']\s+content=["']([^"']+)["']\s*\/?>/i;
-  const metaMatch = metaAuthorRegex.exec(html);
-  if (metaMatch && metaMatch[1]) {
-      // YouTube meta author is often "Channel Name"
-      return decodeHtmlEntities(metaMatch[1]);
+  if (!author) {
+      const linkNameRegex = /<link\s+itemprop=["']name["']\s+content=["']([^"']+)["']\s*\/?>/i;
+      const linkMatch = linkNameRegex.exec(html);
+      if (linkMatch && linkMatch[1]) author = decodeHtmlEntities(linkMatch[1]);
   }
 
-  return null;
+  // 3. Try meta author
+  if (!author) {
+      const metaAuthorRegex = /<meta\s+name=["']author["']\s+content=["']([^"']+)["']\s*\/?>/i;
+      const metaMatch = metaAuthorRegex.exec(html);
+      if (metaMatch && metaMatch[1]) {
+          // YouTube meta author is often "Channel Name"
+          author = decodeHtmlEntities(metaMatch[1]);
+      }
+  }
+
+  // 4. Try meta datePublished / uploadDate
+  if (!publishedAt) {
+      const metaDateRegex = /<meta\s+itemprop=["']datePublished["']\s+content=["']([^"']+)["']\s*\/?>/i;
+      const dateMatch = metaDateRegex.exec(html);
+      if (dateMatch && dateMatch[1]) publishedAt = dateMatch[1];
+  }
+  if (!publishedAt) {
+      const metaUploadDateRegex = /<meta\s+itemprop=["']uploadDate["']\s+content=["']([^"']+)["']\s*\/?>/i;
+      const uploadDateMatch = metaUploadDateRegex.exec(html);
+      if (uploadDateMatch && uploadDateMatch[1]) publishedAt = uploadDateMatch[1];
+  }
+
+  // 5. Genre
+  genre = extractYouTubeGenreFromHtml(html);
+
+  return { author, publishedAt, genre };
 }
 
 export function extractYouTubeGenreFromHtml(html: string): string | null {
