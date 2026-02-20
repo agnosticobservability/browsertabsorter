@@ -112,7 +112,8 @@ export function extractJsonLdFields(jsonLd: any[]) {
 
     if (mainEntity) {
         author = extractAuthor(mainEntity);
-        publishedAt = mainEntity.datePublished || null;
+        // Fallback to uploadDate for VideoObject if datePublished is missing
+        publishedAt = mainEntity.datePublished || mainEntity.uploadDate || null;
         modifiedAt = mainEntity.dateModified || null;
         tags = extractKeywords(mainEntity);
     }
@@ -126,6 +127,22 @@ export interface YouTubeMetadata {
   author: string | null;
   publishedAt: string | null;
   genre: string | null;
+}
+
+function getMetaContent(html: string, keyAttr: string, keyValue: string): string | null {
+  // Try pattern: keyAttr="keyValue" ... content="value"
+  // Safe regex that avoids catastrophic backtracking by consuming chars non-greedily
+  // This matches: <meta ... keyAttr="keyValue" ... content="value" ... >
+  const pattern1 = new RegExp(`<meta\\s+(?:[^>]*?\\s+)?${keyAttr}=["']${keyValue}["'](?:[^>]*?\\s+)?content=["']([^"']+)["']`, 'i');
+  const match1 = pattern1.exec(html);
+  if (match1 && match1[1]) return match1[1];
+
+  // Try pattern: content="value" ... keyAttr="keyValue"
+  const pattern2 = new RegExp(`<meta\\s+(?:[^>]*?\\s+)?content=["']([^"']+)["'](?:[^>]*?\\s+)?${keyAttr}=["']${keyValue}["']`, 'i');
+  const match2 = pattern2.exec(html);
+  if (match2 && match2[1]) return match2[1];
+
+  return null;
 }
 
 export function extractYouTubeMetadataFromHtml(html: string): YouTubeMetadata {
@@ -152,31 +169,25 @@ export function extractYouTubeMetadataFromHtml(html: string): YouTubeMetadata {
 
   // 2. Try <link itemprop="name" content="..."> (YouTube often puts channel name here in some contexts)
   if (!author) {
-      const linkNameRegex = /<link\s+itemprop=["']name["']\s+content=["']([^"']+)["']\s*\/?>/i;
-      const linkMatch = linkNameRegex.exec(html);
-      if (linkMatch && linkMatch[1]) author = decodeHtmlEntities(linkMatch[1]);
+    // Note: <link> tags usually have itemprop before content, but we use robust helper just in case
+    // For link tags, structure is similar to meta but tag name is different.
+    // We can replace link with meta temporarily or just duplicate logic. Replacing is easier for reuse.
+    const linkName = getMetaContent(html.replace(/<link/gi, '<meta'), 'itemprop', 'name');
+    if (linkName) author = decodeHtmlEntities(linkName);
   }
 
   // 3. Try meta author
   if (!author) {
-      const metaAuthorRegex = /<meta\s+name=["']author["']\s+content=["']([^"']+)["']\s*\/?>/i;
-      const metaMatch = metaAuthorRegex.exec(html);
-      if (metaMatch && metaMatch[1]) {
-          // YouTube meta author is often "Channel Name"
-          author = decodeHtmlEntities(metaMatch[1]);
-      }
+      const metaAuthor = getMetaContent(html, 'name', 'author');
+      if (metaAuthor) author = decodeHtmlEntities(metaAuthor);
   }
 
   // 4. Try meta datePublished / uploadDate
   if (!publishedAt) {
-      const metaDateRegex = /<meta\s+itemprop=["']datePublished["']\s+content=["']([^"']+)["']\s*\/?>/i;
-      const dateMatch = metaDateRegex.exec(html);
-      if (dateMatch && dateMatch[1]) publishedAt = dateMatch[1];
+      publishedAt = getMetaContent(html, 'itemprop', 'datePublished');
   }
   if (!publishedAt) {
-      const metaUploadDateRegex = /<meta\s+itemprop=["']uploadDate["']\s+content=["']([^"']+)["']\s*\/?>/i;
-      const uploadDateMatch = metaUploadDateRegex.exec(html);
-      if (uploadDateMatch && uploadDateMatch[1]) publishedAt = uploadDateMatch[1];
+      publishedAt = getMetaContent(html, 'itemprop', 'uploadDate');
   }
 
   // 5. Genre
@@ -187,11 +198,8 @@ export function extractYouTubeMetadataFromHtml(html: string): YouTubeMetadata {
 
 export function extractYouTubeGenreFromHtml(html: string): string | null {
   // 1. Try <meta itemprop="genre" content="...">
-  const metaGenreRegex = /<meta\s+itemprop=["']genre["']\s+content=["']([^"']+)["']\s*\/?>/i;
-  const metaMatch = metaGenreRegex.exec(html);
-  if (metaMatch && metaMatch[1]) {
-      return decodeHtmlEntities(metaMatch[1]);
-  }
+  const metaGenre = getMetaContent(html, 'itemprop', 'genre');
+  if (metaGenre) return decodeHtmlEntities(metaGenre);
 
   // 2. Try JSON "category" in scripts
   // "category":"Gaming"
