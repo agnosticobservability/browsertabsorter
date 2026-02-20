@@ -10,6 +10,7 @@ import {
   TabMetadata
 } from "../shared/types.js";
 import { fetchLocalState } from "./localState.js";
+import { getHostname } from "../shared/urlCache.js";
 
 export const sendMessage = async <TData>(type: RuntimeMessage["type"], payload?: any): Promise<RuntimeResponse<TData>> => {
   return new Promise((resolve) => {
@@ -123,12 +124,11 @@ export const mapWindows = (groups: TabGroup[], windowTitles: Map<number, string>
 };
 
 export const formatDomain = (url: string) => {
-  try {
-    const parsed = new URL(url);
-    return parsed.hostname.replace(/^www\./, "");
-  } catch (error) {
-    return url;
+  const hostname = getHostname(url);
+  if (hostname) {
+    return hostname.replace(/^www\./, "");
   }
+  return url;
 };
 
 export function getDragAfterElement(container: HTMLElement, y: number, selector: string) {
