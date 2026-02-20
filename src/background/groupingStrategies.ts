@@ -2,6 +2,7 @@ import { GroupingStrategy, SortingStrategy, TabGroup, TabMetadata, CustomStrateg
 import { getStrategies } from "../shared/strategyRegistry.js";
 import { logDebug } from "../shared/logger.js";
 import { asArray } from "../shared/utils.js";
+import { getHostname } from "../shared/urlCache.js";
 
 let customStrategies: CustomStrategy[] = [];
 
@@ -14,49 +15,23 @@ export const getCustomStrategies = (): CustomStrategy[] => customStrategies;
 const COLORS = ["grey", "blue", "red", "yellow", "green", "pink", "purple", "cyan", "orange"];
 
 const regexCache = new Map<string, RegExp>();
-const domainCache = new Map<string, string>();
-const subdomainCache = new Map<string, string>();
-const MAX_CACHE_SIZE = 1000;
 
 export const domainFromUrl = (url: string): string => {
-  if (domainCache.has(url)) return domainCache.get(url)!;
-
-  try {
-    const parsed = new URL(url);
-    const domain = parsed.hostname.replace(/^www\./, "");
-
-    if (domainCache.size >= MAX_CACHE_SIZE) domainCache.clear();
-    domainCache.set(url, domain);
-
-    return domain;
-  } catch (error) {
-    logDebug("Failed to parse domain", { url, error: String(error) });
-    return "unknown";
-  }
+  const hostname = getHostname(url);
+  if (!hostname) return "unknown";
+  return hostname.replace(/^www\./, "");
 };
 
 export const subdomainFromUrl = (url: string): string => {
-    if (subdomainCache.has(url)) return subdomainCache.get(url)!;
+  const hostname = getHostname(url);
+  if (!hostname) return "";
 
-    try {
-        const parsed = new URL(url);
-        let hostname = parsed.hostname;
-        // Remove www.
-        hostname = hostname.replace(/^www\./, "");
-
-        let result = "";
-        const parts = hostname.split('.');
-        if (parts.length > 2) {
-             result = parts.slice(0, parts.length - 2).join('.');
-        }
-
-        if (subdomainCache.size >= MAX_CACHE_SIZE) subdomainCache.clear();
-        subdomainCache.set(url, result);
-
-        return result;
-    } catch {
-        return "";
-    }
+  const host = hostname.replace(/^www\./, "");
+  const parts = host.split('.');
+  if (parts.length > 2) {
+      return parts.slice(0, parts.length - 2).join('.');
+  }
+  return "";
 }
 
 const getNestedProperty = (obj: unknown, path: string): unknown => {
@@ -385,9 +360,8 @@ export const applyValueTransform = (val: string, transform: string, pattern?: st
         case 'domain':
             return domainFromUrl(val);
         case 'hostname':
-            try {
-              return new URL(val).hostname;
-            } catch { return val; }
+            const h = getHostname(val);
+            return h !== null ? h : val;
         case 'regex':
             if (pattern) {
                 try {
