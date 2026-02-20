@@ -283,10 +283,10 @@ export const groupTabs = (
              groupColor = colorForKey(key, 0);
         } else {
              // Fallback to random/group-based color if key is empty
-             groupColor = colorForKey(bucketKey, buckets.size);
+             groupColor = colorForKey(valueKey, 0);
         }
       } else if (!groupColor || groupColor === 'field') {
-        groupColor = colorForKey(bucketKey, buckets.size);
+        groupColor = colorForKey(valueKey, 0);
       }
 
       group = {
