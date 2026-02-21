@@ -781,6 +781,22 @@ var loadPreferences = async () => {
   return merged;
 };
 
+// src/shared/urlCache.ts
+var hostnameCache = /* @__PURE__ */ new Map();
+var MAX_CACHE_SIZE = 1e3;
+var getHostname = (url) => {
+  if (hostnameCache.has(url)) return hostnameCache.get(url);
+  try {
+    const parsed = new URL(url);
+    const hostname = parsed.hostname;
+    if (hostnameCache.size >= MAX_CACHE_SIZE) hostnameCache.clear();
+    hostnameCache.set(url, hostname);
+    return hostname;
+  } catch {
+    return null;
+  }
+};
+
 // src/background/extraction/index.ts
 var activeFetches = 0;
 var MAX_CONCURRENT_FETCHES = 5;
@@ -821,8 +837,7 @@ var extractPageContext = async (tab) => {
     const prefs = await loadPreferences();
     let baseline = buildBaselineContext(tab, prefs.customGenera);
     const targetUrl = tab.url;
-    const urlObj = new URL(targetUrl);
-    const hostname = urlObj.hostname.replace(/^www\./, "");
+    const hostname = (getHostname(targetUrl) || "").replace(/^www\./, "");
     if ((hostname.endsWith("youtube.com") || hostname.endsWith("youtu.be")) && (!baseline.authorOrCreator || baseline.genre === "Video")) {
       try {
         await enqueueFetch(async () => {
@@ -860,12 +875,7 @@ var extractPageContext = async (tab) => {
 };
 var buildBaselineContext = (tab, customGenera) => {
   const url = tab.url || "";
-  let hostname = "";
-  try {
-    hostname = new URL(url).hostname.replace(/^www\./, "");
-  } catch (e) {
-    hostname = "";
-  }
+  const hostname = (getHostname(url) || "").replace(/^www\./, "");
   let objectType = "unknown";
   let authorOrCreator = null;
   if (url.includes("/login") || url.includes("/signin")) {
@@ -1401,22 +1411,6 @@ var getStrategies = (customStrategies2) => {
     }
   });
   return combined;
-};
-
-// src/shared/urlCache.ts
-var hostnameCache = /* @__PURE__ */ new Map();
-var MAX_CACHE_SIZE = 1e3;
-var getHostname = (url) => {
-  if (hostnameCache.has(url)) return hostnameCache.get(url);
-  try {
-    const parsed = new URL(url);
-    const hostname = parsed.hostname;
-    if (hostnameCache.size >= MAX_CACHE_SIZE) hostnameCache.clear();
-    hostnameCache.set(url, hostname);
-    return hostname;
-  } catch {
-    return null;
-  }
 };
 
 // src/background/groupingStrategies.ts
@@ -2275,7 +2269,7 @@ function runSimulation() {
           <li class="group-tab-item">
             ${tab.favIconUrl ? `<img src="${escapeHtml(tab.favIconUrl)}" class="tab-icon" onerror="this.style.display='none'">` : '<div class="tab-icon"></div>'}
             <span class="title-cell" title="${escapeHtml(tab.title)}">${escapeHtml(tab.title)}</span>
-            <span style="color: #999; font-size: 0.8em; margin-left: auto;">${escapeHtml(new URL(tab.url).hostname)}</span>
+            <span style="color: #999; font-size: 0.8em; margin-left: auto;">${escapeHtml(getHostname(tab.url) || "")}</span>
           </li>
         `).join("")}
       </ul>

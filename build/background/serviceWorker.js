@@ -1399,8 +1399,7 @@ var extractPageContext = async (tab) => {
     const prefs = await loadPreferences();
     let baseline = buildBaselineContext(tab, prefs.customGenera);
     const targetUrl = tab.url;
-    const urlObj = new URL(targetUrl);
-    const hostname = urlObj.hostname.replace(/^www\./, "");
+    const hostname = (getHostname(targetUrl) || "").replace(/^www\./, "");
     if ((hostname.endsWith("youtube.com") || hostname.endsWith("youtu.be")) && (!baseline.authorOrCreator || baseline.genre === "Video")) {
       try {
         await enqueueFetch(async () => {
@@ -1438,12 +1437,7 @@ var extractPageContext = async (tab) => {
 };
 var buildBaselineContext = (tab, customGenera) => {
   const url = tab.url || "";
-  let hostname = "";
-  try {
-    hostname = new URL(url).hostname.replace(/^www\./, "");
-  } catch (e) {
-    hostname = "";
-  }
+  const hostname = (getHostname(url) || "").replace(/^www\./, "");
   let objectType = "unknown";
   let authorOrCreator = null;
   if (url.includes("/login") || url.includes("/signin")) {
