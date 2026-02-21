@@ -80,13 +80,11 @@ export const fetchState = async () => {
 };
 
 export const applyGrouping = async (payload: ApplyGroupingPayload) => {
-  const response = await chrome.runtime.sendMessage({ type: "applyGrouping", payload });
-  return response as RuntimeResponse<unknown>;
+  return sendMessage("applyGrouping", payload);
 };
 
 export const applySorting = async (payload: ApplyGroupingPayload) => {
-  const response = await chrome.runtime.sendMessage({ type: "applySorting", payload });
-  return response as RuntimeResponse<unknown>;
+  return sendMessage("applySorting", payload);
 };
 
 export const mapWindows = (groups: TabGroup[], windowTitles: Map<number, string>): WindowView[] => {

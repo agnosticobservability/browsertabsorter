@@ -857,7 +857,11 @@ const triggerGroup = async (selection?: GroupingSelection) => {
     showLoading("Applying Strategy...");
     try {
         const sorting = getSelectedSorting();
-        await applyGrouping({ selection, sorting });
+        const result = await applyGrouping({ selection, sorting });
+        if (!result?.ok) {
+            alert(`Apply failed: ${result?.error ?? "Unknown error"}`);
+            return;
+        }
         await loadState();
     } finally {
         hideLoading();

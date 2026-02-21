@@ -7,9 +7,21 @@ import { STRATEGIES } from "../../shared/strategyRegistry.js";
 import { logInfo } from "../../shared/logger.js";
 import { escapeHtml } from "../../shared/utils.js";
 
+const sendRuntimeMessage = async <TData = unknown>(type: string, payload?: unknown) => {
+    return new Promise<{ ok: boolean; data?: TData; error?: string }>((resolve) => {
+        chrome.runtime.sendMessage({ type, payload }, (response) => {
+            if (chrome.runtime.lastError) {
+                resolve({ ok: false, error: chrome.runtime.lastError.message });
+            } else {
+                resolve((response || { ok: false, error: "No response from background" }) as { ok: boolean; data?: TData; error?: string });
+            }
+        });
+    });
+};
+
 export async function loadPreferencesAndInit() {
     try {
-        const response = await chrome.runtime.sendMessage({ type: 'loadPreferences' });
+        const response = await sendRuntimeMessage<Preferences>('loadPreferences');
         if (response && response.ok && response.data) {
             const prefs = response.data as Preferences;
             appState.localCustomStrategies = prefs.customStrategies || [];
@@ -106,15 +118,12 @@ export function renderStrategyListTable() {
 export async function deleteCustomStrategy(id: string) {
     try {
         logInfo("Deleting strategy", { id });
-        const response = await chrome.runtime.sendMessage({ type: 'loadPreferences' });
+        const response = await sendRuntimeMessage<Preferences>('loadPreferences');
         if (response && response.ok && response.data) {
             const prefs = response.data as Preferences;
             const newStrategies = (prefs.customStrategies || []).filter(s => s.id !== id);
 
-            await chrome.runtime.sendMessage({
-                type: 'savePreferences',
-                payload: { customStrategies: newStrategies }
-            });
+            await sendRuntimeMessage('savePreferences', { customStrategies: newStrategies });
 
             appState.localCustomStrategies = newStrategies;
             setCustomStrategies(appState.localCustomStrategies);
@@ -131,7 +140,7 @@ export async function deleteCustomStrategy(id: string) {
 export async function saveStrategy(strat: CustomStrategy, showSuccess: boolean): Promise<boolean> {
     try {
         logInfo("Saving strategy", { id: strat.id });
-        const response = await chrome.runtime.sendMessage({ type: 'loadPreferences' });
+        const response = await sendRuntimeMessage<Preferences>('loadPreferences');
         if (response && response.ok && response.data) {
             const prefs = response.data as Preferences;
             let currentStrategies = prefs.customStrategies || [];
@@ -146,10 +155,7 @@ export async function saveStrategy(strat: CustomStrategy, showSuccess: boolean):
             currentStrategies = currentStrategies.filter(s => s.id !== strat.id);
             currentStrategies.push(strat);
 
-            await chrome.runtime.sendMessage({
-                type: 'savePreferences',
-                payload: { customStrategies: currentStrategies }
-            });
+            await sendRuntimeMessage('savePreferences', { customStrategies: currentStrategies });
 
             appState.localCustomStrategies = currentStrategies;
             setCustomStrategies(appState.localCustomStrategies);
@@ -219,10 +225,7 @@ export function importAllStrategies() {
             logInfo("Importing all strategies", { count: newStrategies.length });
 
             // Save
-            await chrome.runtime.sendMessage({
-                type: 'savePreferences',
-                payload: { customStrategies: newStrategies }
-            });
+            await sendRuntimeMessage('savePreferences', { customStrategies: newStrategies });
 
             // Update local state
             appState.localCustomStrategies = newStrategies;
