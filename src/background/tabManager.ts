@@ -494,7 +494,7 @@ export const closeGroup = async (group: TabGroup) => {
   logInfo("Closed group", { label: group.label, count: ids.length });
 };
 
-const getTabsByIds = async (tabIds: number[]): Promise<chrome.tabs.Tab[]> => {
+export const getTabsByIds = async (tabIds: number[]): Promise<chrome.tabs.Tab[]> => {
   if (!tabIds.length) return [];
   const allTabs = await chrome.tabs.query({});
   const tabMap = new Map(allTabs.map(t => [t.id, t]));

@@ -1,6 +1,5 @@
 import { appState, ColumnDefinition } from "./state.js";
 import { getSortValue, getCellValue, getMappedTabs, stripHtml } from "./data.js";
-import { analyzeTabContext } from "../../background/contextAnalysis.js";
 import { logInfo } from "../../shared/logger.js";
 import { escapeHtml } from "../../shared/utils.js";
 import { TabMetadata } from "../../shared/types.js";
@@ -28,7 +27,16 @@ export async function loadTabs() {
 
   // Analyze context
   try {
-      appState.currentContextMap = await analyzeTabContext(mappedTabs);
+      const response = await chrome.runtime.sendMessage({
+          type: "analyzeTabs",
+          payload: { tabIds: mappedTabs.map(t => t.id) }
+      });
+      if (response && response.ok && response.data) {
+          appState.currentContextMap = new Map(response.data);
+      } else {
+          console.warn("Failed to analyze context from background", response?.error);
+          appState.currentContextMap.clear();
+      }
   } catch (error) {
       console.error("Failed to analyze context", error);
       appState.currentContextMap.clear();

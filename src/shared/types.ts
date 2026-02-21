@@ -50,6 +50,14 @@ export interface PageContext {
   enrichments?: Record<string, any>;
 }
 
+export interface ContextResult {
+  context: string;
+  source: 'AI' | 'Heuristic' | 'Extraction';
+  data?: PageContext;
+  error?: string;
+  status?: string;
+}
+
 export interface TabMetadata {
   id: number;
   windowId: number;
@@ -204,7 +212,8 @@ export interface RuntimeMessage<TPayload = unknown> {
     | "splitSelection"
     | "getLogs"
     | "clearLogs"
-    | "logEntry";
+    | "logEntry"
+    | "analyzeTabs";
   payload?: TPayload;
 }
 

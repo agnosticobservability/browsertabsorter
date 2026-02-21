@@ -1,6 +1,8 @@
-import { applyTabGroups, applyTabSorting, calculateTabGroups, fetchCurrentTabGroups, mergeTabs, splitTabs } from "./tabManager.js";
+import { applyTabGroups, applyTabSorting, calculateTabGroups, fetchCurrentTabGroups, mergeTabs, splitTabs, getTabsByIds } from "./tabManager.js";
 import { loadPreferences, savePreferences } from "./preferences.js";
 import { setCustomStrategies } from "./groupingStrategies.js";
+import { analyzeTabContext } from "./contextAnalysis.js";
+import { mapChromeTab } from "../shared/utils.js";
 import { logDebug, logInfo, getLogs, clearLogs, setLoggerPreferences, initLogger, addLogEntry, loggerReady } from "../shared/logger.js";
 import { pushUndoState, saveState, undo, getSavedStates, deleteSavedState, restoreState } from "./stateManager.js";
 import {
@@ -173,6 +175,20 @@ const handleMessage = async <TData>(
             addLogEntry(entry);
         }
         return { ok: true };
+    }
+    case "analyzeTabs": {
+        const payload = message.payload as { tabIds: number[] };
+        if (payload?.tabIds?.length) {
+            try {
+                const tabs = await getTabsByIds(payload.tabIds);
+                const mapped = tabs.map(mapChromeTab).filter((t): t is import("../shared/types.js").TabMetadata => t !== null);
+                const contextMap = await analyzeTabContext(mapped);
+                return { ok: true, data: Array.from(contextMap.entries()) as TData };
+            } catch (e) {
+                return { ok: false, error: String(e) };
+            }
+        }
+        return { ok: false, error: "No tab IDs provided" };
     }
     default:
       return { ok: false, error: "Unknown message" };
