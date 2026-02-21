@@ -107,29 +107,39 @@ const evaluateGenericStrategy = (strategy: string, a: TabMetadata, b: TabMetadat
 // --- Main Export ---
 
 export const compareBy = (strategy: SortingStrategy | string, a: TabMetadata, b: TabMetadata): number => {
-  // 1. Custom Strategy (takes precedence if rules exist)
-  const customDiff = evaluateCustomStrategy(strategy, a, b);
-  if (customDiff !== null) {
-      return customDiff;
-  }
+  try {
+    // 1. Custom Strategy (takes precedence if rules exist)
+    const customDiff = evaluateCustomStrategy(strategy, a, b);
+    if (customDiff !== null) {
+        return customDiff;
+    }
 
-  // 2. Built-in registry
-  const builtIn = strategyRegistry[strategy];
-  if (builtIn) {
-    return builtIn(a, b);
-  }
+    // 2. Built-in registry
+    const builtIn = strategyRegistry[strategy];
+    if (builtIn) {
+      return builtIn(a, b);
+    }
 
-  // 3. Generic/Fallback
-  return evaluateGenericStrategy(strategy, a, b);
+    // 3. Generic/Fallback
+    return evaluateGenericStrategy(strategy, a, b);
+  } catch (e) {
+    logDebug("Error in compareBy", { strategy, error: String(e) });
+    return 0;
+  }
 };
 
 export const sortTabs = (tabs: TabMetadata[], strategies: SortingStrategy[]): TabMetadata[] => {
   const scoring: SortingStrategy[] = strategies.length ? strategies : ["pinned", "recency"];
   return [...tabs].sort((a, b) => {
-    for (const strategy of scoring) {
-      const diff = compareBy(strategy, a, b);
-      if (diff !== 0) return diff;
+    try {
+      for (const strategy of scoring) {
+        const diff = compareBy(strategy, a, b);
+        if (diff !== 0) return diff;
+      }
+      return a.id - b.id;
+    } catch (e) {
+      logDebug("Error in sortTabs comparison", { error: String(e) });
+      return 0;
     }
-    return a.id - b.id;
   });
 };
