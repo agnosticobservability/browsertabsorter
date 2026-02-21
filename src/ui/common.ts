@@ -12,17 +12,37 @@ import {
 import { fetchLocalState } from "./localState.js";
 import { getHostname } from "../shared/urlCache.js";
 
-export const sendMessage = async <TData>(type: RuntimeMessage["type"], payload?: any): Promise<RuntimeResponse<TData>> => {
+const RECEIVING_END_ERROR = "Could not establish connection. Receiving end does not exist.";
+
+const sendMessageOnce = async <TData>(type: RuntimeMessage["type"], payload?: any): Promise<RuntimeResponse<TData>> => {
   return new Promise((resolve) => {
     chrome.runtime.sendMessage({ type, payload }, (response) => {
       if (chrome.runtime.lastError) {
-        console.error("Runtime error:", chrome.runtime.lastError);
         resolve({ ok: false, error: chrome.runtime.lastError.message });
-      } else {
-        resolve(response || { ok: false, error: "No response from background" });
+        return;
       }
+      resolve(response || { ok: false, error: "No response from background" });
     });
   });
+};
+
+export const sendMessage = async <TData>(type: RuntimeMessage["type"], payload?: any): Promise<RuntimeResponse<TData>> => {
+  const firstAttempt = await sendMessageOnce<TData>(type, payload);
+  if (firstAttempt.ok || firstAttempt.error !== RECEIVING_END_ERROR) {
+    if (!firstAttempt.ok && firstAttempt.error) {
+      console.error("Runtime error:", firstAttempt.error);
+    }
+    return firstAttempt;
+  }
+
+  // In MV3 the service worker can be cold-started. A short retry avoids transient
+  // "Receiving end does not exist" failures when popup actions race worker startup.
+  await new Promise((resolve) => setTimeout(resolve, 150));
+  const retryAttempt = await sendMessageOnce<TData>(type, payload);
+  if (!retryAttempt.ok && retryAttempt.error) {
+    console.error("Runtime error:", retryAttempt.error);
+  }
+  return retryAttempt;
 };
 
 export type TabWithGroup = TabMetadata & {
