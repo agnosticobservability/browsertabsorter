@@ -102,7 +102,7 @@ export const extractPageContext = async (tab: TabMetadata | chrome.tabs.Tab): Pr
     };
 
   } catch (e: any) {
-    logDebug(`Extraction failed for tab ${tab.id}`, { error: String(e) });
+    logDebug(`Extraction failed for tab ${tab?.id}`, { error: String(e) });
     return {
       data: null,
       error: String(e),

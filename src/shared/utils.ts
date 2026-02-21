@@ -22,7 +22,12 @@ export const mapChromeTab = (tab: chrome.tabs.Tab): TabMetadata | null => {
 export const getStoredPreferences = async (): Promise<Preferences | null> => {
   return new Promise((resolve) => {
     chrome.storage.local.get("preferences", (items) => {
-      resolve((items["preferences"] as Preferences) ?? null);
+      if (chrome.runtime.lastError) {
+        console.error("Storage error (prefs):", chrome.runtime.lastError);
+        resolve(null);
+        return;
+      }
+      resolve((items?.["preferences"] as Preferences) ?? null);
     });
   });
 };
