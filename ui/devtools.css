@@ -660,3 +660,21 @@ button.btn-del-group {
 .btn-add-condition {
     margin-top: 5px;
 }
+
+/* Strategy Builder Container (Responsive) */
+.strategy-builder-container {
+    display: flex;
+    flex-direction: row;
+    gap: 20px;
+    width: 100%;
+    height: calc(100vh - 120px);
+    overflow: hidden;
+}
+
+@media (max-width: 800px) {
+    .strategy-builder-container {
+        flex-direction: column;
+        height: auto;
+        overflow: visible;
+    }
+}
