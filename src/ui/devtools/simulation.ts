@@ -3,8 +3,8 @@ import { getMappedTabs } from "./data.js";
 import { loadTabs } from "./tabsTable.js";
 import { addDnDListeners } from "./components.js";
 import { getStrategies, StrategyDefinition } from "../../shared/strategyRegistry.js";
-import { sortTabs } from "../../background/sortingStrategies.js";
-import { groupTabs } from "../../background/groupingStrategies.js";
+import { sortTabs, compareBy, compareBySortingRules } from "../../background/sortingStrategies.js";
+import { groupTabs, getCustomStrategies } from "../../background/groupingStrategies.js";
 import { SortingStrategy } from "../../shared/types.js";
 import { escapeHtml } from "../../shared/utils.js";
 
@@ -18,18 +18,59 @@ export function runSimulation() {
   const groupingStrats = getEnabledStrategiesFromUI(groupingList);
   const sortingStrats = getEnabledStrategiesFromUI(sortingList);
 
+  // Combine strategies to match Live behavior (which uses a single list)
+  // Deduplicate while preserving order (grouping first, then sorting)
+  const combinedStrategies = Array.from(new Set([...groupingStrats, ...sortingStrats]));
+
   // Prepare data
   let tabs = getMappedTabs();
 
-  // 1. Sort
-  if (sortingStrats.length > 0) {
-    tabs = sortTabs(tabs, sortingStrats);
+  // 1. Group (on raw tabs, matching Live behavior)
+  const groups = groupTabs(tabs, combinedStrategies);
+
+  // 2. Sort tabs within groups
+  groups.forEach(group => {
+      group.tabs = sortTabs(group.tabs, combinedStrategies);
+  });
+
+  // 3. Sort Groups
+  // Check for group sorting strategy in the active list
+  const customStrats = getCustomStrategies();
+  let groupSorterStrategy = null;
+
+  for (const id of combinedStrategies) {
+      const strategy = customStrats.find(s => s.id === id);
+      if (strategy && (strategy.sortGroups || (strategy.groupSortingRules && strategy.groupSortingRules.length > 0))) {
+          groupSorterStrategy = strategy;
+          break;
+      }
   }
 
-  // 2. Group
-  const groups = groupTabs(tabs, groupingStrats);
+  if (groupSorterStrategy) {
+      groups.sort((gA, gB) => {
+          // Primary: Keep windows together
+          if (gA.windowId !== gB.windowId) return gA.windowId - gB.windowId;
 
-  // 3. Render
+          // Secondary: Sort by strategy using representative tab (first tab)
+          const repA = gA.tabs[0];
+          const repB = gB.tabs[0];
+
+          if (!repA && !repB) return 0;
+          if (!repA) return 1;
+          if (!repB) return -1;
+
+          if (groupSorterStrategy.groupSortingRules && groupSorterStrategy.groupSortingRules.length > 0) {
+               return compareBySortingRules(groupSorterStrategy.groupSortingRules, repA, repB);
+          } else {
+               return compareBy(groupSorterStrategy.id, repA, repB);
+          }
+      });
+  } else {
+      // Default: Sort by windowId to keep display organized
+      groups.sort((a, b) => a.windowId - b.windowId);
+  }
+
+  // 4. Render
   if (groups.length === 0) {
       resultContainer.innerHTML = '<p>No groups created (are there any tabs?).</p>';
       return;
@@ -66,7 +107,8 @@ export async function applyToBrowser() {
     // Combine strategies.
     // We prioritize grouping strategies first, then sorting strategies,
     // as the backend filters them when performing actions.
-    const allStrategies = [...groupingStrats, ...sortingStrats];
+    // Deduplicate to send a clean list.
+    const allStrategies = Array.from(new Set([...groupingStrats, ...sortingStrats]));
 
     try {
         // 1. Save Preferences
