@@ -208,22 +208,35 @@ export async function renderLiveView() {
     }
 }
 
-export function renderStrategyConfig() {
+export async function renderStrategyConfig() {
   const groupingList = document.getElementById('sim-grouping-list');
   const sortingList = document.getElementById('sim-sorting-list');
 
   // Use dynamic strategy list
   const strategies: StrategyDefinition[] = getStrategies(appState.localCustomStrategies);
+  let enabledFromPrefs: string[] = [];
+
+  try {
+    const response = await chrome.runtime.sendMessage({ type: 'loadPreferences' });
+    if (response?.ok && response.data?.sorting && Array.isArray(response.data.sorting)) {
+      enabledFromPrefs = response.data.sorting;
+    }
+  } catch (e) {
+    console.warn('Failed to load simulation preferences, using defaults.', e);
+  }
+
+  const defaultGrouping = enabledFromPrefs.filter((id) => strategies.some((s) => s.id === id && s.isGrouping));
+  const defaultSorting = enabledFromPrefs.filter((id) => strategies.some((s) => s.id === id && s.isSorting));
 
   if (groupingList) {
       // groupingStrategies is just filtered strategies
       const groupingStrategies = strategies.filter(s => s.isGrouping);
-      renderStrategyList(groupingList, groupingStrategies, ['domain', 'topic']);
+      renderStrategyList(groupingList, groupingStrategies, defaultGrouping.length ? defaultGrouping : ['domain', 'topic']);
   }
 
   if (sortingList) {
       const sortingStrategies = strategies.filter(s => s.isSorting);
-      renderStrategyList(sortingList, sortingStrategies, ['pinned', 'recency']);
+      renderStrategyList(sortingList, sortingStrategies, defaultSorting.length ? defaultSorting : ['pinned', 'recency']);
   }
 }
 

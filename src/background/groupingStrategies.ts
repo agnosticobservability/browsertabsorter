@@ -202,6 +202,29 @@ const getStrategyColorRule = (strategyId: string): GroupingRule | undefined => {
     return undefined;
 };
 
+const getColorValueFromTabs = (
+  tabs: TabMetadata[],
+  colorField: string,
+  colorTransform?: string,
+  colorTransformPattern?: string
+): string => {
+  const keys = tabs
+    .map((tab) => {
+      const raw = getFieldValue(tab, colorField);
+      let key = raw !== undefined && raw !== null ? String(raw) : "";
+      if (key && colorTransform) {
+        key = applyValueTransform(key, colorTransform, colorTransformPattern);
+      }
+      return key.trim();
+    })
+    .filter(Boolean);
+
+  if (keys.length === 0) return "";
+
+  // Make coloring stable and independent from tab query/order churn.
+  return Array.from(new Set(keys)).sort().join("|");
+};
+
 const resolveWindowMode = (modes: (string | undefined)[]): "current" | "new" | "compound" => {
     if (modes.includes("new")) return "new";
     if (modes.includes("compound")) return "compound";
@@ -215,6 +238,7 @@ export const groupTabs = (
   const availableStrategies = getStrategies(customStrategies);
   const effectiveStrategies = strategies.filter(s => availableStrategies.find(avail => avail.id === s)?.isGrouping);
   const buckets = new Map<string, TabGroup>();
+  const bucketMeta = new Map<string, { valueKey: string; appliedStrategies: string[] }>();
 
   const allTabsMap = new Map<number, TabMetadata>();
   tabs.forEach(t => allTabsMap.set(t.id, t));
@@ -299,6 +323,7 @@ export const groupTabs = (
         windowMode: effectiveMode
       };
       buckets.set(bucketKey, group);
+      bucketMeta.set(bucketKey, { valueKey, appliedStrategies: [...appliedStrategies] });
     }
     group.tabs.push(tab);
   });
@@ -306,6 +331,24 @@ export const groupTabs = (
   const groups = Array.from(buckets.values());
   groups.forEach(group => {
     group.label = generateLabel(effectiveStrategies, group.tabs, allTabsMap);
+
+    const meta = bucketMeta.get(group.id);
+    if (!meta) return;
+
+    for (const sId of meta.appliedStrategies) {
+      const rule = getStrategyColorRule(sId);
+      if (!rule) continue;
+
+      if (rule.color === 'match') {
+        group.color = colorForKey(meta.valueKey, 0);
+      } else if (rule.color === 'field' && rule.colorField) {
+        const colorValue = getColorValueFromTabs(group.tabs, rule.colorField, rule.colorTransform, rule.colorTransformPattern);
+        group.color = colorForKey(colorValue || meta.valueKey, 0);
+      } else if (rule.color) {
+        group.color = rule.color;
+      }
+      break;
+    }
   });
 
   return groups;

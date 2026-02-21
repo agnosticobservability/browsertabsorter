@@ -342,14 +342,6 @@ select, input[type="text"] {
   overflow: hidden;
 }
 
-.group-header {
-  padding: 10px;
-  background: #f8f9fa;
-  font-weight: bold;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
 
 .group-meta {
   font-size: 0.9em;
@@ -499,18 +491,32 @@ code {
   color: #d63384;
 }
 
+
 .simulation-config {
   display: flex;
   gap: 20px;
   margin-bottom: 20px;
+  flex-wrap: wrap;
 }
 
 .config-section {
-  flex: 1;
+  flex: 1 1 320px;
+  min-width: 0;
   background: #f8f9fa;
   padding: 10px;
   border-radius: 4px;
   border: 1px solid #eee;
+}
+
+.group-header {
+  padding: 10px;
+  background: #f8f9fa;
+  font-weight: bold;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .config-section h3 {
@@ -677,4 +683,18 @@ button.btn-del-group {
         height: auto;
         overflow: visible;
     }
+}
+
+@media (max-width: 700px) {
+  body {
+    padding: 10px;
+  }
+
+  .simulation-config {
+    flex-direction: column;
+  }
+
+  .action-buttons {
+    flex-wrap: wrap;
+  }
 }

@@ -84,6 +84,41 @@ describe("Group Coloring Logic", () => {
     });
 });
 
+
+test("should keep field-based group colors stable regardless tab input order", () => {
+    const strategy: CustomStrategy = {
+        id: "field-color-stable",
+        name: "Field Color Stable",
+        type: "grouping",
+        groupingRules: [{
+            source: "field",
+            value: "domain",
+            color: "field",
+            colorField: "title",
+            colorTransform: "firstChar"
+        }],
+        filters: [],
+        filterGroups: [],
+        sortingRules: [],
+        groupSortingRules: []
+    };
+    setCustomStrategies([strategy]);
+
+    const tabsA = [
+        createTab(1, "Alpha Work", "https://example.com/a"),
+        createTab(2, "Beta Work", "https://example.com/b")
+    ];
+    const colorA = groupTabs(tabsA, ["field-color-stable"])[0].color;
+
+    const tabsB = [
+        createTab(2, "Beta Work", "https://example.com/b"),
+        createTab(1, "Alpha Work", "https://example.com/a")
+    ];
+    const colorB = groupTabs(tabsB, ["field-color-stable"])[0].color;
+
+    expect(colorB).toBe(colorA);
+});
+
 describe("Tab Sorting Logic", () => {
     test("should sort tabs with missing fields correctly", () => {
          const strategy: CustomStrategy = {
