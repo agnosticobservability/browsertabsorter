@@ -3,6 +3,7 @@ import { normalizeUrl, parseYouTubeUrl, extractYouTubeMetadataFromHtml } from ".
 import { getGenera } from "./generaRegistry.js";
 import { logDebug } from "../../shared/logger.js";
 import { loadPreferences } from "../preferences.js";
+import { getHostname } from "../../shared/urlCache.js";
 
 interface ExtractionResponse {
   data: PageContext | null;
@@ -69,8 +70,7 @@ export const extractPageContext = async (tab: TabMetadata | chrome.tabs.Tab): Pr
 
     // Fetch and enrich for YouTube if author is missing and it is a video
     const targetUrl = tab.url;
-    const urlObj = new URL(targetUrl);
-    const hostname = urlObj.hostname.replace(/^www\./, '');
+    const hostname = (getHostname(targetUrl) || "").replace(/^www\./, '');
     if ((hostname.endsWith('youtube.com') || hostname.endsWith('youtu.be')) && (!baseline.authorOrCreator || baseline.genre === 'Video')) {
          try {
              // We use a queue to prevent flooding requests
@@ -113,12 +113,7 @@ export const extractPageContext = async (tab: TabMetadata | chrome.tabs.Tab): Pr
 
 const buildBaselineContext = (tab: chrome.tabs.Tab, customGenera?: Record<string, string>): PageContext => {
   const url = tab.url || "";
-  let hostname = "";
-  try {
-    hostname = new URL(url).hostname.replace(/^www\./, '');
-  } catch (e) {
-    hostname = "";
-  }
+  const hostname = (getHostname(url) || "").replace(/^www\./, '');
 
   // Determine Object Type first
   let objectType: PageContext['objectType'] = 'unknown';

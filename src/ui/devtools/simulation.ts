@@ -7,6 +7,7 @@ import { sortTabs, compareBy, compareBySortingRules } from "../../background/sor
 import { groupTabs, getCustomStrategies } from "../../background/groupingStrategies.js";
 import { SortingStrategy } from "../../shared/types.js";
 import { escapeHtml } from "../../shared/utils.js";
+import { getHostname } from "../../shared/urlCache.js";
 
 export function runSimulation() {
   const groupingList = document.getElementById('sim-grouping-list');
@@ -87,7 +88,7 @@ export function runSimulation() {
           <li class="group-tab-item">
             ${tab.favIconUrl ? `<img src="${escapeHtml(tab.favIconUrl)}" class="tab-icon" onerror="this.style.display='none'">` : '<div class="tab-icon"></div>'}
             <span class="title-cell" title="${escapeHtml(tab.title)}">${escapeHtml(tab.title)}</span>
-            <span style="color: #999; font-size: 0.8em; margin-left: auto;">${escapeHtml(new URL(tab.url).hostname)}</span>
+            <span style="color: #999; font-size: 0.8em; margin-left: auto;">${escapeHtml(getHostname(tab.url) || "")}</span>
           </li>
         `).join('')}
       </ul>
