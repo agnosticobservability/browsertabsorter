@@ -16,6 +16,12 @@ import {
   TabGroup
 } from "../shared/types.js";
 
+console.log("Service Worker starting...");
+
+self.addEventListener('unhandledrejection', (event) => {
+    console.error('Unhandled Rejection:', event.reason);
+});
+
 chrome.runtime.onInstalled.addListener(async () => {
   try {
     const prefs = await loadPreferences();

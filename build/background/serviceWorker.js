@@ -75,7 +75,7 @@ var sanitizeContext = (context) => {
     return { error: "Failed to sanitize context" };
   }
 };
-var isServiceWorker = typeof self !== "undefined" && typeof self.ServiceWorkerGlobalScope !== "undefined" && self instanceof self.ServiceWorkerGlobalScope;
+var isServiceWorker = typeof self !== "undefined" && typeof self.ServiceWorkerGlobalScope === "function" && self instanceof self.ServiceWorkerGlobalScope;
 var isSaving = false;
 var pendingSave = false;
 var saveTimer = null;
@@ -1293,9 +1293,14 @@ function getGenera(hostname, customRegistry) {
 }
 
 // src/background/storage.ts
-var getStoredValue = async (key) => {
+var getStoredValue = async (key, timeout = 1e3) => {
   return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      console.warn(`Storage get timed out for key: ${key}`);
+      resolve(null);
+    }, timeout);
     chrome.storage.local.get(key, (items) => {
+      clearTimeout(timer);
       if (chrome.runtime.lastError) {
         console.error("Storage error (get):", chrome.runtime.lastError);
         resolve(null);
@@ -1305,9 +1310,14 @@ var getStoredValue = async (key) => {
     });
   });
 };
-var setStoredValue = async (key, value) => {
+var setStoredValue = async (key, value, timeout = 1e3) => {
   return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      console.warn(`Storage set timed out for key: ${key}`);
+      resolve();
+    }, timeout);
     chrome.storage.local.set({ [key]: value }, () => {
+      clearTimeout(timer);
       if (chrome.runtime.lastError) {
         console.error("Storage error (set):", chrome.runtime.lastError);
       }
@@ -1355,10 +1365,15 @@ var normalizePreferences = (prefs) => {
   };
 };
 var loadPreferences = async () => {
-  const stored = await getStoredValue(PREFERENCES_KEY);
-  const merged = normalizePreferences(stored ?? void 0);
-  setLoggerPreferences(merged);
-  return merged;
+  try {
+    const stored = await getStoredValue(PREFERENCES_KEY);
+    const merged = normalizePreferences(stored ?? void 0);
+    setLoggerPreferences(merged);
+    return merged;
+  } catch (e) {
+    console.error("Failed to load preferences", e);
+    return defaultPreferences;
+  }
 };
 var savePreferences = async (prefs) => {
   logDebug("Updating preferences", { keys: Object.keys(prefs) });
@@ -1384,7 +1399,7 @@ var fetchWithTimeout = async (url, timeout = 2e3) => {
   }
 };
 var enqueueFetch = async (fn) => {
-  if (activeFetches >= MAX_CONCURRENT_FETCHES) {
+  while (activeFetches >= MAX_CONCURRENT_FETCHES) {
     await new Promise((resolve) => FETCH_QUEUE.push(resolve));
   }
   activeFetches++;
@@ -2285,14 +2300,22 @@ var restoreState = async (state) => {
 };
 
 // src/background/serviceWorker.ts
+console.log("Service Worker starting...");
+self.addEventListener("unhandledrejection", (event) => {
+  console.error("Unhandled Rejection:", event.reason);
+});
 chrome.runtime.onInstalled.addListener(async () => {
-  const prefs = await loadPreferences();
-  setCustomStrategies(prefs.customStrategies || []);
-  logInfo("Extension installed", {
-    version: chrome.runtime.getManifest().version,
-    logLevel: prefs.logLevel,
-    strategiesCount: prefs.customStrategies?.length || 0
-  });
+  try {
+    const prefs = await loadPreferences();
+    setCustomStrategies(prefs.customStrategies || []);
+    logInfo("Extension installed", {
+      version: chrome.runtime.getManifest().version,
+      logLevel: prefs.logLevel,
+      strategiesCount: prefs.customStrategies?.length || 0
+    });
+  } catch (e) {
+    console.error("Install handler failed", e);
+  }
 });
 loadPreferences().then(async (prefs) => {
   setCustomStrategies(prefs.customStrategies || []);
@@ -2301,6 +2324,8 @@ loadPreferences().then(async (prefs) => {
     version: chrome.runtime.getManifest().version,
     logLevel: prefs.logLevel
   });
+}).catch((e) => {
+  console.error("Service Worker Initialization Failed", e);
 });
 var handleMessage = async (message, sender) => {
   logDebug("Received message", { type: message.type, from: sender.id });
@@ -2454,9 +2479,15 @@ var handleMessage = async (message, sender) => {
 };
 chrome.runtime.onMessage.addListener(
   (message, sender, sendResponse) => {
-    handleMessage(message, sender).then((response) => sendResponse(response)).catch((error) => {
-      sendResponse({ ok: false, error: String(error) });
-    });
+    try {
+      handleMessage(message, sender).then((response) => sendResponse(response)).catch((error) => {
+        console.error("Message handling failed", error);
+        sendResponse({ ok: false, error: String(error) });
+      });
+    } catch (e) {
+      console.error("Synchronous error in message listener", e);
+      sendResponse({ ok: false, error: String(e) });
+    }
     return true;
   }
 );
