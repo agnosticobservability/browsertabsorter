@@ -18,7 +18,7 @@ try {
     format: 'esm',
     target: ['es2020'],
     platform: 'browser',
-    sourcemap: 'inline',
+    // sourcemap: 'inline', // Disabled to avoid source map conflicts
     minify: false, // Keep readable for now
     logLevel: 'info',
   });
