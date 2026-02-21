@@ -111,7 +111,7 @@ var sanitizeContext = (context) => {
     return { error: "Failed to sanitize context" };
   }
 };
-var isServiceWorker = typeof self !== "undefined" && typeof self.ServiceWorkerGlobalScope !== "undefined" && self instanceof self.ServiceWorkerGlobalScope;
+var isServiceWorker = typeof self !== "undefined" && typeof self.ServiceWorkerGlobalScope === "function" && self instanceof self.ServiceWorkerGlobalScope;
 var isSaving = false;
 var pendingSave = false;
 var saveTimer = null;
