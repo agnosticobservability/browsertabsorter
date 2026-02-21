@@ -43,7 +43,7 @@ const sanitizeContext = (context: Record<string, unknown> | undefined): Record<s
 
 // Safe context check
 const isServiceWorker = typeof self !== 'undefined' &&
-                        typeof (self as any).ServiceWorkerGlobalScope !== 'undefined' &&
+                        typeof (self as any).ServiceWorkerGlobalScope === 'function' &&
                         self instanceof (self as any).ServiceWorkerGlobalScope;
 let isSaving = false;
 let pendingSave = false;

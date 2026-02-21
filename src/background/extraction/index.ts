@@ -34,7 +34,7 @@ const fetchWithTimeout = async (url: string, timeout = 2000): Promise<Response> 
 };
 
 const enqueueFetch = async <T>(fn: () => Promise<T>): Promise<T> => {
-    if (activeFetches >= MAX_CONCURRENT_FETCHES) {
+    while (activeFetches >= MAX_CONCURRENT_FETCHES) {
         await new Promise<void>(resolve => FETCH_QUEUE.push(resolve));
     }
     activeFetches++;
