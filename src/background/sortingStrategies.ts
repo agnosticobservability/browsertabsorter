@@ -8,6 +8,41 @@ export const recencyScore = (tab: TabMetadata) => tab.lastAccessed ?? 0;
 export const hierarchyScore = (tab: TabMetadata) => (tab.openerTabId !== undefined ? 1 : 0);
 export const pinnedScore = (tab: TabMetadata) => (tab.pinned ? 0 : 1);
 
+export const compareValues = (a: any, b: any, order: 'asc' | 'desc' = 'asc'): number => {
+    // Treat undefined/null as "greater" than everything else (pushed to end in asc)
+    const isANull = a === undefined || a === null;
+    const isBNull = b === undefined || b === null;
+
+    if (isANull && isBNull) return 0;
+    if (isANull) return 1; // a > b (a is null)
+    if (isBNull) return -1; // b > a (b is null) -> a < b
+
+    let result = 0;
+    if (a < b) result = -1;
+    else if (a > b) result = 1;
+
+    return order === 'desc' ? -result : result;
+};
+
+export const compareBySortingRules = (rules: SortingRule[], a: TabMetadata, b: TabMetadata): number => {
+    const sortRulesList = asArray<SortingRule>(rules);
+    if (sortRulesList.length === 0) return 0;
+
+    try {
+        for (const rule of sortRulesList) {
+            if (!rule) continue;
+            const valA = getFieldValue(a, rule.field);
+            const valB = getFieldValue(b, rule.field);
+
+            const diff = compareValues(valA, valB, rule.order || 'asc');
+            if (diff !== 0) return diff;
+        }
+    } catch (e) {
+        logDebug("Error evaluating sorting rules", { error: String(e) });
+    }
+    return 0;
+};
+
 type Comparator = (a: TabMetadata, b: TabMetadata) => number;
 
 // --- Built-in Comparators ---
@@ -48,26 +83,7 @@ const evaluateCustomStrategy = (strategy: string, a: TabMetadata, b: TabMetadata
   const sortRulesList = asArray<SortingRule>(custom.sortingRules);
   if (sortRulesList.length === 0) return null;
 
-  try {
-      for (const rule of sortRulesList) {
-          if (!rule) continue;
-          const valA = getFieldValue(a, rule.field);
-          const valB = getFieldValue(b, rule.field);
-
-          let result = 0;
-          if (valA < valB) result = -1;
-          else if (valA > valB) result = 1;
-
-          if (result !== 0) {
-              return rule.order === 'desc' ? -result : result;
-          }
-      }
-  } catch (e) {
-      logDebug("Error evaluating custom sorting rules", { error: String(e) });
-  }
-
-  // If rules exist but all equal, return 0 (tie)
-  return 0;
+  return compareBySortingRules(sortRulesList, a, b);
 };
 
 // --- Generic Fallback ---

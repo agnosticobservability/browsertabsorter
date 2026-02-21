@@ -1,5 +1,5 @@
 import { groupTabs, getCustomStrategies, getFieldValue, requiresContextAnalysis } from "./groupingStrategies.js";
-import { sortTabs, compareBy } from "./sortingStrategies.js";
+import { sortTabs, compareBy, compareBySortingRules } from "./sortingStrategies.js";
 import { analyzeTabContext } from "./contextAnalysis.js";
 import { logDebug, logError, logInfo } from "../shared/logger.js";
 import { GroupingSelection, Preferences, TabGroup, TabMetadata, SortingRule } from "../shared/types.js";
@@ -394,31 +394,6 @@ export const applyTabSorting = async (
       await sortGroupsIfEnabled(windowId, preferences.sorting, tabsByGroup);
   }
   logInfo("Applied tab sorting");
-};
-
-const compareBySortingRules = (sortingRulesArg: SortingRule[], a: TabMetadata, b: TabMetadata): number => {
-  const sortRulesList = asArray<SortingRule>(sortingRulesArg);
-  if (sortRulesList.length === 0) return 0;
-
-  try {
-    for (const rule of sortRulesList) {
-      if (!rule) continue;
-      const valA = getFieldValue(a, rule.field);
-      const valB = getFieldValue(b, rule.field);
-
-      let result = 0;
-      if (valA < valB) result = -1;
-      else if (valA > valB) result = 1;
-
-      if (result !== 0) {
-        return rule.order === "desc" ? -result : result;
-      }
-    }
-  } catch (error) {
-    logError("Error evaluating sorting rules", { error: String(error) });
-  }
-
-  return 0;
 };
 
 const sortGroupsIfEnabled = async (
