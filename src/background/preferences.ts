@@ -46,10 +46,15 @@ const normalizePreferences = (prefs?: Partial<Preferences> | null): Preferences 
 };
 
 export const loadPreferences = async (): Promise<Preferences> => {
-  const stored = await getStoredValue<Preferences>(PREFERENCES_KEY);
-  const merged = normalizePreferences(stored ?? undefined);
-  setLoggerPreferences(merged);
-  return merged;
+  try {
+    const stored = await getStoredValue<Preferences>(PREFERENCES_KEY);
+    const merged = normalizePreferences(stored ?? undefined);
+    setLoggerPreferences(merged);
+    return merged;
+  } catch (e) {
+    console.error("Failed to load preferences", e);
+    return defaultPreferences;
+  }
 };
 
 export const savePreferences = async (prefs: Partial<Preferences>): Promise<Preferences> => {

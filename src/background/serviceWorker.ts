@@ -17,13 +17,17 @@ import {
 } from "../shared/types.js";
 
 chrome.runtime.onInstalled.addListener(async () => {
-  const prefs = await loadPreferences();
-  setCustomStrategies(prefs.customStrategies || []);
-  logInfo("Extension installed", {
-    version: chrome.runtime.getManifest().version,
-    logLevel: prefs.logLevel,
-    strategiesCount: prefs.customStrategies?.length || 0
-  });
+  try {
+    const prefs = await loadPreferences();
+    setCustomStrategies(prefs.customStrategies || []);
+    logInfo("Extension installed", {
+      version: chrome.runtime.getManifest().version,
+      logLevel: prefs.logLevel,
+      strategiesCount: prefs.customStrategies?.length || 0
+    });
+  } catch (e) {
+    console.error("Install handler failed", e);
+  }
 });
 
 // Initialize logger on startup
@@ -34,6 +38,8 @@ loadPreferences().then(async (prefs) => {
         version: chrome.runtime.getManifest().version,
         logLevel: prefs.logLevel
     });
+}).catch(e => {
+    console.error("Service Worker Initialization Failed", e);
 });
 
 const handleMessage = async <TData>(
@@ -201,11 +207,17 @@ chrome.runtime.onMessage.addListener(
     sender: chrome.runtime.MessageSender,
     sendResponse: (response: RuntimeResponse) => void
   ) => {
-    handleMessage(message, sender)
-    .then((response) => sendResponse(response))
-    .catch((error) => {
-      sendResponse({ ok: false, error: String(error) });
-    });
+    try {
+      handleMessage(message, sender)
+      .then((response) => sendResponse(response))
+      .catch((error) => {
+        console.error("Message handling failed", error);
+        sendResponse({ ok: false, error: String(error) });
+      });
+    } catch (e) {
+      console.error("Synchronous error in message listener", e);
+      sendResponse({ ok: false, error: String(e) });
+    }
     return true;
   }
 );
