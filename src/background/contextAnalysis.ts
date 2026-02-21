@@ -1,16 +1,8 @@
-import { TabMetadata, PageContext } from "../shared/types.js";
+import { TabMetadata, PageContext, ContextResult } from "../shared/types.js";
 import { logDebug, logError } from "../shared/logger.js";
 import { extractPageContext } from "./extraction/index.js";
 import { getCategoryFromUrl } from "./categoryRules.js";
 import { determineCategoryFromContext } from "./categorizationRules.js";
-
-export interface ContextResult {
-  context: string;
-  source: 'AI' | 'Heuristic' | 'Extraction';
-  data?: PageContext;
-  error?: string;
-  status?: string;
-}
 
 interface CacheEntry {
   result: ContextResult;

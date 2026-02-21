@@ -1,5 +1,4 @@
-import { ContextResult } from "../../background/contextAnalysis.js";
-import { CustomStrategy, LogEntry } from "../../shared/types.js";
+import { ContextResult, CustomStrategy, LogEntry } from "../../shared/types.js";
 
 export interface ColumnDefinition {
     key: string;
