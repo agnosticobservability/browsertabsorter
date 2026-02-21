@@ -303,12 +303,8 @@ export const groupTabs = (
             key = applyValueTransform(key, colorTransform, colorTransformPattern);
         }
 
-        if (key) {
-             groupColor = colorForKey(key, 0);
-        } else {
-             // Fallback to random/group-based color if key is empty
-             groupColor = colorForKey(valueKey, 0);
-        }
+        // Use key even if empty (representing missing field) to ensure consistent coloring
+        groupColor = colorForKey(key, 0);
       } else if (!groupColor || groupColor === 'field') {
         groupColor = colorForKey(valueKey, 0);
       }
@@ -343,7 +339,8 @@ export const groupTabs = (
         group.color = colorForKey(meta.valueKey, 0);
       } else if (rule.color === 'field' && rule.colorField) {
         const colorValue = getColorValueFromTabs(group.tabs, rule.colorField, rule.colorTransform, rule.colorTransformPattern);
-        group.color = colorForKey(colorValue || meta.valueKey, 0);
+        // Use colorValue directly even if empty
+        group.color = colorForKey(colorValue, 0);
       } else if (rule.color) {
         group.color = rule.color;
       }
