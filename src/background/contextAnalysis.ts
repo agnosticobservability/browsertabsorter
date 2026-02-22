@@ -70,7 +70,17 @@ const fetchContextForTab = async (tab: TabMetadata): Promise<ContextResult> => {
 
   try {
       const extraction = await extractPageContext(tab);
-      data = extraction.data;
+      // Ensure data is JSON-serializable to prevent message port closures
+      if (extraction.data) {
+        try {
+          data = JSON.parse(JSON.stringify(extraction.data));
+        } catch (serializationError) {
+          logError(`Serialization failed for tab ${tab.id}`, { error: String(serializationError) });
+          data = null;
+        }
+      } else {
+        data = null;
+      }
       error = extraction.error;
       status = extraction.status;
   } catch (e) {

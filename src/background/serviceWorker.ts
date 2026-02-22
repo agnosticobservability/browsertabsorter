@@ -215,7 +215,16 @@ chrome.runtime.onMessage.addListener(
   ) => {
     try {
       handleMessage(message, sender)
-      .then((response) => sendResponse(response))
+      .then((response) => {
+        try {
+          // Double check serializability before sending to prevent "Message port closed" errors
+          const safeResponse = JSON.parse(JSON.stringify(response));
+          sendResponse(safeResponse);
+        } catch (serializationError) {
+          console.error("Serialization failed for response", serializationError);
+          sendResponse({ ok: false, error: "Serialization failed: " + String(serializationError) });
+        }
+      })
       .catch((error) => {
         console.error("Message handling failed", error);
         sendResponse({ ok: false, error: String(error) });
