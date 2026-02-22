@@ -870,24 +870,34 @@ var evaluateGenericStrategy = (strategy, a, b) => {
   return (groupingKey(a, strategy) || "").localeCompare(groupingKey(b, strategy) || "");
 };
 var compareBy = (strategy, a, b) => {
-  const customDiff = evaluateCustomStrategy(strategy, a, b);
-  if (customDiff !== null) {
-    return customDiff;
+  try {
+    const customDiff = evaluateCustomStrategy(strategy, a, b);
+    if (customDiff !== null) {
+      return customDiff;
+    }
+    const builtIn = strategyRegistry[strategy];
+    if (builtIn) {
+      return builtIn(a, b);
+    }
+    return evaluateGenericStrategy(strategy, a, b);
+  } catch (e) {
+    logDebug("Error in compareBy", { strategy, error: String(e) });
+    return 0;
   }
-  const builtIn = strategyRegistry[strategy];
-  if (builtIn) {
-    return builtIn(a, b);
-  }
-  return evaluateGenericStrategy(strategy, a, b);
 };
 var sortTabs = (tabs, strategies) => {
   const scoring = strategies.length ? strategies : ["pinned", "recency"];
   return [...tabs].sort((a, b) => {
-    for (const strategy of scoring) {
-      const diff = compareBy(strategy, a, b);
-      if (diff !== 0) return diff;
+    try {
+      for (const strategy of scoring) {
+        const diff = compareBy(strategy, a, b);
+        if (diff !== 0) return diff;
+      }
+      return a.id - b.id;
+    } catch (e) {
+      logDebug("Error in sortTabs comparison", { error: String(e) });
+      return 0;
     }
-    return a.id - b.id;
   });
 };
 

@@ -6,17 +6,10 @@ import { Preferences, CustomStrategy } from "../../shared/types.js";
 import { STRATEGIES } from "../../shared/strategyRegistry.js";
 import { logInfo } from "../../shared/logger.js";
 import { escapeHtml } from "../../shared/utils.js";
+import { sendMessage } from "../common.js";
 
-const sendRuntimeMessage = async <TData = unknown>(type: string, payload?: unknown) => {
-    return new Promise<{ ok: boolean; data?: TData; error?: string }>((resolve) => {
-        chrome.runtime.sendMessage({ type, payload }, (response) => {
-            if (chrome.runtime.lastError) {
-                resolve({ ok: false, error: chrome.runtime.lastError.message });
-            } else {
-                resolve((response || { ok: false, error: "No response from background" }) as { ok: boolean; data?: TData; error?: string });
-            }
-        });
-    });
+const sendRuntimeMessage = <TData = unknown>(type: string, payload?: unknown) => {
+    return sendMessage<TData>(type as any, payload);
 };
 
 export async function loadPreferencesAndInit() {

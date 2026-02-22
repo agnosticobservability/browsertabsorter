@@ -12,7 +12,8 @@ import {
 import { fetchLocalState } from "./localState.js";
 import { getHostname } from "../shared/urlCache.js";
 
-const RECEIVING_END_ERROR = "Could not establish connection. Receiving end does not exist.";
+const RECEIVING_END_ERROR_FRAGMENT = "Receiving end does not exist";
+const MAX_SEND_RETRIES = 3;
 
 const sendMessageOnce = async <TData>(type: RuntimeMessage["type"], payload?: any): Promise<RuntimeResponse<TData>> => {
   return new Promise((resolve) => {
@@ -27,22 +28,26 @@ const sendMessageOnce = async <TData>(type: RuntimeMessage["type"], payload?: an
 };
 
 export const sendMessage = async <TData>(type: RuntimeMessage["type"], payload?: any): Promise<RuntimeResponse<TData>> => {
-  const firstAttempt = await sendMessageOnce<TData>(type, payload);
-  if (firstAttempt.ok || firstAttempt.error !== RECEIVING_END_ERROR) {
-    if (!firstAttempt.ok && firstAttempt.error) {
-      console.error("Runtime error:", firstAttempt.error);
-    }
-    return firstAttempt;
+  let attempt = 0;
+  let response = await sendMessageOnce<TData>(type, payload);
+
+  while (
+    !response.ok &&
+    response.error?.includes(RECEIVING_END_ERROR_FRAGMENT) &&
+    attempt < MAX_SEND_RETRIES
+  ) {
+    // In MV3 the service worker can be cold-started. A short retry avoids transient
+    // connection failures when popup actions race worker startup.
+    const backoffMs = 150 * (attempt + 1);
+    await new Promise((resolve) => setTimeout(resolve, backoffMs));
+    response = await sendMessageOnce<TData>(type, payload);
+    attempt += 1;
   }
 
-  // In MV3 the service worker can be cold-started. A short retry avoids transient
-  // "Receiving end does not exist" failures when popup actions race worker startup.
-  await new Promise((resolve) => setTimeout(resolve, 150));
-  const retryAttempt = await sendMessageOnce<TData>(type, payload);
-  if (!retryAttempt.ok && retryAttempt.error) {
-    console.error("Runtime error:", retryAttempt.error);
+  if (!response.ok && response.error) {
+    console.error("Runtime error:", response.error);
   }
-  return retryAttempt;
+  return response;
 };
 
 export type TabWithGroup = TabMetadata & {
