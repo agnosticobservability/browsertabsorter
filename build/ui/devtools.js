@@ -1903,11 +1903,14 @@ async function loadPreferencesAndInit() {
       const prefs = response.data;
       appState.localCustomStrategies = prefs.customStrategies || [];
       setCustomStrategies(appState.localCustomStrategies);
-      renderStrategyLoadOptions();
-      renderStrategyListTable();
+    } else {
+      console.warn("Failed to load preferences (response not ok), using defaults.");
     }
   } catch (e) {
     console.error("Failed to load preferences", e);
+  } finally {
+    renderStrategyLoadOptions();
+    renderStrategyListTable();
   }
 }
 function renderStrategyLoadOptions() {
