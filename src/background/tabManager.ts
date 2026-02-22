@@ -117,7 +117,8 @@ export const fetchCurrentTabGroups = async (
   }
 
   logInfo("Fetched current tab groups", { groups: resultGroups.length, tabs: mapped.length });
-  return resultGroups;
+  // Deep clone to ensure serializability
+  return JSON.parse(JSON.stringify(resultGroups));
   } catch (e) {
     logError("Error in fetchCurrentTabGroups", { error: String(e) });
     throw e;
@@ -155,7 +156,8 @@ export const calculateTabGroups = async (
     group.tabs = sortTabs(group.tabs, preferences.sorting);
   });
   logInfo("Calculated tab groups", { groups: grouped.length, tabs: mapped.length });
-  return grouped;
+  // Deep clone to ensure serializability
+  return JSON.parse(JSON.stringify(grouped));
 };
 
 const VALID_COLORS = ["grey", "blue", "red", "yellow", "green", "pink", "purple", "cyan", "orange"];

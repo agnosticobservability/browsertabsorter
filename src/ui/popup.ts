@@ -717,27 +717,27 @@ const updateUI = (
         }
     }
 
-    if (preferences) {
-      const s = preferences.sorting || [];
+    // Graceful fallback for UI rendering
+    const activePrefs = preferences || { sorting: ["pinned", "recency"], customStrategies: [], debug: false };
+    const s = activePrefs.sorting || [];
 
-      // Initialize Logger
-      setLoggerPreferences(preferences);
+    // Initialize Logger
+    setLoggerPreferences(activePrefs);
 
-      const allStrategies = getStrategies(preferences.customStrategies);
+    const allStrategies = getStrategies(activePrefs.customStrategies);
 
-      // Render unified strategy list
-      updateStrategyViews(allStrategies, s);
+    // Render unified strategy list
+    updateStrategyViews(allStrategies, s);
 
-      // Initial theme load
-      if (preferences.theme) {
-        applyTheme(preferences.theme, false);
-      }
+    // Initial theme load
+    if (activePrefs.theme) {
+        applyTheme(activePrefs.theme, false);
+    }
 
-      // Init settings UI
-      if (preferences.logLevel) {
-          const select = document.getElementById('logLevelSelect') as HTMLSelectElement;
-          if (select) select.value = preferences.logLevel;
-      }
+    // Init settings UI
+    if (activePrefs.logLevel) {
+        const select = document.getElementById('logLevelSelect') as HTMLSelectElement;
+        if (select) select.value = activePrefs.logLevel;
     }
 
     if (currentWindow) {
