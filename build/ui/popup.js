@@ -624,24 +624,34 @@ var evaluateGenericStrategy = (strategy, a, b) => {
   return (groupingKey(a, strategy) || "").localeCompare(groupingKey(b, strategy) || "");
 };
 var compareBy = (strategy, a, b) => {
-  const customDiff = evaluateCustomStrategy(strategy, a, b);
-  if (customDiff !== null) {
-    return customDiff;
+  try {
+    const customDiff = evaluateCustomStrategy(strategy, a, b);
+    if (customDiff !== null) {
+      return customDiff;
+    }
+    const builtIn = strategyRegistry[strategy];
+    if (builtIn) {
+      return builtIn(a, b);
+    }
+    return evaluateGenericStrategy(strategy, a, b);
+  } catch (e) {
+    logDebug("Error in compareBy", { strategy, error: String(e) });
+    return 0;
   }
-  const builtIn = strategyRegistry[strategy];
-  if (builtIn) {
-    return builtIn(a, b);
-  }
-  return evaluateGenericStrategy(strategy, a, b);
 };
 var sortTabs = (tabs, strategies) => {
   const scoring = strategies.length ? strategies : ["pinned", "recency"];
   return [...tabs].sort((a, b) => {
-    for (const strategy of scoring) {
-      const diff = compareBy(strategy, a, b);
-      if (diff !== 0) return diff;
+    try {
+      for (const strategy of scoring) {
+        const diff = compareBy(strategy, a, b);
+        if (diff !== 0) return diff;
+      }
+      return a.id - b.id;
+    } catch (e) {
+      logDebug("Error in sortTabs comparison", { error: String(e) });
+      return 0;
     }
-    return a.id - b.id;
   });
 };
 
@@ -708,7 +718,8 @@ var fetchLocalState = async () => {
 };
 
 // src/ui/common.ts
-var RECEIVING_END_ERROR = "Could not establish connection. Receiving end does not exist.";
+var RECEIVING_END_ERROR_FRAGMENT = "Receiving end does not exist";
+var MAX_SEND_RETRIES = 3;
 var sendMessageOnce = async (type, payload) => {
   return new Promise((resolve) => {
     chrome.runtime.sendMessage({ type, payload }, (response) => {
@@ -721,19 +732,18 @@ var sendMessageOnce = async (type, payload) => {
   });
 };
 var sendMessage = async (type, payload) => {
-  const firstAttempt = await sendMessageOnce(type, payload);
-  if (firstAttempt.ok || firstAttempt.error !== RECEIVING_END_ERROR) {
-    if (!firstAttempt.ok && firstAttempt.error) {
-      console.error("Runtime error:", firstAttempt.error);
-    }
-    return firstAttempt;
+  let attempt = 0;
+  let response = await sendMessageOnce(type, payload);
+  while (!response.ok && response.error?.includes(RECEIVING_END_ERROR_FRAGMENT) && attempt < MAX_SEND_RETRIES) {
+    const backoffMs = 150 * (attempt + 1);
+    await new Promise((resolve) => setTimeout(resolve, backoffMs));
+    response = await sendMessageOnce(type, payload);
+    attempt += 1;
   }
-  await new Promise((resolve) => setTimeout(resolve, 150));
-  const retryAttempt = await sendMessageOnce(type, payload);
-  if (!retryAttempt.ok && retryAttempt.error) {
-    console.error("Runtime error:", retryAttempt.error);
+  if (!response.ok && response.error) {
+    console.error("Runtime error:", response.error);
   }
-  return retryAttempt;
+  return response;
 };
 var ICONS = {
   active: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"></polygon></svg>`,
