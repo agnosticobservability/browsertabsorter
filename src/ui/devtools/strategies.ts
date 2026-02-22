@@ -19,11 +19,15 @@ export async function loadPreferencesAndInit() {
             const prefs = response.data as Preferences;
             appState.localCustomStrategies = prefs.customStrategies || [];
             setCustomStrategies(appState.localCustomStrategies);
-            renderStrategyLoadOptions();
-            renderStrategyListTable();
+        } else {
+            console.warn("Failed to load preferences (response not ok), using defaults.");
         }
     } catch (e) {
         console.error("Failed to load preferences", e);
+    } finally {
+        // Always render, even if loading failed (shows built-ins)
+        renderStrategyLoadOptions();
+        renderStrategyListTable();
     }
 }
 
